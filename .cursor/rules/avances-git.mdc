@@ -1,0 +1,17 @@
+---
+description: Plan de avances para la cátedra. Seguir docs/avances/commit-plan.md
+alwaysApply: true
+---
+
+# Avances (cátedra)
+
+Cuando el usuario pida un avance (`hacé el avance A1`, etc.):
+
+- Leer `docs/avances/commit-plan.md` y tomar el hito pendiente pedido.
+- Versionar solo los archivos de esa oleada. No volcar el repo entero.
+- No incluir `.env`, `node_modules`, `dist`, `_raw/quaternius`.
+- No reescribir `main`. Fechas reales.
+- Tras el snapshot, marcar el hito como `hecho` en el plan.
+- Publicar a `origin` (GastonGuinazu/JuegoMmoIA) si el remote ya existe.
+
+No inventar hitos: si falta criterio, preguntar antes.

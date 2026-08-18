@@ -1,0 +1,27 @@
+﻿# Dependencias y build
+node_modules/
+dist/
+.angular/
+coverage/
+tmp/
+out-tsc/
+*.tsbuildinfo
+
+# Secretos
+.env
+.env.*
+!.env.example
+
+# Packs vendor completos (el subset jugable vive en apps/client/public)
+_raw/quaternius/
+
+# Logs y OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
