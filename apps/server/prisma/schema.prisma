@@ -1,0 +1,467 @@
+// Aetheris — esquema inicial (The Ledger + The Warden)
+// PostgreSQL / Supabase. Ejecutar migraciones desde apps/server con DATABASE_URL configurada.
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  /// Conexión directa (sin PgBouncer): obligatoria para `migrate` / `db push` con Supabase.
+  directUrl = env("DIRECT_URL")
+}
+
+// --- Enums (Karma / ítems / subasta / mazmorras / idempotencia) ---
+
+/// Tier I = limpio (Blanco), II = intermedio (Púrpura), III = criminal (Rojo / Smart Drop).
+enum KarmaTier {
+  TIER_I
+  TIER_II
+  TIER_III
+}
+
+enum AuctionListingStatus {
+  DRAFT
+  ACTIVE
+  ENDED_UNSOLD
+  SOLD
+  CANCELLED
+}
+
+enum AuctionCurrency {
+  ADENA
+  AETHER_SHARD
+  ADENA_OR_SHARD
+}
+
+/// Dónde vive la instancia de ítem para reglas de trade, escrow y combate.
+enum ItemInstanceLocation {
+  INVENTORY
+  EQUIPPED
+  STASH
+  AUCTION_ESCROW
+  MAIL
+  VOID
+  /// Botín visible en el suelo hasta que un jugador ejecute PICK_ITEM.
+  WORLD_DROP
+}
+
+/// Slot base de plantilla / equipamiento en instancia.
+enum GearSlot {
+  WEAPON
+  SHIELD
+  HELM
+  ARMOR
+  PANTS
+  GLOVES
+  BOOTS
+  CLOAK
+  WINGS
+  PENDANT
+  RING_1
+  RING_2
+  EARRING_1
+  EARRING_2
+  BRACELET_1
+  BRACELET_2
+}
+
+/// Cámara diaria (MIR4-style); el catálogo fino vive en datos de juego.
+enum DungeonChamberType {
+  GOLD
+  EXPERIENCE
+  DROP
+}
+
+enum IdempotencyOperationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+/// IA de mobs (Warden): IDLE quieto, PATROL puntos cercanos, CHASE aggro.
+enum MobAiState {
+  IDLE
+  PATROL
+  CHASE
+}
+
+/// Clases jugables iniciales (stats base MU; multiplicadores en config del Warden).
+enum CharacterClass {
+  DARK_KNIGHT
+  DARK_WIZARD
+  FAIRY_ELF
+}
+
+// --- Account + Wallet (monedas y CAP F2F por cuenta) ---
+
+model Account {
+  id        String @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  characters Character[]
+  wallet     Wallet?
+}
+
+/// Monedas desacopladas del personaje; CAP diario F2F según manual Ledger (04).
+model Wallet {
+  accountId String @id @db.Uuid
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  adena         BigInt @default(0)
+  aetherShards  BigInt @default(0)
+
+  /// Adena movida en trades F2F en la ventana actual (saliente + entrante según política de producto).
+  dailyF2fAdenaSpent BigInt @default(0)
+
+  /// Ancla de reset del contador diario (UTC o timezone servidor, alineado a otros resets).
+  lastF2fResetAt DateTime?
+
+  updatedAt DateTime @updatedAt
+}
+
+// --- Catálogo estático de ítems ---
+
+model ItemTemplate {
+  id          String @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  /// Clave estable para drops / síntesis / datos (opcional; única si está definida).
+  catalogKey  String? @unique
+  /// Slot base del ítem (null = no equipable / consumible).
+  baseSlot    GearSlot?
+  /// Si el ítem equipado puede contener sub-items (paperdoll anidado).
+  hasSubSlots Boolean @default(false)
+  /// Cantidad máxima de sub-slots (ej: pulsera con 4 talismanes).
+  maxSubSlots Int     @default(0)
+  /// Tipo de sub-slot que acepta como contenedor (ej: bracelet_slot).
+  subSlotType String?
+  /// Tipo de contenedor requerido para equipar este ítem como hijo.
+  parentSlotType String?
+  /// Stats planos del ítem en reposo (daño min/max, def, reqs, etc.) — data-driven.
+  baseStats   Json    @default("{}")
+  /// Clave de asset o URL de ícono en cliente.
+  icon        String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  instances ItemInstance[]
+
+  @@index([name])
+}
+
+// --- Idempotencia (síntesis, creación de listados, pujas, etc.) ---
+
+model IdempotencyOperation {
+  id              String                       @id @default(uuid()) @db.Uuid
+  /// Clave única enviada por el cliente o generada server-side por operación.
+  key             String                       @unique
+  status          IdempotencyOperationStatus   @default(PENDING)
+  /// Resultado cacheado para replays del mismo key (JSON arbitrario).
+  responsePayload Json?
+  createdAt       DateTime                     @default(now())
+
+  auctionListing AuctionListing? @relation("ListingIdempotency")
+  auctionBid     AuctionBid?     @relation("BidIdempotency")
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// --- Character (stats base MU + derivados cacheados + Karma / combate) ---
+
+model Character {
+  id        String @id @default(uuid()) @db.Uuid
+  accountId String @db.Uuid
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  name String
+
+  /// Desarrollo local / staff: habilita `execute-gm-command` en el Warden (nunca confiar en el cliente).
+  isAdmin Boolean @default(false)
+
+  characterClass CharacterClass @default(DARK_KNIGHT)
+
+  /// Nivel de personaje (progresión general; no confundir con synthesisLevel del ítem).
+  level Int @default(1)
+
+  /// Stats base permanentes (puntos asignados + progresión; sin equipo).
+  statStr Int @default(0)
+  statAgi Int @default(0)
+  statVit Int @default(0)
+  statEne Int @default(0)
+  /// Puntos de atributo pendientes de asignar (solo muta el Warden).
+  availableStatPoints Int @default(0)
+
+  /// Experiencia acumulada hacia el siguiente nivel (Ledger / combate PvE).
+  experience Int @default(0)
+
+  /// HP actual (Warden; cliente solo refleja).
+  currentHp Int @default(0)
+
+  /// Último evento de combate PvE (daño dado o recibido); regen fuera de combate.
+  lastCombatAt DateTime?
+
+  /// Posición autoritativa en mundo (Cartographer / validación de rango).
+  worldPosX Float @default(0)
+  worldPosY Float @default(0)
+  worldPosZ Float @default(0)
+
+  /// Facing en radianes (plano XZ; eje +Z = yaw 0). Weaver envía; Warden valida combate.
+  worldFacingYaw Float @default(0)
+
+  /// Zona actual para salas Socket.io (`zone:{id}`).
+  currentZoneId String?
+
+  /// Stats derivados estilo L2 (cache invalidado al cambiar equipamiento/buffs).
+  derivedPAtk     Float @default(0)
+  derivedMAtk     Float @default(0)
+  derivedPDef     Float @default(0)
+  derivedAtkSpeed Float @default(0)
+  derivedCritRate Float @default(0)
+
+  /// Karma: máquina de estados Tier I–III + magnitud para transiciones data-driven.
+  karmaPoints          Int       @default(0)
+  karmaTier            KarmaTier @default(TIER_I)
+  unjustifiedKillCount Int       @default(0)
+
+  /// TickSync / CombatResolver: anclaje a tiempo de servidor.
+  lastAttackServerAt       DateTime?
+  primaryTargetCharacterId String?   @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items           ItemInstance[]
+  aggroedByMobs   MobInstance[]    @relation("MobAggroTarget")
+  auctionListings AuctionListing[] @relation("SellerListings")
+  auctionBidsWon  AuctionListing[] @relation("AuctionHighBidder")
+  dungeonQuotas   DungeonQuota[]
+  auctionBids     AuctionBid[]
+
+  @@unique([accountId, name])
+  @@index([accountId])
+  @@index([karmaTier])
+}
+
+// --- Mobs (plantilla estática + instancia viva en mundo; The Warden + Cartographer) ---
+
+model MobTemplate {
+  id          String @id @default(uuid()) @db.Uuid
+  /// Clave estable alineada a `config/mobs.json`.
+  templateKey String @unique
+  displayName String
+  maxHp       Int
+  pDef        Float
+  mDef        Float @default(0)
+  expReward   Int
+  /// Daño físico base del mob (mob→player: mitigación porcentual vs P.Def, ver combat-damage.json).
+  pAtk        Float @default(12)
+  /// Radio de percepción / aggro (mobs.json).
+  aggroRange  Float @default(10)
+  /// Velocidad de desplazamiento en mundo (unidades/s, plano XZ).
+  moveSpeed   Float @default(4.5)
+  /// Alcance de interacción melee (validación Cartographer / sync con tick).
+  attackRange Float @default(2.5)
+  /// Tabla de drops (adena + ítems por catalogKey); JSON data-driven.
+  dropTable   Json  @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  instances MobInstance[]
+}
+
+model MobInstance {
+  id            String      @id @default(uuid()) @db.Uuid
+  mobTemplateId String      @db.Uuid
+  template      MobTemplate @relation(fields: [mobTemplateId], references: [id], onDelete: Restrict)
+
+  currentHp Int
+  posX      Float
+  posY      Float
+  posZ      Float
+
+  /// Punto de respawn fijo (Cartographer / MobRespawn).
+  spawnPosX Float @default(0)
+  spawnPosY Float @default(0)
+  spawnPosZ Float @default(0)
+
+  /// Facing del mob (cono trasero para backstab, blueprint 05).
+  worldFacingYaw Float @default(0)
+
+  zoneId    String?
+
+  /// Objetivo PvE actual (percepción / aggro).
+  aggroTargetCharacterId String?    @db.Uuid
+  aggroTarget            Character? @relation("MobAggroTarget", fields: [aggroTargetCharacterId], references: [id], onDelete: SetNull)
+
+  /// Máquina de estados de IA (movimiento 100 % servidor).
+  aiState MobAiState @default(IDLE)
+
+  /// GCD melee del mob hacia jugadores (servidor).
+  lastMobMeleeAt DateTime?
+
+  isAlive Boolean   @default(true)
+  diedAt  DateTime?
+
+  spawnedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId, isAlive])
+  @@index([mobTemplateId])
+  @@index([aggroTargetCharacterId])
+}
+
+/// Instancia de NPC en mundo (Cartographer / Weaver). Stock y precios: `config/npc-shops.json` por `npcTemplateKey`.
+model NpcInstance {
+  id             String @id @default(uuid()) @db.Uuid
+  /// Clave estable alineada a `config/npc-shops.json`.
+  npcTemplateKey String
+  displayName    String
+  posX           Float
+  posY           Float
+  posZ           Float
+  zoneId         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([npcTemplateKey])
+}
+
+// --- ItemInstance (síntesis 2×1, pity, affixes, Value Score, escrow AH) ---
+
+model ItemInstance {
+  id      String @id @default(uuid()) @db.Uuid
+  ownerId String? @db.Uuid
+  owner   Character? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  itemTemplateId String       @db.Uuid
+  template       ItemTemplate @relation(fields: [itemTemplateId], references: [id], onDelete: Restrict)
+
+  quantity Int                  @default(1)
+  location ItemInstanceLocation @default(INVENTORY)
+  /// Slot equipado actual (puede alinearse con template.baseSlot según reglas de juego).
+  gearSlot GearSlot?
+  /// Referencia al ítem padre equipado (equipamiento anidado recursivo).
+  parentItemInstanceId String?       @db.Uuid
+  parentItemInstance   ItemInstance? @relation("EquippedSubItems", fields: [parentItemInstanceId], references: [id], onDelete: SetNull)
+  equippedSubItems     ItemInstance[] @relation("EquippedSubItems")
+  /// Índice del sub-slot ocupado dentro del padre (0-based).
+  parentSubSlotIndex Int?
+
+  synthesisLevel                Int @default(1)
+  synthesisPityConsecutiveFails Int @default(0)
+
+  randomAffixes Json @default("[]")
+
+  valueScore Int @default(0)
+
+  tradeableF2f Boolean @default(false)
+
+  rowVersion Int @default(0)
+
+  /// WORLD_DROP: zona y posición autoritativa (Cartographer).
+  worldDropZoneId String?
+  worldDropPosX   Float?
+  worldDropPosY   Float?
+  worldDropPosZ   Float?
+  /// Solo este personaje puede recoger hasta `worldDropReservedUntil` (ventana post-kill).
+  worldDropReservedForCharacterId String? @db.Uuid
+  worldDropReservedUntil            DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auctionListing AuctionListing?
+
+  @@index([ownerId])
+  @@index([itemTemplateId])
+  @@index([location])
+  @@index([parentItemInstanceId])
+  @@unique([parentItemInstanceId, parentSubSlotIndex])
+  @@index([location, worldDropZoneId])
+  @@index([valueScore])
+}
+
+// --- AuctionListing (MarketBroker: escrow + estado asíncrono) ---
+
+model AuctionListing {
+  id       String @id @default(uuid()) @db.Uuid
+  sellerId String @db.Uuid
+  seller   Character @relation("SellerListings", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  itemId String @unique @db.Uuid
+  item   ItemInstance @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  status   AuctionListingStatus @default(DRAFT)
+  currency AuctionCurrency      @default(ADENA)
+
+  startPrice  BigInt
+  buyoutPrice BigInt?
+  currentBid  BigInt?
+  bidCount    Int    @default(0)
+
+  highestBidderId String?    @db.Uuid
+  highestBidder   Character? @relation("AuctionHighBidder", fields: [highestBidderId], references: [id], onDelete: SetNull)
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  /// Enlace 1:1 opcional a operación idempotente (creación de listado / cierre idempotente).
+  idempotencyOperationId String?              @unique @db.Uuid
+  idempotencyOperation   IdempotencyOperation? @relation("ListingIdempotency", fields: [idempotencyOperationId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bids AuctionBid[]
+
+  @@index([status, endsAt])
+  @@index([sellerId])
+}
+
+/// Historial de pujas; puede enlazar idempotencia por intento de puja.
+model AuctionBid {
+  id        String @id @default(uuid()) @db.Uuid
+  listingId String @db.Uuid
+  listing   AuctionListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  bidderId String @db.Uuid
+  bidder   Character @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  amount BigInt
+
+  idempotencyOperationId String?              @unique @db.Uuid
+  idempotencyOperation   IdempotencyOperation? @relation("BidIdempotency", fields: [idempotencyOperationId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+  @@index([bidderId])
+}
+
+// --- DungeonQuota (NexusManager: tiempo diario, p. ej. 60 min) ---
+
+model DungeonQuota {
+  id          String @id @default(uuid()) @db.Uuid
+  characterId String @db.Uuid
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  quotaDate DateTime @db.Date
+
+  remainingSeconds Int @default(3600)
+
+  lastChamberType DungeonChamberType?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([characterId, quotaDate])
+  @@index([quotaDate])
+}

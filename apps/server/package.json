@@ -1,0 +1,36 @@
+{
+  "name": "@aetheris/server",
+  "private": true,
+  "scripts": {
+    "build:shared": "tsc -p ../../libs/shared-types/tsconfig.json",
+    "prebuild": "npm run build:shared",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "prestart:dev": "npm run build:shared",
+    "start:dev": "nest start --watch",
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@aetheris/shared-types": "file:../../libs/shared-types",
+    "@nestjs/common": "^11.0.12",
+    "@nestjs/core": "^11.0.12",
+    "@nestjs/platform-express": "^11.0.12",
+    "@nestjs/platform-socket.io": "^11.1.18",
+    "@nestjs/websockets": "^11.1.18",
+    "@prisma/client": "^6.19.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.5",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.10",
+    "prisma": "^6.19.0",
+    "typescript": "^5.8.2"
+  }
+}

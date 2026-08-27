@@ -1,0 +1,142 @@
+<div class="game-shell">
+  <header class="hud" aria-label="Conexión al mundo">
+    <label class="field">
+      <span>Servidor</span>
+      <input type="text" [(ngModel)]="serverUrlModel" name="serverUrl" autocomplete="off" />
+    </label>
+    <label class="field">
+      <span>Character ID (UUID)</span>
+      <input type="text" [(ngModel)]="characterIdModel" name="characterId" autocomplete="off" />
+    </label>
+    <button type="button" class="btn primary" (click)="connectWorld()">Conectar</button>
+    <button type="button" class="btn" (click)="disconnectWorld()">Desconectar</button>
+    <span class="status" [class.on]="worldSocket.socketConnected()">
+      {{ worldSocket.socketConnected() ? 'Conectado' : 'Desconectado' }}
+    </span>
+  </header>
+  @if (lastDenied(); as msg) {
+    <p class="denied" role="status">{{ msg }}</p>
+  }
+  <div class="viewport-stack">
+    <div #viewport class="viewport" role="application" aria-label="Vista 3D del mundo"></div>
+    <div
+      class="zone-transition-fade"
+      [class.zone-transition-fade--on]="zoneTransitionFadeOn()"
+      aria-hidden="true"
+    ></div>
+    @if (deathState(); as death) {
+      <div class="death-screen" role="alertdialog" aria-label="Has caído">
+        <div class="death-screen__panel">
+          <h2 class="death-screen__title">Has caído</h2>
+          @if (death.experienceLost > 0) {
+            <p class="death-screen__detail">
+              Experiencia perdida: {{ death.experienceLost }}
+            </p>
+          }
+          <p class="death-screen__detail">
+            Reaparecerás en {{ death.respawnZoneId }}.
+          </p>
+          <button
+            type="button"
+            class="btn death-screen__action"
+            [disabled]="respawnPending()"
+            (click)="requestRespawn()"
+          >
+            {{ respawnPending() ? 'Reapareciendo...' : 'Reaparecer' }}
+          </button>
+        </div>
+      </div>
+    }
+    @if (worldSocket.socketConnected()) {
+      <div class="game-overlay">
+        @if (characterSheetOpen()) {
+          <app-character-sheet-panel class="overlay-sheet" />
+        }
+        @if (inventoryPanelOpen()) {
+          <app-inventory-panel [characterId]="characterIdModel.trim()" />
+        }
+        @if (synthesisPanelOpen()) {
+          <app-synthesis [characterId]="characterIdModel.trim()" />
+        }
+        @if (playerState.isSessionAdmin() && gmBarVisible()) {
+          <div class="gm-dev-bar" role="group" aria-label="Comandos GM (solo personaje administrador)">
+            <input
+              type="text"
+              [(ngModel)]="gmCommandLine"
+              name="gmCommand"
+              placeholder="GM local: /setplus WEAPON 7 (tecla Y para ocultar)"
+              (keydown.enter)="runGmCommandLine()"
+              autocomplete="off"
+            />
+            <button type="button" class="btn" (click)="runGmCommandLine()">Ejecutar GM</button>
+          </div>
+        }
+        <app-system-log-panel />
+        <div class="overlay-vitals">
+          <div class="overlay-hp">
+            <app-player-hp-bar />
+          </div>
+          <div class="overlay-mp" role="status" aria-label="Mana del personaje">
+            <div class="overlay-mp__track">
+              <div class="overlay-mp__fill" [style.width.%]="manaPercent()"></div>
+              <div class="overlay-mp__text">{{ localCurrentMp }} / {{ localMaxMp }}</div>
+            </div>
+          </div>
+        </div>
+        @if (activeTargetFrame(); as target) {
+          <app-target-frame
+            [target]="target"
+            [previewOpen]="targetDropPreviewOpen()"
+            [previewLoading]="targetDropPreviewLoading()"
+            [previewError]="targetDropPreviewError()"
+            [levelPenaltyActive]="targetDropPreviewLevelPenalty()"
+            [previewItems]="targetDropPreviewItems()"
+            (togglePreview)="onToggleTargetDropPreview()"
+          />
+        }
+        @if (playerState.levelUpOverlay()) {
+          <div class="level-up-splash" role="status">¡SUBISTE DE NIVEL!</div>
+        }
+        @if (combatChaseActive()) {
+          <div class="overlay-chase-hint" role="status">{{ combatChaseText() }}</div>
+        }
+        <div class="overlay-hud-bottom">
+          <div class="overlay-action-bar" aria-label="Barra de acciones de combate">
+            @for (slot of actionBarSlots; track slot.hotkey) {
+              <button
+                type="button"
+                class="action-slot"
+                [class.action-slot--basic]="slot.isBasic"
+                [class.action-slot--power]="slot.skillId === 'power_strike'"
+                [class.action-slot--rage]="slot.skillId === 'rageful_blow'"
+                (click)="onActionSlotPressed(slot)"
+              >
+                <span class="action-slot__key">{{ slot.hotkey }}</span>
+                <span class="action-slot__icon" aria-hidden="true">{{ slot.iconGlyph }}</span>
+                <span class="action-slot__name">{{ slot.label }}</span>
+                @if (slotCooldownRatio(slot) > 0) {
+                  <span class="action-slot__cooldown" [style.transform]="'scaleY(' + slotCooldownRatio(slot) + ')'">
+                  </span>
+                  <span class="action-slot__cooldown-text">
+                    {{ (slotCooldownRemainingMs(slot) / 1000).toFixed(1) }}s
+                  </span>
+                }
+              </button>
+            }
+          </div>
+          <div class="overlay-xp-full">
+            <app-xp-bar />
+          </div>
+        </div>
+        <app-npc-shop-panel />
+      </div>
+    }
+  </div>
+  <p class="hint">
+    Clic derecho: moverse al suelo. Clic izquierdo: seleccionar objetivo, recoger ítem o abrir tienda de mercader.
+    Teclado:
+    <code>Tab</code>/<code>I</code> inventario, <code>P</code> ficha de personaje, <code>O</code> síntesis, <code>1</code> auto-ataque,
+    <code>2</code> Power Strike, <code>3</code> Rageful Blow, <code>4</code> skill rápida.
+    Regla de oro: click izquierdo interactúa, click derecho posiciona, teclado combate.
+  </p>
+</div>

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "_comment": "Cartographer: cada zona tiene mapa, nivel mínimo y spawn de entrada (portales). groundAlbedo es visual Weaver (archivo en apps/client/public/models/textures/). groundSizeMeters es el lado del piso jugable (128 cubre hunting ±32 y boss x=48; no comprimir packs).",
+  "zones": [
+    {
+      "zoneId": "Zone_0",
+      "displayName": "Pradera del Novicio",
+      "minCharacterLevel": 1,
+      "mapObjectsFile": "map-objects-Zone_0.json",
+      "groundAlbedo": "ground_grass_0.jpg",
+      "groundSizeMeters": 128,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 0 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Zone_1",
+      "displayName": "Valle Congelado",
+      "minCharacterLevel": 15,
+      "mapObjectsFile": "map-objects-Zone_1.json",
+      "groundAlbedo": "ground_snow_1.jpg",
+      "groundSizeMeters": 128,
+      "entrySpawn": {
+        "worldPos": { "x": -8, "y": 0, "z": -8 },
+        "worldFacingYaw": 0
+      }
+    }
+  ]
+}

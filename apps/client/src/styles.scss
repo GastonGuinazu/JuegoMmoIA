@@ -1,0 +1,130 @@
+/* You can add global styles to this file, and also import other style files */
+
+.aetheris-dmg {
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: #eceff1;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.aetheris-dmg--crit {
+  font-size: 2.1rem;
+  color: #ff5252;
+  text-shadow:
+    0 0 8px rgba(255, 82, 82, 0.9),
+    0 0 2px #000;
+}
+
+.aetheris-dmg--skill {
+  color: #ff9100;
+  text-shadow:
+    0 0 10px rgba(255, 145, 0, 0.92),
+    0 0 2px #000;
+}
+
+.aetheris-dmg--backstab {
+  font-size: 1.55rem;
+  color: #ffeb3b;
+  text-shadow:
+    0 0 6px rgba(255, 235, 59, 0.75),
+    0 0 2px #000;
+}
+
+.aetheris-dmg--backstab.aetheris-dmg--crit {
+  font-size: 2.25rem;
+  color: #fff176;
+  text-shadow:
+    0 0 10px rgba(255, 241, 118, 0.95),
+    0 0 2px #000;
+}
+
+.aetheris-xp {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #ce93d8;
+  text-shadow:
+    0 0 8px rgba(186, 104, 200, 0.95),
+    0 0 2px #1a0a24;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.aetheris-heal {
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: #69f0ae;
+  text-shadow:
+    0 0 10px rgba(105, 240, 174, 0.95),
+    0 0 2px #1b5e20,
+    0 1px 2px #000;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.aetheris-mob-hpbar {
+  width: 52px;
+  height: 6px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.aetheris-mob-hpbar__fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(180deg, #81c784 0%, #388e3c 100%);
+  transition: width 0.12s ease-out;
+}
+
+.aetheris-mob-hpbar__fill--low {
+  background: linear-gradient(180deg, #e57373 0%, #c62828 100%);
+}
+
+.aetheris-mob-aggro-indicator {
+  display: none;
+  min-width: 1.05rem;
+  padding: 0.08rem 0.28rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 213, 128, 0.9);
+  background: rgba(65, 22, 3, 0.92);
+  color: #ffd17f;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: center;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+.aetheris-mob-aggro-indicator.is-active {
+  display: inline-block;
+}
+
+.aetheris-loot {
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #c8e6c9;
+  text-shadow:
+    0 0 8px rgba(129, 199, 132, 0.85),
+    0 0 2px #1b5e20,
+    0 1px 2px #000;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.aetheris-loot--gold {
+  color: #fff9c4;
+  text-shadow:
+    0 0 10px rgba(255, 241, 118, 0.9),
+    0 0 3px #f57f17,
+    0 1px 2px #000;
+}

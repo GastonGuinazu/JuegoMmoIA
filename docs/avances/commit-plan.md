@@ -22,7 +22,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | Id | Estado | Título | Qué entra (criterio) |
 |----|--------|--------|----------------------|
 | A0 | hecho | Agentes y blueprint | `Agent.md`, `.cursorrules`, `docs/agents`, `docs/blueprint`, `docs/schemas`, este plan, README, ignore de git |
-| A1 | pendiente | Terreno base | Monorepo Nest + Angular + Three: piso 128 m, cámara, click-to-move, `world-zones.json`. Sin combate ni mobs. |
+| A1 | hecho | Terreno base | Monorepo Nest + Angular + Three: piso 128 m, cámara, click-to-move, `world-zones.json`. Sin combate ni mobs. |
 | A2 | pendiente | Entidades cubo | Personaje, otros jugadores y mobs/NPC en primitivas + sync socket. |
 | A3 | pendiente | Combate autoritativo | Ticks 20 TPS, melee, skills, validación Warden. |
 | A4 | pendiente | Inventario y economía | Paperdoll, Adena, tienda básica / catálogo. |
@@ -38,3 +38,19 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 - ignore de git, `README.md`, `Agent.md`, `.cursorrules`
 - `docs/agents/**`, `docs/blueprint/**`, `docs/schemas/**`, `docs/avances/**`
 - `.cursor/rules/avances-git.mdc`
+
+## A1 — archivos de esta oleada
+
+Scaffold Nest + Angular + `libs/shared-types`. Piso, cámara y click-to-move. Sin `combat/` (salvo el loader espacial), `mob/`, inventario, UI de progreso, `map-objects`, ni GLTF de personajes/mobs/props.
+
+- `apps/client` scaffold (`package.json`, Angular/tsconfig, `src/app/*` bootstrap, `public/favicon.ico`)
+- `apps/client/src/app/game/game-viewport.component.*`, `entity-visual-factory.service.ts`, `world-map-loader.service.ts`
+- `apps/client/src/app/core/world-socket.service.ts`, `player-character-state.service.ts`
+- `apps/client/public/models/textures/ground_grass_0.jpg`
+- `apps/server` scaffold (`package.json`, Nest/tsconfig, `src/main.ts`, `src/app.module.ts`, `.env.example`)
+- `apps/server/prisma/schema.prisma`, `src/prisma/**`
+- `apps/server/config/world-zones.json`, `world-spatial.json`
+- `apps/server/src/world/world.module.ts`, `world.gateway.ts`, `world-socket.module.ts`, `world-spatial.service.ts`, `world-zone.util.ts`, `world-presence.service.ts`, `world-socket-bridge.service.ts`, `config/world-zones.loaders.ts`
+- `apps/server/src/combat/combat-config.loaders.ts` (carga spatial/zonas; el resto de combate queda afuera)
+- `apps/server/src/character/**`
+- `libs/shared-types/**`
