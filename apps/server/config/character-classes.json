@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "_comment": "Puntos iniciales estilo MU; multiplicadores por clase tuneables sin redeploy de lógica.",
+  "classes": {
+    "DARK_KNIGHT": {
+      "displayName": "Dark Knight",
+      "initialLevel": 1,
+      "initialStats": {
+        "str": 28,
+        "agi": 20,
+        "vit": 25,
+        "ene": 10
+      },
+      "coreContributionScalars": {
+        "STR": {
+          "pAtk": 1.08,
+          "mAtk": 0.72,
+          "pDef": 1.06,
+          "atkSpeed": 0.92,
+          "critRate": 0.95
+        },
+        "AGI": {
+          "pAtk": 1.0,
+          "mAtk": 0.85,
+          "pDef": 1.0,
+          "atkSpeed": 0.96,
+          "critRate": 1.0
+        },
+        "VIT": {
+          "pAtk": 0.96,
+          "mAtk": 0.88,
+          "pDef": 1.14,
+          "atkSpeed": 1.0,
+          "critRate": 0.95
+        },
+        "ENE": {
+          "pAtk": 0.75,
+          "mAtk": 0.78,
+          "pDef": 0.96,
+          "atkSpeed": 1.0,
+          "critRate": 1.02
+        }
+      },
+      "derivedOutputMultipliers": {
+        "pAtk": 1.04,
+        "mAtk": 0.82,
+        "pDef": 1.06,
+        "atkSpeed": 1.0,
+        "critRate": 1.0
+      }
+    },
+    "DARK_WIZARD": {
+      "displayName": "Dark Wizard",
+      "initialLevel": 1,
+      "initialStats": {
+        "str": 18,
+        "agi": 18,
+        "vit": 15,
+        "ene": 30
+      },
+      "coreContributionScalars": {
+        "STR": {
+          "pAtk": 0.82,
+          "mAtk": 0.78,
+          "pDef": 0.95,
+          "atkSpeed": 0.9,
+          "critRate": 0.92
+        },
+        "AGI": {
+          "pAtk": 0.88,
+          "mAtk": 0.92,
+          "pDef": 1.0,
+          "atkSpeed": 1.02,
+          "critRate": 1.02
+        },
+        "VIT": {
+          "pAtk": 0.9,
+          "mAtk": 0.9,
+          "pDef": 1.05,
+          "atkSpeed": 1.0,
+          "critRate": 0.95
+        },
+        "ENE": {
+          "pAtk": 0.65,
+          "mAtk": 1.22,
+          "pDef": 1.0,
+          "atkSpeed": 1.02,
+          "critRate": 1.05
+        }
+      },
+      "derivedOutputMultipliers": {
+        "pAtk": 0.88,
+        "mAtk": 1.12,
+        "pDef": 0.95,
+        "atkSpeed": 1.02,
+        "critRate": 1.03
+      }
+    },
+    "FAIRY_ELF": {
+      "displayName": "Fairy Elf",
+      "initialLevel": 1,
+      "initialStats": {
+        "str": 22,
+        "agi": 25,
+        "vit": 20,
+        "ene": 15
+      },
+      "coreContributionScalars": {
+        "STR": {
+          "pAtk": 1.02,
+          "mAtk": 0.88,
+          "pDef": 1.0,
+          "atkSpeed": 0.98,
+          "critRate": 1.0
+        },
+        "AGI": {
+          "pAtk": 1.06,
+          "mAtk": 0.95,
+          "pDef": 1.02,
+          "atkSpeed": 1.08,
+          "critRate": 1.08
+        },
+        "VIT": {
+          "pAtk": 0.95,
+          "mAtk": 0.92,
+          "pDef": 1.06,
+          "atkSpeed": 1.0,
+          "critRate": 0.98
+        },
+        "ENE": {
+          "pAtk": 0.85,
+          "mAtk": 1.05,
+          "pDef": 0.98,
+          "atkSpeed": 1.01,
+          "critRate": 1.02
+        }
+      },
+      "derivedOutputMultipliers": {
+        "pAtk": 1.02,
+        "mAtk": 1.0,
+        "pDef": 1.02,
+        "atkSpeed": 1.05,
+        "critRate": 1.04
+      }
+    }
+  }
+}

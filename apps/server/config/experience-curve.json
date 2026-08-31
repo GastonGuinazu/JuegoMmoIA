@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "maxLevel": 400,
+  "_comment": "Curva de EXP data-driven + puntos de stats por nivel.",
+  "xpFormula": {
+    "base": 100,
+    "exponent": 1.5,
+    "levelScalar": 1
+  },
+  "statPointsPerLevel": 5,
+  "deathExperienceLossPercent": 8
+}

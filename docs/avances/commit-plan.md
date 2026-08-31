@@ -23,7 +23,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 |----|--------|--------|----------------------|
 | A0 | hecho | Agentes y blueprint | `Agent.md`, `.cursorrules`, `docs/agents`, `docs/blueprint`, `docs/schemas`, este plan, README, ignore de git |
 | A1 | hecho | Terreno base | Monorepo Nest + Angular + Three: piso 128 m, cámara, click-to-move, `world-zones.json`. Sin combate ni mobs. |
-| A2 | pendiente | Entidades cubo | Personaje, otros jugadores y mobs/NPC en primitivas + sync socket. |
+| A2 | hecho | Entidades cubo | Personaje, otros jugadores y mobs/NPC en primitivas + sync socket. |
 | A3 | pendiente | Combate autoritativo | Ticks 20 TPS, melee, skills, validación Warden. |
 | A4 | pendiente | Inventario y economía | Paperdoll, Adena, tienda básica / catálogo. |
 | A5 | pendiente | Zonas, portales y spots | Zonas segregadas, portales, SpawnSpots, IA de mobs. |
@@ -54,3 +54,13 @@ Scaffold Nest + Angular + `libs/shared-types`. Piso, cámara y click-to-move. Si
 - `apps/server/src/combat/combat-config.loaders.ts` (carga spatial/zonas; el resto de combate queda afuera)
 - `apps/server/src/character/**`
 - `libs/shared-types/**`
+
+## A2 — archivos de esta oleada
+
+Cubos de jugador / otros jugadores / mobs / NPC y snapshot de zona por socket. Sin ticks de combate, IA de persecución, inventario, portales ni GLTF.
+
+- `apps/client/src/app/game/world-entity-sync.service.ts`
+- `apps/server/src/mob/mob.module.ts`, `mob.service.ts`, `mob-config.loaders.ts`, `mob-config.types.ts`, `mob-spawn-bootstrap.service.ts`
+- `apps/server/config/mobs.json`
+- `apps/server/config/character-classes.json`, `character-vitals.json`, `stat-derivation.json`, `experience-curve.json`
+- `apps/server/scripts/seed-mobs.ts`, `create-test-character.ts`

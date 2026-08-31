@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "_comment": "Max HP + regen fuera de combate (VIT efectivo). El daño persiste currentHp en DB.",
+  "baseMaxHp": 120,
+  "perCharacterLevel": 14,
+  "perEffectiveVitPoint": 9,
+  "baseMaxMp": 70,
+  "perCharacterLevelMp": 5,
+  "perEffectiveEnePoint": 8,
+  "outOfCombatSeconds": 8,
+  "regenIntervalMs": 5000,
+  "regenBasePercentOfMaxHp": 0.35,
+  "regenPerEffectiveVitPercentOfMaxHp": 0.12
+}
