@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "_comment": "Política de muerte PvE/PvP. Las COORDENADAS de respawn no viven aquí: se leen del `entrySpawn` de la zona en world-zones.json. Este archivo solo decide a qué zona se vuelve y con cuánta vida.",
+  "deathRespawn": {
+    "_comment": "true = revivir en el entrySpawn de la zona donde murió; false = siempre en fallbackZoneId.",
+    "respawnInDeathZone": true,
+    "fallbackZoneId": "Zone_0",
+    "hpPercentOfMax": 0.35
+  }
+}

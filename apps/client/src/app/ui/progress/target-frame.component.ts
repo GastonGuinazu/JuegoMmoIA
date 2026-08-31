@@ -1,0 +1,47 @@
+import { CommonModule } from '@angular/common';
+import { Component, input, output } from '@angular/core';
+
+export type TargetFrameViewModel = {
+  name: string;
+  level: number;
+  hpPercent: number;
+  currentHp: number;
+  maxHp: number;
+};
+
+export type TargetDropPreviewItemViewModel = {
+  catalogKey: string;
+  itemDisplayName: string;
+  icon: string;
+  grade: 'None' | 'D' | 'C' | 'B' | 'A' | 'S';
+  chance: number;
+};
+
+@Component({
+  selector: 'app-target-frame',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './target-frame.component.html',
+  styleUrl: './target-frame.component.scss',
+})
+export class TargetFrameComponent {
+  readonly target = input.required<TargetFrameViewModel>();
+  readonly previewOpen = input(false);
+  readonly previewLoading = input(false);
+  readonly previewError = input<string | null>(null);
+  readonly levelPenaltyActive = input(false);
+  readonly previewItems = input<TargetDropPreviewItemViewModel[]>([]);
+
+  readonly togglePreview = output<void>();
+
+  chanceLabel(chance: number): string {
+    const pct = chance * 100;
+    if (pct >= 1) {
+      return `${pct.toFixed(2)}%`;
+    }
+    if (pct >= 0.1) {
+      return `${pct.toFixed(3)}%`;
+    }
+    return `${pct.toFixed(4)}%`;
+  }
+}

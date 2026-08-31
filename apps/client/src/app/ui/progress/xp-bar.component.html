@@ -1,0 +1,5 @@
+@if (xpProgress()) {
+  <div class="xp-bar" role="progressbar" [attr.aria-valuenow]="xpBarPercent()" aria-valuemin="0" aria-valuemax="100">
+    <div class="xp-bar__fill" [style.width.%]="xpBarPercent()"></div>
+  </div>
+}

@@ -1,0 +1,25 @@
+.xp-bar {
+  width: 100%;
+  max-width: none;
+  height: 6px;
+  margin: 0;
+  box-sizing: border-box;
+  border-radius: 0;
+  background: rgba(22, 18, 8, 0.92);
+  border: none;
+  border-top: 1px solid rgba(255, 213, 79, 0.35);
+  border-bottom: 1px solid rgba(255, 193, 7, 0.25);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.xp-bar__fill {
+  height: 100%;
+  border-radius: 0;
+  background: linear-gradient(90deg, #fbc02d 0%, #ffeb3b 45%, #fff9c4 100%);
+  box-shadow:
+    0 0 12px rgba(255, 235, 59, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: width 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+  pointer-events: none;
+}

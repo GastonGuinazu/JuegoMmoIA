@@ -1,0 +1,12 @@
+@if (state.vitals(); as v) {
+  <div class="hp-panel" role="status" aria-label="Vida del personaje">
+    <div class="hp-bar-track">
+      <div class="hp-fill" [style.width.%]="hpPercent()"></div>
+      <div class="hp-text">
+        {{ v.currentHp | number: '1.0-0' }} / {{ v.maxHp | number: '1.0-0' }}
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="hp-panel hp-panel--empty" aria-hidden="true"></div>
+}

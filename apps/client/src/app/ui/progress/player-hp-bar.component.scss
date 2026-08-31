@@ -1,0 +1,59 @@
+.hp-panel {
+  width: 100%;
+  min-width: 0;
+  max-width: 11rem;
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.5rem;
+  background: rgba(12, 10, 16, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.hp-panel--empty {
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.hp-bar-track {
+  position: relative;
+  height: 1.15rem;
+  border-radius: 0.35rem;
+  background: #141018;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.65);
+}
+
+.hp-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #ff5252 0%, #c62828 50%, #8b0000 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: width 0.2s ease-out;
+  pointer-events: none;
+}
+
+.hp-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: #eceff1;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 0.95),
+    0 1px 2px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}

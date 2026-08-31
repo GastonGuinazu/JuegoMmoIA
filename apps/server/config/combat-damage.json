@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "_comment": "Resolución física/mágica PvE; orden alineado a blueprint 05 (crit tras stats base).",
+  "physicalMitigationFactor": 0.55,
+  "magicalMitigationFactor": 0.55,
+  "minimumDamage": 1,
+  "criticalMultiplier": 1.5,
+  "_mobToPlayer": "P.Def del jugador (~100) y pAtk de mob (~10-50) no están en la misma escala. Mitigación porcentual: pAtk * (1 - effDef/(effDef+softCap)).",
+  "mobToPlayerDefenseSoftCap": 80
+}

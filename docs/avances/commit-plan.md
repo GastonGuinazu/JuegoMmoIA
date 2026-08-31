@@ -24,7 +24,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | A0 | hecho | Agentes y blueprint | `Agent.md`, `.cursorrules`, `docs/agents`, `docs/blueprint`, `docs/schemas`, este plan, README, ignore de git |
 | A1 | hecho | Terreno base | Monorepo Nest + Angular + Three: piso 128 m, cámara, click-to-move, `world-zones.json`. Sin combate ni mobs. |
 | A2 | hecho | Entidades cubo | Personaje, otros jugadores y mobs/NPC en primitivas + sync socket. |
-| A3 | pendiente | Combate autoritativo | Ticks 20 TPS, melee, skills, validación Warden. |
+| A3 | hecho | Combate autoritativo | Ticks 20 TPS, melee, skills, validación Warden. |
 | A4 | pendiente | Inventario y economía | Paperdoll, Adena, tienda básica / catálogo. |
 | A5 | pendiente | Zonas, portales y spots | Zonas segregadas, portales, SpawnSpots, IA de mobs. |
 | A6 | pendiente | Modelo de personaje | Asset del jugador (reemplazo del dummy). |
@@ -64,3 +64,15 @@ Cubos de jugador / otros jugadores / mobs / NPC y snapshot de zona por socket. S
 - `apps/server/config/mobs.json`
 - `apps/server/config/character-classes.json`, `character-vitals.json`, `stat-derivation.json`, `experience-curve.json`
 - `apps/server/scripts/seed-mobs.ts`, `create-test-character.ts`
+
+## A3 — archivos de esta oleada
+
+Ticks 20 TPS, melee, skills y ciclo de muerte/respawn PvE. Sin inventario, tienda, karma, IA de persecución ni GLTF.
+
+- `apps/server/src/combat/combat.module.ts`, `combat.service.ts`, `combat-timing.loaders.ts`, `pve-melee-damage.util.ts`
+- `apps/server/src/combat/player-combat-runtime.service.ts`, `player-combat-tick.service.ts`, `mob-combat-tick.service.ts`, `damage-contribution-tracker.service.ts`
+- `apps/server/src/mob/mob-combat-regen.service.ts`
+- `apps/server/src/world/mob-respawn.service.ts`, `config/world-spawn.loaders.ts`
+- `apps/server/config/combat-damage.json`, `combat-timing.json`, `skills.json`, `world-spawn.json`
+- `apps/client/src/app/game/world-combat-floaters.ts`
+- `apps/client/src/app/ui/progress/player-hp-bar.component.*`, `target-frame.component.*`, `xp-bar.component.*`

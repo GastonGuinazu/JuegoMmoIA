@@ -1,0 +1,50 @@
+<div class="overlay-target-frame" role="status" aria-label="Objetivo seleccionado">
+  <div class="target-frame__header">
+    <div class="target-frame__name">
+      <span class="target-frame__mob">{{ target().name }}</span>
+      <span class="target-frame__level">Lv. {{ target().level }}</span>
+    </div>
+    <button
+      type="button"
+      class="target-frame__preview-btn"
+      (click)="togglePreview.emit()"
+      [attr.aria-expanded]="previewOpen()"
+      aria-label="Previsualizar drop del objetivo"
+      title="Previsualizar drop"
+    >
+      {{ previewOpen() ? '▴' : '▾' }}
+    </button>
+  </div>
+  <div class="target-frame__bar">
+    <div class="target-frame__fill" [style.width.%]="target().hpPercent"></div>
+    <div class="target-frame__text">{{ target().currentHp }} / {{ target().maxHp }}</div>
+  </div>
+
+  @if (previewOpen()) {
+    <div class="target-frame__preview" role="region" aria-label="Vista previa de drop">
+      @if (previewLoading()) {
+        <p class="target-frame__preview-note">Consultando drops autorizados...</p>
+      } @else if (previewError()) {
+        <p class="target-frame__preview-note target-frame__preview-note--error">
+          {{ previewError() }}
+        </p>
+      } @else if (levelPenaltyActive()) {
+        <p class="target-frame__preview-note">
+          Penalización activa por diferencia de nivel: este objetivo no entrega Adena ni ítems.
+        </p>
+      } @else if (previewItems().length === 0) {
+        <p class="target-frame__preview-note">Sin drops configurados para este objetivo.</p>
+      } @else {
+        <ul class="target-frame__preview-list">
+          @for (item of previewItems(); track item.catalogKey) {
+            <li class="target-frame__preview-item">
+              <img class="target-frame__preview-icon" [src]="item.icon" [alt]="item.itemDisplayName" />
+              <span class="target-frame__preview-name">{{ item.itemDisplayName }}</span>
+              <span class="target-frame__preview-chance">{{ chanceLabel(item.chance) }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</div>

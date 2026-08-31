@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "_comment": "GCD melee servidor: base / derivedAtkSpeed, acotado. El cliente no decide.",
+  "baseSwingCooldownMs": 850,
+  "minCooldownMs": 320,
+  "maxCooldownMs": 2400,
+  "mobMeleeCooldownMs": 900
+}

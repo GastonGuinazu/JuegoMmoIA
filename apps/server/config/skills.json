@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "_comment": "Catálogo DK inicial; data-driven para validación CAST_SKILL en Warden.",
+  "skills": [
+    {
+      "id": "power_strike",
+      "name": "Power Strike",
+      "targetType": "single",
+      "manaCost": 15,
+      "damageMultiplier": 1.6,
+      "cooldownMs": 2000,
+      "rangeMeters": 2
+    },
+    {
+      "id": "rageful_blow",
+      "name": "Rageful Blow",
+      "targetType": "single",
+      "isAoe": true,
+      "aoeRadius": 3.5,
+      "manaCost": 30,
+      "damageMultiplier": 2.2,
+      "cooldownMs": 5000,
+      "rangeMeters": 2
+    }
+  ]
+}
