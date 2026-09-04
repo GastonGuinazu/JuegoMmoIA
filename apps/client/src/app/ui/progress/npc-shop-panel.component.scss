@@ -1,0 +1,229 @@
+/**
+ * El overlay del juego usa `pointer-events: none`; sin `auto` aquí los clics
+ * atraviesan hacia el canvas y los botones no responden.
+ */
+:host {
+  display: contents;
+}
+
+.shop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.shop-toast {
+  position: fixed;
+  top: 1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  max-width: min(420px, 92vw);
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  background: #4e342e;
+  border: 1px solid #ff8a65;
+  color: #ffe0b2;
+  font-size: 0.88rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+.shop-panel {
+  width: min(520px, 100%);
+  max-height: min(86vh, 640px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  background: #1e232b;
+  border: 1px solid #3c4454;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  color: #e8eaed;
+}
+
+.shop-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #2a3140;
+}
+
+.shop-head-text {
+  min-width: 0;
+}
+
+.shop-head-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-icon-x {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #5c6bc0;
+  background: #303f9f;
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(1.12);
+  }
+}
+
+.btn-close-text {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #3c4454;
+  background: #2a3140;
+  color: #e8eaed;
+  cursor: pointer;
+  font-size: 0.8rem;
+
+  &:hover {
+    filter: brightness(1.08);
+  }
+}
+
+.shop-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.shop-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: #9aa0a6;
+}
+
+.shop-body {
+  padding: 0.75rem 1rem 1rem;
+  overflow-y: auto;
+}
+
+.shop-section {
+  margin-bottom: 1rem;
+
+  h3 {
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
+    color: #cfd8dc;
+  }
+}
+
+.hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: #9aa0a6;
+}
+
+.offer-list,
+.sell-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.offer-row,
+.sell-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: #12151a;
+  border-radius: 8px;
+  border: 1px solid #2a3140;
+}
+
+.offer-info,
+.sell-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.prices,
+.meta {
+  font-size: 0.75rem;
+  color: #9aa0a6;
+}
+
+.offer-actions,
+.sell-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.qty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.65rem;
+  color: #9aa0a6;
+
+  input {
+    width: 3.25rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 4px;
+    border: 1px solid #3c4454;
+    background: #1a1e24;
+    color: #e8eaed;
+  }
+}
+
+.btn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #3c4454;
+  background: #2a3140;
+  color: #e8eaed;
+  cursor: pointer;
+  font-size: 0.8rem;
+
+  &.primary {
+    background: #3949ab;
+    border-color: #5c6bc0;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+}
+
+.empty {
+  font-size: 0.85rem;
+  color: #9aa0a6;
+  padding: 0.35rem 0;
+}

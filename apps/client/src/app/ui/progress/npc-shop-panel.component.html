@@ -1,0 +1,108 @@
+@if (ui.shop(); as shop) {
+  <div
+    class="shop-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Tienda del mercader"
+    (click)="onBackdropClick($event)"
+  >
+    @if (shopToast(); as toast) {
+      <div class="shop-toast" role="status">{{ toast }}</div>
+    }
+    <div class="shop-panel" (click)="$event.stopPropagation()">
+      <header class="shop-head">
+        <div class="shop-head-text">
+          <h2 class="shop-title">{{ shop.displayName }}</h2>
+          <p class="shop-sub">Adena disponible: {{ player.adena() ?? '—' }}</p>
+        </div>
+        <div class="shop-head-actions">
+          <button
+            type="button"
+            class="btn-icon-x"
+            (click)="close()"
+            aria-label="Cerrar tienda"
+            title="Cerrar"
+          >
+            ✕
+          </button>
+          <button type="button" class="btn-close-text" (click)="close()">Cerrar</button>
+        </div>
+      </header>
+
+      <div class="shop-body">
+        <section class="shop-section">
+          <h3>Comprar</h3>
+          <p class="hint">Precio de reventa al NPC ≈ un tercio del precio de compra (entero hacia abajo).</p>
+          <ul class="offer-list">
+            @for (o of shop.offers; track o.catalogKey) {
+              <li class="offer-row">
+                <div class="offer-info">
+                  <span class="name">{{ o.itemDisplayName }}</span>
+                  <span class="prices">
+                    Compra: <strong>{{ o.buyPriceAdena }}</strong>
+                    · Venta al NPC: <strong>{{ o.sellPriceAdena }}</strong>
+                  </span>
+                </div>
+                <div class="offer-actions">
+                  <label class="qty">
+                    <span>Cant.</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="999"
+                      [attr.name]="'shop-buy-' + o.catalogKey"
+                      [ngModel]="getBuyQty(o.catalogKey)"
+                      (ngModelChange)="setBuyQty(o.catalogKey, $event)"
+                      [disabled]="busy()"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    class="btn primary"
+                    [disabled]="buyDisabled(o)"
+                    (click)="onBuyItem(o)"
+                  >
+                    Comprar
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+
+        <section class="shop-section">
+          <h3>Vender (mochila)</h3>
+          <ul class="sell-list">
+            @for (item of sellableBagItemsForShop(shop); track item.id) {
+              <li class="sell-row">
+                <div class="sell-info">
+                  <span class="name">{{ item.name }}</span>
+                  <span class="meta">x{{ item.quantity }}</span>
+                </div>
+                <div class="sell-actions">
+                  <label class="qty">
+                    <span>Cant.</span>
+                    <input
+                      type="number"
+                      min="1"
+                      [max]="item.quantity"
+                      [attr.name]="'shop-sell-' + item.id"
+                      [ngModel]="getSellQty(item.id)"
+                      (ngModelChange)="setSellQty(item.id, $event, item.quantity)"
+                      [disabled]="busy()"
+                    />
+                  </label>
+                  <button type="button" class="btn" [disabled]="busy()" (click)="onSellItem(item)">
+                    Vender
+                  </button>
+                </div>
+              </li>
+            } @empty {
+              <li class="empty">No tenés ítems de esta tienda en la mochila.</li>
+            }
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+}

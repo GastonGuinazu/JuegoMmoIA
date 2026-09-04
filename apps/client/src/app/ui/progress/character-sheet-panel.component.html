@@ -1,0 +1,69 @@
+<aside class="sheet" aria-label="Estadísticas del personaje">
+  @if (state.characterSheet(); as c) {
+    <header class="sheet-head">
+      <h2 class="sheet-title">{{ c.name }}</h2>
+      <p class="sheet-meta">Nv. {{ c.level }} · {{ c.characterClass }}</p>
+    </header>
+    <section class="block" aria-label="Atributos base">
+      <h3 class="block-title">Núcleo</h3>
+      <p class="available-points">Puntos disponibles: {{ c.availableStatPoints }}</p>
+      <ul class="stat-list">
+        <li>
+          <span class="k">STR</span><span class="v">{{ c.core.str }}</span>
+          <button
+            class="add-stat-btn"
+            type="button"
+            (click)="distribute('STR')"
+            [disabled]="c.availableStatPoints <= 0 || state.distributeBusy()"
+            aria-label="Agregar fuerza"
+          >+</button>
+        </li>
+        <li>
+          <span class="k">AGI</span><span class="v">{{ c.core.agi }}</span>
+          <button
+            class="add-stat-btn"
+            type="button"
+            (click)="distribute('AGI')"
+            [disabled]="c.availableStatPoints <= 0 || state.distributeBusy()"
+            aria-label="Agregar agilidad"
+          >+</button>
+        </li>
+        <li>
+          <span class="k">VIT</span><span class="v">{{ c.core.vit }}</span>
+          <button
+            class="add-stat-btn"
+            type="button"
+            (click)="distribute('VIT')"
+            [disabled]="c.availableStatPoints <= 0 || state.distributeBusy()"
+            aria-label="Agregar vitalidad"
+          >+</button>
+        </li>
+        <li>
+          <span class="k">ENE</span><span class="v">{{ c.core.ene }}</span>
+          <button
+            class="add-stat-btn"
+            type="button"
+            (click)="distribute('ENE')"
+            [disabled]="c.availableStatPoints <= 0 || state.distributeBusy()"
+            aria-label="Agregar energía"
+          >+</button>
+        </li>
+      </ul>
+      @if (state.distributeError(); as err) {
+        <p class="stat-error">{{ err }}</p>
+      }
+    </section>
+    <section class="block" aria-label="Derivados de combate">
+      <h3 class="block-title">Derivados</h3>
+      <ul class="stat-list">
+        <li><span class="k">P.Atk</span><span class="v">{{ c.derived.pAtk | number: '1.0-1' }}</span></li>
+        <li><span class="k">M.Atk</span><span class="v">{{ c.derived.mAtk | number: '1.0-1' }}</span></li>
+        <li><span class="k">P.Def</span><span class="v">{{ c.derived.pDef | number: '1.0-1' }}</span></li>
+        <li><span class="k">Atk.Sp</span><span class="v">{{ c.derived.atkSpeed | number: '1.2-2' }}</span></li>
+        <li><span class="k">Crit</span><span class="v">{{ c.derived.critRate | percent: '1.0-1' }}</span></li>
+      </ul>
+    </section>
+  } @else {
+    <p class="placeholder">Conectá al mundo para ver la ficha.</p>
+  }
+</aside>

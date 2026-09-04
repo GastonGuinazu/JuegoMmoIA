@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "catalogKey": "starter_short_sword",
+      "name": "Short Sword",
+      "grade": "None",
+      "description": "A balanced blade for beginners.",
+      "baseSlot": "WEAPON",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pAtk": 10
+      }
+    },
+    {
+      "catalogKey": "starter_leather_armor",
+      "name": "Leather Armor",
+      "grade": "None",
+      "description": "Light protection that does not weigh you down.",
+      "baseSlot": "ARMOR",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pDef": 5
+      }
+    },
+    {
+      "catalogKey": "starter_wooden_shield",
+      "name": "Wooden Shield",
+      "grade": "None",
+      "description": "Simple planks, better than nothing.",
+      "baseSlot": "SHIELD",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pDef": 3
+      }
+    },
+    {
+      "catalogKey": "health_potion_small",
+      "name": "Poción de Vida",
+      "grade": "None",
+      "description": "Restaura un poco de vitalidad. Consumible; se apila en la mochila.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "consumable": true,
+        "maxStack": 99,
+        "healAmount": 50
+      }
+    },
+    {
+      "catalogKey": "iron_shield",
+      "name": "Escudo de Hierro",
+      "grade": "None",
+      "description": "Escudo de forja sencilla; fiable en el frente.",
+      "baseSlot": "SHIELD",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pDef": 12
+      }
+    },
+    {
+      "catalogKey": "initiate_bracelet",
+      "name": "Pulsera de Aprendiz",
+      "grade": "D",
+      "description": "Pulsera de práctica con cuatro cavidades de talismán.",
+      "baseSlot": "BRACELET_1",
+      "hasSubSlots": true,
+      "maxSubSlots": 4,
+      "subSlotType": "TALISMAN_SLOT",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pDef": 2,
+        "atkSpeed": 1
+      }
+    },
+    {
+      "catalogKey": "initiate_talisman_power",
+      "name": "Talismán de Fuerza",
+      "grade": "D",
+      "description": "Talismán de entrenamiento enfocado en fuerza bruta.",
+      "baseSlot": null,
+      "parentSlotType": "TALISMAN_SLOT",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "str": 10
+      }
+    },
+    {
+      "catalogKey": "initiate_talisman_swiftness",
+      "name": "Talismán de Rapidez",
+      "grade": "D",
+      "description": "Talismán de entrenamiento enfocado en agilidad.",
+      "baseSlot": null,
+      "parentSlotType": "TALISMAN_SLOT",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "agi": 15
+      }
+    },
+    {
+      "catalogKey": "knight_blade_c",
+      "name": "Knight Blade",
+      "grade": "C",
+      "description": "Espada militar de calidad C para cazadores intermedios.",
+      "baseSlot": "WEAPON",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pAtk": 28
+      }
+    },
+    {
+      "catalogKey": "war_plate_b",
+      "name": "War Plate",
+      "grade": "B",
+      "description": "Armadura pesada de grado B forjada para guerras abiertas.",
+      "baseSlot": "ARMOR",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pDef": 34
+      }
+    },
+    {
+      "catalogKey": "phoenix_pendant_a",
+      "name": "Phoenix Pendant",
+      "grade": "A",
+      "description": "Amuleto arcano de alto rango con energía ígnea controlada.",
+      "baseSlot": "PENDANT",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pAtk": 18,
+        "atkSpeed": 6
+      }
+    },
+    {
+      "catalogKey": "seraph_wings_s",
+      "name": "Seraph Wings",
+      "grade": "S",
+      "description": "Alas legendarias de grado S reservadas para élite.",
+      "baseSlot": "WINGS",
+      "icon": "/icons/stub.png",
+      "baseStats": {
+        "pDef": 22,
+        "atkSpeed": 12
+      }
+    },
+    {
+      "catalogKey": "goblin_ear",
+      "name": "Oreja de Goblin",
+      "grade": "None",
+      "description": "Trofeo de caza de los campamentos goblin.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "goblin_scrap",
+      "name": "Chatarra Goblin",
+      "grade": "None",
+      "description": "Restos de armas y escudos goblin.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "spider_silk",
+      "name": "Seda de Araña",
+      "grade": "None",
+      "description": "Hilo resistente de las arañas de la pradera.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "scorpion_stinger",
+      "name": "Aguijón de Escorpión",
+      "grade": "None",
+      "description": "Púa venenosa de los escorpiones de duna.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "bone_fragment",
+      "name": "Fragmento de Hueso",
+      "grade": "None",
+      "description": "Restos óseos de no-muertos.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "zombie_flesh",
+      "name": "Carne Putrefacta",
+      "grade": "None",
+      "description": "Restos de zombies del valle.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "rotten_cloth",
+      "name": "Tela Podrida",
+      "grade": "None",
+      "description": "Harapos de shamblers.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "ogre_tusk",
+      "name": "Colmillo de Ogro",
+      "grade": "None",
+      "description": "Colmillo de los ogros del valle.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "bull_horn",
+      "name": "Cuerno de Toro",
+      "grade": "None",
+      "description": "Cuerno de los bull fighters.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    },
+    {
+      "catalogKey": "dragon_scale",
+      "name": "Escama de Dragón",
+      "grade": "None",
+      "description": "Escama del Silver Dragonkin. Material de boss.",
+      "baseSlot": null,
+      "icon": "/icons/stub.png",
+      "baseStats": { "maxStack": 99 }
+    }
+  ]
+}

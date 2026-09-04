@@ -25,7 +25,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | A1 | hecho | Terreno base | Monorepo Nest + Angular + Three: piso 128 m, cámara, click-to-move, `world-zones.json`. Sin combate ni mobs. |
 | A2 | hecho | Entidades cubo | Personaje, otros jugadores y mobs/NPC en primitivas + sync socket. |
 | A3 | hecho | Combate autoritativo | Ticks 20 TPS, melee, skills, validación Warden. |
-| A4 | pendiente | Inventario y economía | Paperdoll, Adena, tienda básica / catálogo. |
+| A4 | hecho | Inventario y economía | Paperdoll, Adena, tienda básica / catálogo. |
 | A5 | pendiente | Zonas, portales y spots | Zonas segregadas, portales, SpawnSpots, IA de mobs. |
 | A6 | pendiente | Modelo de personaje | Asset del jugador (reemplazo del dummy). |
 | A7 | pendiente | Modelos de mobs | Catálogo visual de mobs. |
@@ -76,3 +76,16 @@ Ticks 20 TPS, melee, skills y ciclo de muerte/respawn PvE. Sin inventario, tiend
 - `apps/server/config/combat-damage.json`, `combat-timing.json`, `skills.json`, `world-spawn.json`
 - `apps/client/src/app/game/world-combat-floaters.ts`
 - `apps/client/src/app/ui/progress/player-hp-bar.component.*`, `target-frame.component.*`, `xp-bar.component.*`
+
+## A4 — archivos de esta oleada
+
+Paperdoll, Adena, catálogo de ítems, drops al suelo y tienda NPC básica. Sin síntesis UI, karma, portales, IA ni el puesto visual del mercader (A9).
+
+- `apps/server/src/inventory/**`, `apps/server/src/items/**`, `apps/server/src/ledger/**`, `apps/server/src/idempotency/**`
+- `apps/server/src/world/npc-shop.service.ts`, `npc-shops.loaders.ts`, `npc-shops.types.ts`
+- `apps/server/src/world/world-drop.service.ts`, `pending-world-drop.service.ts`
+- `apps/server/config/items.json`, `equipment-presets.json`, `npc-shops.json`
+- `apps/server/scripts/give-starter-items.ts`
+- `apps/client/src/app/core/inventory-api.service.ts`, `npc-shop-ui.service.ts`
+- `apps/client/src/app/ui/progress/inventory-panel.component.*`, `character-sheet-panel.component.*`, `gear-slots.ts`
+- `apps/client/src/app/ui/progress/npc-shop-panel.component.*`, `system-log-panel.component.*`

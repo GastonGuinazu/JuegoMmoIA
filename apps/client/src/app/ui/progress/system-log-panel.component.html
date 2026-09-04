@@ -1,0 +1,10 @@
+@if (state.systemLogLines().length > 0) {
+  <div class="sys-log" role="log" aria-live="polite" aria-relevant="additions">
+    <div class="sys-log__title">Registro</div>
+    <ul class="sys-log__list">
+      @for (entry of state.systemLogLines(); track entry.id) {
+        <li class="sys-log__line">{{ entry.text }}</li>
+      }
+    </ul>
+  </div>
+}

@@ -1,0 +1,197 @@
+<div class="inv-float" [ngStyle]="panelStyle()">
+  <div
+    class="inv-header"
+    (pointerdown)="onHeaderPointerDown($event)"
+    role="banner"
+  >
+    <span>Inventario</span>
+    @if (state.equipBusy() || state.useItemBusy()) {
+      <span class="busy" aria-live="polite">Actualizando…</span>
+    }
+  </div>
+  @if (state.loadError(); as le) {
+    <p class="err" role="alert">{{ le }}</p>
+  }
+  @if (state.equipError(); as ee) {
+    <p class="err" role="alert">{{ ee }}</p>
+  }
+  @if (state.useItemError(); as ue) {
+    <p class="err" role="alert">{{ ue }}</p>
+  }
+  <div class="inv-wallet" aria-label="Monedero">
+    <span class="inv-wallet__label">Adena</span>
+    <span class="inv-wallet__value">{{ formatAdena(state.adena()) }}</span>
+  </div>
+  <div class="inv-body">
+    <div class="equip-col" aria-label="Equipo">
+      <div class="paperdoll-grid" role="group" aria-label="Paperdoll">
+        @for (node of paperdollSlots; track node.slot) {
+          <div
+            class="paperdoll-cell-wrap"
+            [style.gridColumnStart]="node.x + 1"
+            [style.gridRowStart]="node.y + 1"
+          >
+            <span class="equip-label">{{ slotLabels[node.slot] || node.slot }}</span>
+            <div
+              class="equip-cell"
+              [class.equip-cell--filled]="equippedBySlot().get(node.slot)"
+              [class.equip-cell--nested]="(equippedBySlot().get(node.slot)?.subItems?.length ?? 0) > 0"
+              [style.borderColor]="paperdollSlotBorderColor(node.slot)"
+              (contextmenu)="onEquipSlotContextMenu($event, node.slot)"
+              (mouseenter)="onPaperdollSlotHover(node.slot)"
+              (mouseleave)="onPaperdollSlotLeave(node.slot)"
+              (click)="togglePaperdollSubSlots(node.slot)"
+            >
+              @if (equippedBySlot().get(node.slot); as it) {
+                <div
+                  class="slot-visual"
+                  [ngClass]="[itemToneClass(it), gradeToneClass(it)]"
+                  [title]="displayItemTitle(it) + ' — clic derecho para desequipar'"
+                  (mouseenter)="showFloatingTooltip($event, it)"
+                  (mousemove)="moveFloatingTooltip($event)"
+                  (mouseleave)="hideFloatingTooltip()"
+                >
+                  @if (hasPlusLevel(it)) {
+                    <span class="plus-level-badge" aria-label="Nivel de mejora">
+                      +{{ plusLevel(it) }}
+                    </span>
+                  }
+                  @if (it.quantity > 1) {
+                    <span class="qty-badge" aria-label="Cantidad">{{ it.quantity }}</span>
+                  }
+                  @if (isIconPath(it.icon)) {
+                    <img
+                      class="slot-icon-img"
+                      [src]="it.icon"
+                      [alt]="it.name"
+                      (error)="onIconError(it)"
+                    />
+                  } @else {
+                    <span class="slot-icon-text">{{ it.icon || '◆' }}</span>
+                  }
+                  @if (showNameFallback(it)) {
+                    <span class="item-name-fallback">{{ it.name }}</span>
+                  }
+                  @if ((it.subItems?.length ?? 0) > 0) {
+                    <span class="nested-dot" aria-hidden="true"></span>
+                  }
+                </div>
+              } @else {
+                <span class="empty-slot">—</span>
+              }
+            </div>
+            @if (equippedBySlot().get(node.slot); as parent) {
+              @if (shouldShowSubSlots(node.slot) && parent.hasSubSlots) {
+                <div class="subslot-popover">
+                  <div class="subslot-title">Sub-slots</div>
+                  <div class="subslot-grid">
+                    @for (sub of subSlotsFor(parent); track trackSlot($index, sub)) {
+                      <button
+                        type="button"
+                        class="subslot-cell"
+                        [class.subslot-cell--filled]="sub !== null"
+                        [title]="sub ? sub.name + ' — clic derecho para desequipar' : 'Vacío'"
+                        (contextmenu)="onSubSlotContextMenu($event, parent, $index)"
+                        (mouseenter)="sub && showFloatingTooltip($event, sub)"
+                        (mousemove)="sub && moveFloatingTooltip($event)"
+                        (mouseleave)="hideFloatingTooltip()"
+                      >
+                        @if (sub) {
+                          @if (hasPlusLevel(sub)) {
+                            <span class="plus-level-badge" aria-label="Nivel de mejora">
+                              +{{ plusLevel(sub) }}
+                            </span>
+                          }
+                          @if (isIconPath(sub.icon)) {
+                            <img
+                              class="slot-icon-img"
+                              [src]="sub.icon"
+                              [alt]="sub.name"
+                              (error)="onIconError(sub)"
+                            />
+                          } @else {
+                            <span class="slot-icon-text">{{ sub.icon || '◆' }}</span>
+                          }
+                        } @else {
+                          <span class="empty-slot">+</span>
+                        }
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+      </div>
+    </div>
+    <div class="bag-col" aria-label="Mochila">
+      <div class="bag-grid">
+        @for (cell of bagSlots(); track trackSlot($index, cell)) {
+          <button
+            type="button"
+            class="bag-slot"
+            [class.bag-slot--filled]="cell !== null"
+            [style.borderColor]="bagSlotBorderColor(cell)"
+            [disabled]="cell === null || state.equipBusy() || state.useItemBusy()"
+            (contextmenu)="onBagItemContextMenu($event, cell)"
+            [title]="bagSlotTitle(cell)"
+          >
+            @if (cell) {
+              <div
+                class="slot-visual"
+                [ngClass]="[itemToneClass(cell), gradeToneClass(cell)]"
+                (mouseenter)="showFloatingTooltip($event, cell)"
+                (mousemove)="moveFloatingTooltip($event)"
+                (mouseleave)="hideFloatingTooltip()"
+              >
+                @if (hasPlusLevel(cell)) {
+                  <span class="plus-level-badge" aria-label="Nivel de mejora">
+                    +{{ plusLevel(cell) }}
+                  </span>
+                }
+                @if (cell.quantity > 1) {
+                  <span class="qty-badge" aria-label="Cantidad">{{ cell.quantity }}</span>
+                }
+                @if (isIconPath(cell.icon)) {
+                  <img
+                    class="slot-icon-img"
+                    [src]="cell.icon"
+                    [alt]="cell.name"
+                    (error)="onIconError(cell)"
+                  />
+                } @else {
+                  <span class="slot-icon-text">{{ cell.icon || '◆' }}</span>
+                }
+                @if (showNameFallback(cell)) {
+                  <span class="item-name-fallback">{{ cell.name }}</span>
+                }
+              </div>
+            }
+          </button>
+        }
+      </div>
+      <p class="hint">
+        Mochila fija: clic derecho usa/equipa. En paperdoll, clic o hover en Pulsera abre sub-slots; clic
+        derecho desequipa.
+      </p>
+    </div>
+  </div>
+</div>
+@if (hoveredTooltipItem(); as tip) {
+  <div class="floating-item-tooltip" #floatingTooltip [ngStyle]="tooltipStyle()" role="tooltip">
+    <div class="tt-name" [style.color]="gradeColor(tip)">
+      <span>{{ tip.name }}</span>
+      @if (hasPlusLevel(tip)) {
+        <span class="tt-plus"> +{{ plusLevel(tip) }}</span>
+      }
+    </div>
+    <div class="tt-line">Grado: {{ gradeLabel(tip) }}</div>
+    @for (line of statLines(tip); track line) {
+      <div class="tt-line">{{ line }}</div>
+    }
+    @if (statLines(tip).length === 0) {
+      <div class="tt-line tt-muted">Sin bonos listados</div>
+    }
+  </div>
+}

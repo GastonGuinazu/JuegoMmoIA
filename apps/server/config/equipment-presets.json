@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "presetKey": "l2_bracelet_ripple_v1",
+      "name": "L2 Bracelet Ripple Test",
+      "description": "Set inicial para validar stats recursivos (pulsera + 4 talismanes).",
+      "items": [
+        {
+          "catalogKey": "preset_bracelet_guardian",
+          "name": "Pulsera del Guardián",
+          "baseSlot": "BRACELET_1",
+          "hasSubSlots": true,
+          "maxSubSlots": 4,
+          "subSlotType": "bracelet_slot",
+          "baseStats": {
+            "pDef": 3
+          }
+        },
+        {
+          "catalogKey": "preset_talisman_atk",
+          "name": "Talismán de Ataque",
+          "baseSlot": null,
+          "parentSlotType": "bracelet_slot",
+          "baseStats": {
+            "pAtk": 4
+          }
+        },
+        {
+          "catalogKey": "preset_talisman_def",
+          "name": "Talismán de Defensa",
+          "baseSlot": null,
+          "parentSlotType": "bracelet_slot",
+          "baseStats": {
+            "pDef": 4
+          }
+        },
+        {
+          "catalogKey": "preset_talisman_speed",
+          "name": "Talismán de Velocidad",
+          "baseSlot": null,
+          "parentSlotType": "bracelet_slot",
+          "baseStats": {
+            "atkSpeed": 6
+          }
+        },
+        {
+          "catalogKey": "preset_talisman_mana",
+          "name": "Talismán de Maná",
+          "baseSlot": null,
+          "parentSlotType": "bracelet_slot",
+          "baseStats": {
+            "ene": 4,
+            "mAtk": 3
+          }
+        }
+      ],
+      "recommendedEquipPlan": {
+        "rootSlot": "BRACELET_1",
+        "subSlots": [
+          "preset_talisman_atk",
+          "preset_talisman_def",
+          "preset_talisman_speed",
+          "preset_talisman_mana"
+        ]
+      }
+    }
+  ]
+}

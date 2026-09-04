@@ -1,0 +1,46 @@
+.sys-log {
+  position: absolute;
+  left: 0.65rem;
+  bottom: 4.5rem;
+  z-index: 12;
+  max-width: min(22rem, calc(100vw - 1.5rem));
+  max-height: 11rem;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  border-radius: 8px;
+  background: rgba(12, 14, 18, 0.88);
+  border: 1px solid #2f3848;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+}
+
+.sys-log__title {
+  flex-shrink: 0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #78909c;
+  border-bottom: 1px solid #263040;
+}
+
+.sys-log__list {
+  margin: 0;
+  padding: 0.35rem 0.5rem 0.45rem;
+  list-style: none;
+  overflow-y: auto;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #cfd8dc;
+}
+
+.sys-log__line {
+  margin: 0 0 0.25rem;
+  word-break: break-word;
+}
+
+.sys-log__line:last-child {
+  margin-bottom: 0;
+}
