@@ -4,7 +4,7 @@
 
 - **Cartographer:** mundo partido en zonas con `map-objects` propios y spawns por **SpawnSpots** (sin dispersión masiva aleatoria).
 - **Warden:** validación de rango al portal, requisito de nivel por zona, tick de IA de mobs solo donde hay jugadores (salvo aggro activo).
-- **Weaver:** picking de portal con clic derecho, mensaje en log, fade de transición **sólo en rango** (`interactionRadiusMeters`); mapas cargados desde `world-zones.json`. El hueco del arco lleva velo cian + point light (señal de viaje, sin cambiar colisión).
+- **Weaver:** picking de portal con clic derecho, mensaje en log, fade de transición **sólo en rango** (`interactionRadiusMeters`). Cliente: catálogo `world-zones.json` al boot; `map-objects` + albedo/GLB de cada zona **on demand** (`ensureZoneLoaded`). El valle nevado no se baja hasta el portal.
 
 ## SSOT de datos
 
@@ -45,13 +45,15 @@ Convención de ejes: **+X este**, **+Z sur** (yaw 0 del Warden mira +Z).
 
 Losetas `floor_path` marcan el corredor de plaza → pack. Van sobre los ejes y un codo en L hacia cada cuadrante; se cortan **antes** del centro del SpawnSpot. El portal este de Zone_0 (14, 0) rompe el eje +X: el sendero salta 12–16. Zone_1 suma un brazo hacia el boss hasta x=40 (el spawn está en 48, 0).
 
+**Decoración Zone_0:** anillo de árboles/rocas en **±58** (piso 128 m, clamp ±63.5). Clúster del mercader en (5, 5). Árboles/rocas de caza fuera del radio SpawnSpot. **Siete muros de ruina** (`wall_broken` / `wall_overgrown` / `wall_half`) en los cuatro cuadrantes, con colisión AABB. **Micro-deco (~70):** arbustos y piedras chicas al doble (clones del mismo GLB en caché; sin assets extra). `blocksMovement: false`. Fuera de radios de spawn y del corredor mercader (5, 5) → portal (14, 0).
+
 ### Zone_0 — Pradera del Novicio (lvl 1–15)
 
 Plaza y portales en el origen. El jugador elige el farm; no hace falta atravesar el pack más alto para salir.
 
 | Cuadrante | Centro aprox. | Spot(s) | Niveles | Rol |
 |-----------|---------------|---------|---------|-----|
-| SO | (−32, +32) | cubos | 4 | Tutorial, junto a la plaza |
+| SO | (−32, +32) | spider2 (mismo visual/IA que spider) | 12 | Farm mid, un peldaño sobre las arañas del SE |
 | NO | (−32, −32) | goblin + goblin2 (misma `socialFamily`, ±2) | 6 / 8 | Primer grind mixto |
 | SE | (+32, +32) | arañas | 10 | Mid de zona |
 | NE | (+32, −32) | escorpiones | 13 | Tope de Zone_0 |

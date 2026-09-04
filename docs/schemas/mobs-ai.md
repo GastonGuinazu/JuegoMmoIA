@@ -66,4 +66,4 @@ Definir comportamiento PvE data-driven de percepción y persecución de mobs par
 
 ## Hunting grounds (layout)
 
-Los `spawnSpots` de `mobs.json` siguen los cuadrantes de [09-zonas-y-portales.md](../blueprint/09-zonas-y-portales.md). No mezclar familias en el mismo círculo; goblin/goblin2 y zombie/zombie2 sí pueden solaparse (misma familia, niveles a ±2). El silver dragonkin es boss: `maxEntities: 1`, familia propia, spot al este de Zone_1 sin solapar packs.
+Los `spawnSpots` de `mobs.json` siguen los cuadrantes de [09-zonas-y-portales.md](../blueprint/09-zonas-y-portales.md). No mezclar familias en el mismo círculo; goblin/goblin2 y zombie/zombie2 sí pueden solaparse (misma familia, niveles a ±2). `spider` y `spider2` comparten `arachnid` pero no se solapan (SE vs SO). El silver dragonkin es boss: `maxEntities: 1`, familia propia, spot al este de Zone_1 sin solapar packs.

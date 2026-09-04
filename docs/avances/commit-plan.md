@@ -26,7 +26,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | A2 | hecho | Entidades cubo | Personaje, otros jugadores y mobs/NPC en primitivas + sync socket. |
 | A3 | hecho | Combate autoritativo | Ticks 20 TPS, melee, skills, validación Warden. |
 | A4 | hecho | Inventario y economía | Paperdoll, Adena, tienda básica / catálogo. |
-| A5 | pendiente | Zonas, portales y spots | Zonas segregadas, portales, SpawnSpots, IA de mobs. |
+| A5 | hecho | Zonas, portales y spots | Zonas segregadas, portales, SpawnSpots, IA de mobs. |
 | A6 | pendiente | Modelo de personaje | Asset del jugador (reemplazo del dummy). |
 | A7 | pendiente | Modelos de mobs | Catálogo visual de mobs. |
 | A8 | pendiente | Props de entorno | Nature + Ruins (árboles, ruinas, albedo). |
@@ -89,3 +89,12 @@ Paperdoll, Adena, catálogo de ítems, drops al suelo y tienda NPC básica. Sin 
 - `apps/client/src/app/core/inventory-api.service.ts`, `npc-shop-ui.service.ts`
 - `apps/client/src/app/ui/progress/inventory-panel.component.*`, `character-sheet-panel.component.*`, `gear-slots.ts`
 - `apps/client/src/app/ui/progress/npc-shop-panel.component.*`, `system-log-panel.component.*`
+
+## A5 — archivos de esta oleada
+
+Zonas con `map-objects`, portales, SpawnSpots e IA de persecución. Sin GLTF de personaje/mobs/props, albedo de nieve, síntesis ni karma.
+
+- `apps/server/config/map-objects-Zone_0.json`, `map-objects-Zone_1.json`
+- `apps/server/src/mob/mob-ai-tick.service.ts`
+- `apps/client/src/app/game/mob-visual-interp.ts`
+- `docs/blueprint/09-zonas-y-portales.md`, `docs/schemas/map-objects.md`, `docs/schemas/mobs-ai.md`, `docs/agents/the_cartographer.md`

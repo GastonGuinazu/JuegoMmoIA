@@ -40,7 +40,9 @@ Definir obstáculos estáticos del mundo que bloquean movimiento de personajes (
 - `objects[].yaw`: yaw **visual** en radianes. No gira el AABB.
 - `objects[].blocksMovement`: default `true`. Con `false` el AABB **no** bloquea (senderos de loseta). El Weaver igual pinta el `.glb`; click-to-move y cámara atraviesan.
 
-Assets: subset Nature + Ruins en `apps/client/public/models/props/` (`manifest.json`). Dumps OBJ en `_raw/quaternius/` (no se sirven). Puesto del mercader: `cart`, `barrel`, `chest`, `torch`, `pot`. Senderos: `floor_path`.
+Assets: subset Nature + Ruins en `apps/client/public/models/props/` (`manifest.json`). Dumps OBJ en `_raw/quaternius/` (no se sirven). Puesto del mercader: `cart`, `barrel`, `chest`, `torch`, `pot`. Senderos: `floor_path`. Micro-deco Zone_0: `bush`, `bush_b`, `plant`, `stump`, `log`, `rock_b`.
+
+**Zone_0 (piso 128 m):** colliders+paths + **7 muros de ruina** extra. **Micro-deco (~70):** arbustos/piedras al doble (mismo `.glb` cacheado). `blocksMovement: false` en deco; muros sí colisionan. Fuera de radios SpawnSpot y del corredor mercader (5, 5) → portal (14, 0).
 
 ## Reglas de validación runtime
 

@@ -69,7 +69,7 @@ Controlar **densidad de mobs**, **oleadas** y **respawn de bosses** sin saturar 
 - Priorizar spawns en AOI con jugadores; dormir spawns lejanos.
 - **Hunting grounds v1:** cuatro cuadrantes por zona + plaza central; spots en `mobs.json` (ver blueprint 09). Un spot = un `templateKey`. Packs mixtos sólo con la misma `socialFamily` y niveles a ±2.
 - **Piso jugable** (`groundSizeMeters` en `world-zones.json`, v1 = **128**): recorta el plano vacío, no los spots. Juntar packs hacia el origen aumenta GLTF en el frustum y empeora picos de lag. Warden clampa XZ de jugador y mobs al half-extent.
-- **Props:** `propTemplateKey` en `map-objects-Zone_*.json` (Weaver). AABB sigue siendo la colisión. No poner props en el centro de un SpawnSpot. Senderos de caza: `floor_path` + `blocksMovement: false` (ejes + codo L hacia ±32). Puesto del mercader en Zone_0 (~5, 5): `cart` / `barrel` / `chest` / `torch` / `pot` **sí** colisionan.
+- **Props:** `propTemplateKey` en `map-objects-Zone_*.json` (Weaver). AABB sigue siendo la colisión. No poner props en el centro de un SpawnSpot. Senderos: `floor_path` + `blocksMovement: false`. Puesto del mercader Zone_0 (~5, 5): stall + muretes. **Zone_0 v2:** ~80 colliders+paths; anillo ±58. **Siete muros de ruina** extra (`wall_broken`/`wall_overgrown`/`wall_half`) en cuadrantes. **Micro-deco v4 (~70):** arbustos/piedras al doble vía clones GPU; `blocksMovement: false`; fuera de SpawnSpot y del corredor mercader→portal.
 
 ### Bosses
 

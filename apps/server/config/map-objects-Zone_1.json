@@ -1,0 +1,1192 @@
+{
+  "version": 1,
+  "_comment": "Valle Congelado (Zone_1): ruinas + nieve. Senderos caminables por ejes a cuadrantes ±32 y brazo este hasta x=40 (boss en 48,0). Colisión AABB; mesh propTemplateKey.",
+  "objects": [
+    {
+      "id": "z1-central-monolith",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "column_square",
+      "position": {
+        "x": 0,
+        "y": 2.1,
+        "z": 0
+      },
+      "scale": {
+        "x": 1.4,
+        "y": 4.2,
+        "z": 1.4
+      },
+      "collisionPaddingMeters": 0.08
+    },
+    {
+      "id": "z1-entry-ice-a",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "wall_broken",
+      "yaw": 0.5,
+      "position": {
+        "x": -10,
+        "y": 1.2,
+        "z": -6
+      },
+      "scale": {
+        "x": 3.4,
+        "y": 2.4,
+        "z": 1
+      },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "z1-entry-ice-b",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "wall_half",
+      "yaw": -0.4,
+      "position": {
+        "x": -6,
+        "y": 0.9,
+        "z": -12
+      },
+      "scale": {
+        "x": 2.8,
+        "y": 1.8,
+        "z": 0.9
+      },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "z1-boss-marker-north",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "rock_snow",
+      "position": {
+        "x": 46,
+        "y": 0.7,
+        "z": -7
+      },
+      "scale": {
+        "x": 1.6,
+        "y": 1.4,
+        "z": 1.6
+      },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "z1-boss-marker-south",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "rock_snow",
+      "yaw": 1.1,
+      "position": {
+        "x": 46,
+        "y": 0.7,
+        "z": 7
+      },
+      "scale": {
+        "x": 1.6,
+        "y": 1.4,
+        "z": 1.6
+      },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "portal-back-to-novice",
+      "zoneId": "Zone_1",
+      "kind": "portal",
+      "propTemplateKey": "arch_round",
+      "yaw": 0.7854,
+      "position": {
+        "x": -16,
+        "y": 1.6,
+        "z": -14
+      },
+      "scale": {
+        "x": 2.8,
+        "y": 3.2,
+        "z": 2.8
+      },
+      "targetZoneId": "Zone_0",
+      "portalTravelMessage": "Volviendo a la Pradera del Novicio...",
+      "interactionRadiusMeters": 4
+    },
+    {
+      "id": "z1-pine-plaza-e",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "pine_snow",
+      "position": {
+        "x": 9,
+        "y": 0.55,
+        "z": 8
+      },
+      "scale": {
+        "x": 1.15,
+        "y": 1.1,
+        "z": 1.15
+      },
+      "collisionPaddingMeters": 0.15
+    },
+    {
+      "id": "z1-pine-entry",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "pine_snow_b",
+      "yaw": 0.7,
+      "position": {
+        "x": -12,
+        "y": 0.55,
+        "z": -3
+      },
+      "scale": {
+        "x": 1.15,
+        "y": 1.1,
+        "z": 1.15
+      },
+      "collisionPaddingMeters": 0.15
+    },
+    {
+      "id": "z1-dead-near-boss",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "tree_dead_snow",
+      "yaw": 2.4,
+      "position": {
+        "x": 40,
+        "y": 0.5,
+        "z": 3
+      },
+      "scale": {
+        "x": 1.1,
+        "y": 1,
+        "z": 1.1
+      },
+      "collisionPaddingMeters": 0.12
+    },
+    {
+      "id": "z1-stump-plaza",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "stump_snow",
+      "position": {
+        "x": 4,
+        "y": 0.4,
+        "z": -5
+      },
+      "scale": {
+        "x": 0.95,
+        "y": 0.8,
+        "z": 0.95
+      },
+      "collisionPaddingMeters": 0.06
+    },
+    {
+      "id": "z1-path-n-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": -8
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-n-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": -12
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-n-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": -16
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-n-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": -20
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-n-4",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": -24
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-s-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": 8
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-s-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": 12
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-s-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": 16
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-s-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": 20
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-s-4",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 0,
+        "y": 0.06,
+        "z": 24
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-w-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -8,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-w-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -12,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-w-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -16,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-w-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -20,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-w-4",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-e-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 8,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-e-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 12,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-e-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 16,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-e-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 20,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-e-4",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-boss-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 28,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-boss-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 32,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-boss-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 36,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-boss-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 40,
+        "y": 0.06,
+        "z": 0
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-sw-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": 4
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-sw-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": 8
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-sw-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": 12
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-sw-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": 16
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-sw-4",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": 20
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-sw-5",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": 24
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-sw-6",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": 28
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-sw-7",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -28,
+        "y": 0.06,
+        "z": 28
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-nw-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": -4
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-nw-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": -8
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-nw-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": -12
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-nw-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": -16
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-nw-4",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": -20
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-nw-5",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": -24
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-nw-6",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": -24,
+        "y": 0.06,
+        "z": -28
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-nw-7",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": -28,
+        "y": 0.06,
+        "z": -28
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-se-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": 4
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-se-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": 8
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-se-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": 12
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-se-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": 16
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-se-4",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": 20
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-se-5",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": 24
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-se-6",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": 28
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-se-7",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 28,
+        "y": 0.06,
+        "z": 28
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-ne-0",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": -4
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-ne-1",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": -8
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-ne-2",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": -12
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-ne-3",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": -16
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-ne-4",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": -20
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-ne-5",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": -24
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-ne-6",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 0,
+      "blocksMovement": false,
+      "position": {
+        "x": 24,
+        "y": 0.06,
+        "z": -28
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    },
+    {
+      "id": "z1-path-ne-7",
+      "zoneId": "Zone_1",
+      "kind": "box",
+      "propTemplateKey": "floor_path",
+      "yaw": 1.5708,
+      "blocksMovement": false,
+      "position": {
+        "x": 28,
+        "y": 0.06,
+        "z": -28
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 0.12,
+        "z": 2.7
+      }
+    }
+  ]
+}
