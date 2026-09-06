@@ -1,0 +1,11 @@
+Model Information:
+* title:	Espadon Sencillo
+* source:	https://sketchfab.com/3d-models/espadon-sencillo-4fbc97a822d14f56b1ffa41c6e40bf44
+* author:	FrederickCDXII (https://sketchfab.com/FrederickCDXII)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Espadon Sencillo" (https://sketchfab.com/3d-models/espadon-sencillo-4fbc97a822d14f56b1ffa41c6e40bf44) by FrederickCDXII (https://sketchfab.com/FrederickCDXII) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

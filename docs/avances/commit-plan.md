@@ -27,7 +27,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | A3 | hecho | Combate autoritativo | Ticks 20 TPS, melee, skills, validación Warden. |
 | A4 | hecho | Inventario y economía | Paperdoll, Adena, tienda básica / catálogo. |
 | A5 | hecho | Zonas, portales y spots | Zonas segregadas, portales, SpawnSpots, IA de mobs. |
-| A6 | pendiente | Modelo de personaje | Asset del jugador (reemplazo del dummy). |
+| A6 | hecho | Modelo de personaje | Asset del jugador (reemplazo del dummy). |
 | A7 | pendiente | Modelos de mobs | Catálogo visual de mobs. |
 | A8 | pendiente | Props de entorno | Nature + Ruins (árboles, ruinas, albedo). |
 | A9 | pendiente | Mercader y senderos | Puesto del NPC, losetas a cuadrantes de caza. |
@@ -98,3 +98,11 @@ Zonas con `map-objects`, portales, SpawnSpots e IA de persecución. Sin GLTF de 
 - `apps/server/src/mob/mob-ai-tick.service.ts`
 - `apps/client/src/app/game/mob-visual-interp.ts`
 - `docs/blueprint/09-zonas-y-portales.md`, `docs/schemas/map-objects.md`, `docs/schemas/mobs-ai.md`, `docs/agents/the_cartographer.md`
+
+## A6 — archivos de esta oleada
+
+Modelo `.gltf` del jugador (lizard + espadón) y rig de animación. Sin catálogo de mobs, props, NPC trader, síntesis ni karma.
+
+- `apps/client/public/models/characters/lizard_man_warrior/**`, `espadon_warrior/**`
+- `apps/client/src/app/game/character-anim-rig.ts`
+- `apps/client/src/app/game/gltf-spec-gloss-compat.ts`
