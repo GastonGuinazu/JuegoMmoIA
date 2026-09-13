@@ -28,7 +28,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | A4 | hecho | Inventario y economía | Paperdoll, Adena, tienda básica / catálogo. |
 | A5 | hecho | Zonas, portales y spots | Zonas segregadas, portales, SpawnSpots, IA de mobs. |
 | A6 | hecho | Modelo de personaje | Asset del jugador (reemplazo del dummy). |
-| A7 | pendiente | Modelos de mobs | Catálogo visual de mobs. |
+| A7 | hecho | Modelos de mobs | Catálogo visual de mobs. |
 | A8 | pendiente | Props de entorno | Nature + Ruins (árboles, ruinas, albedo). |
 | A9 | pendiente | Mercader y senderos | Puesto del NPC, losetas a cuadrantes de caza. |
 | A10 | pendiente | Cierre | Lo que reste (síntesis UI, karma, GM, dungeons stub). |
@@ -106,3 +106,11 @@ Modelo `.gltf` del jugador (lizard + espadón) y rig de animación. Sin catálog
 - `apps/client/public/models/characters/lizard_man_warrior/**`, `espadon_warrior/**`
 - `apps/client/src/app/game/character-anim-rig.ts`
 - `apps/client/src/app/game/gltf-spec-gloss-compat.ts`
+
+## A7 — archivos de esta oleada
+
+Catálogo `.gltf` de mobs y `MobAnimRig`. Sin props, albedo de nieve, NPC trader, síntesis ni karma.
+
+- `apps/client/public/models/mobs/**`
+- `apps/client/src/app/game/mob-visual-catalog.ts`
+- `apps/client/src/app/game/mob-anim-rig.ts`

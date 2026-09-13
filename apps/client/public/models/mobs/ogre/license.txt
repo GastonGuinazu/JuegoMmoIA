@@ -1,0 +1,11 @@
+Model Information:
+* title:	OGRE yamtar games
+* source:	https://sketchfab.com/3d-models/ogre-yamtar-games-292b48f51c8f4d6aaffaf9bd5e2a53ac
+* author:	RustyPan90 (https://sketchfab.com/RustyPan90)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "OGRE yamtar games" (https://sketchfab.com/3d-models/ogre-yamtar-games-292b48f51c8f4d6aaffaf9bd5e2a53ac) by RustyPan90 (https://sketchfab.com/RustyPan90) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -1,0 +1,11 @@
+Model Information:
+* title:	Skeleton - low tier enemy
+* source:	https://sketchfab.com/3d-models/skeleton-low-tier-enemy-412e0e9990d5464bae1173972a4fa38b
+* author:	CommunicationNode (https://sketchfab.com/Starven38)
+
+Model License:
+* license type:	CC-BY-SA-4.0 (http://creativecommons.org/licenses/by-sa/4.0/)
+* requirements:	Author must be credited. Modified versions must have the same license. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Skeleton - low tier enemy" (https://sketchfab.com/3d-models/skeleton-low-tier-enemy-412e0e9990d5464bae1173972a4fa38b) by CommunicationNode (https://sketchfab.com/Starven38) licensed under CC-BY-SA-4.0 (http://creativecommons.org/licenses/by-sa/4.0/)

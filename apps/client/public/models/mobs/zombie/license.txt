@@ -1,0 +1,11 @@
+Model Information:
+* title:	Terror Engine - Male Zombie
+* source:	https://sketchfab.com/3d-models/terror-engine-male-zombie-acc42c7494724d62b654ccc167e00e56
+* author:	JuanCarlosOsanteHernandez (https://sketchfab.com/juancarlososantehernandez)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Terror Engine - Male Zombie" (https://sketchfab.com/3d-models/terror-engine-male-zombie-acc42c7494724d62b654ccc167e00e56) by JuanCarlosOsanteHernandez (https://sketchfab.com/juancarlososantehernandez) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
