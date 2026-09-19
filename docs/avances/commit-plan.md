@@ -29,7 +29,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | A5 | hecho | Zonas, portales y spots | Zonas segregadas, portales, SpawnSpots, IA de mobs. |
 | A6 | hecho | Modelo de personaje | Asset del jugador (reemplazo del dummy). |
 | A7 | hecho | Modelos de mobs | Catálogo visual de mobs. |
-| A8 | pendiente | Props de entorno | Nature + Ruins (árboles, ruinas, albedo). |
+| A8 | hecho | Props de entorno | Nature + Ruins (árboles, ruinas, albedo). |
 | A9 | pendiente | Mercader y senderos | Puesto del NPC, losetas a cuadrantes de caza. |
 | A10 | pendiente | Cierre | Lo que reste (síntesis UI, karma, GM, dungeons stub). |
 
@@ -114,3 +114,12 @@ Catálogo `.gltf` de mobs y `MobAnimRig`. Sin props, albedo de nieve, NPC trader
 - `apps/client/public/models/mobs/**`
 - `apps/client/src/app/game/mob-visual-catalog.ts`
 - `apps/client/src/app/game/mob-anim-rig.ts`
+
+## A8 — archivos de esta oleada
+
+Subset CC0 de Nature + Ruins (`.glb` estáticos), su catálogo visual y los albedos de zona. Sin NPC trader/cofre, síntesis ni karma.
+
+- `apps/client/public/models/props/**`
+- `apps/client/src/app/game/prop-visual-catalog.ts`
+- `apps/client/public/models/textures/ground_grass_0B.jpg`, `ground_snow_1.jpg`
+- `docs/agents/the_weaver.md`

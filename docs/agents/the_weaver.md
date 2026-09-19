@@ -70,17 +70,17 @@ Detalles técnicos de la integración (`entity-visual-factory.service.ts`):
 
 `createGroundVisual` arma un `PlaneGeometry` del `groundSizeMeters` de la zona (default **128**, no 256) rotado `-PI/2` en X, **Y = 0**. Los pies del dummy/gltf viven en `-Y_LIFT` sobre un host en `visualPos.y + Y_LIFT`, así que con spawn `y: 0` el personaje apoya en el plano.
 
-Albedo por zona (`world-zones.json` → `groundAlbedo`, archivos en `/models/textures/`): Pradera `ground_grass_0.jpg`, Valle Congelado `ground_snow_1.jpg`. Tiling `RepeatWrapping` a ~4 m por tile (`size/4`; 128 → 32×32) y color `0xffffff`. El viewport llama `applyGroundAlbedoForZone` + `setPlayableGroundSize` al reconciliar la zona.
+Albedo por zona (`world-zones.json` → `groundAlbedo`, archivos en `/models/textures/`): Pradera `ground_grass_0.jpg`, Valle Congelado `ground_snow_1.jpg`. El catálogo se lee al boot; **el JSON/GLB/albedo de Zone_1 no se pide hasta** `ensureZoneLoaded('Zone_1')` (clic de portal en rango, o snapshot si el personaje ya está en el valle). Tiling `RepeatWrapping` a ~4 m por tile (`size/4`; 128 → 32×32) y color `0xffffff`. El viewport llama `applyGroundAlbedoForZone` + `setPlayableGroundSize` al reconciliar la zona.
 
 `createGroundGrid` superpone un `GridHelper` (~2 u/celda, un pelo sobre Y=0) para percibir velocidad; no entra al raycast. El click-to-move sigue pikando sólo el plano.
 
 ## 1.e2 Props de entorno (Nature + Ruins)
 
-Subset CC0 Quaternius en `/models/props/*.glb` (`manifest.json` + `prop-visual-catalog.ts`). Packs completos en `_raw/quaternius/` (no se sirven). `createObstacleVisual` / `createPortalVisual` arman un `Group`: collider AABB (fallback semitransparente; invisible si el GLB carga) y un clon cacheado del `.glb`. Árboles usan fit `height` (copa puede sobresalir del hitbox de tronco). Columnas/muros/arcos/carreta usan fit `aabb`. Yaw visual no rota la colisión del Warden.
+Subset CC0 Quaternius en `/models/props/*.glb` (`manifest.json` + `prop-visual-catalog.ts`). Packs completos en `_raw/quaternius/` (no se sirven). `createObstacleVisual` / `createPortalVisual` arman un `Group`: collider AABB (fallback semitransparente; invisible si el GLB carga) y un clon cacheado del `.glb` (`loadPropGltfTemplate` + `clone(true)`: geometría/material GPU compartidos). Árboles/rocas/arbustos con AABB casi cúbico aplican `heightFitVisualMultiplier` (0.6–1.35) desde el scale del JSON. Fit `height` (copa puede sobresalir del hitbox). Columnas/muros/arcos/carreta usan fit `aabb`. Yaw visual no rota la colisión del Warden. El GLB de obstáculo tiene `raycast` vacío; click-to-move pica sólo el suelo. Losetas `floor_path` no proyectan sombra; el resto de props sí (micro-deco incluida).
 
-`blocksMovement: false` (losetas `floor_path`): collider invisible, sin raycast; no entra a `obstacleRects` ni al AABB del Warden. La cámara las ignora. El click-to-move pica el plano.
+`blocksMovement: false` (losetas `floor_path` y micro-deco `bush`/`stump`/`log`/`rock_b`): collider invisible, sin raycast; no entra a `obstacleRects` ni al AABB del Warden. La cámara las ignora. El click-to-move pica el plano.
 
-Puesto del mercader: props `cart`/`barrel`/`chest`/`torch`/`pot` alrededor de (5, 5). `createNpcVisual` del mercader es un `Group` (cubo verde + `PointLight` cálida). La antorcha del mapa lleva otra luz puntual (sin sombras).
+Puesto del mercader: props `cart`/`barrel`/`chest`/`torch`/`pot` alrededor de (5, 5). `createNpcVisual` arma un `Group` (cubo verde fallback + `PointLight`). `npc-visual-catalog.ts` carga el trader (`/models/npcs/trader/`, CC-BY-4.0 by__Rx) y el cofre compañero (`/models/npcs/traderBox/`, CC-BY-4.0 Dasamura) con el mismo `npcInstanceId`: clic en cualquiera abre la tienda y dispara el clip `Opening` del cofre. Al cerrar el panel (o alejarse / ack fallido) el clip corre al revés y la tapa cierra. Idle Mixamo del trader en loop. Cubo verde sólo si faltan los `.gltf`.
 
 Portales: además del arco, `attachPortalInteriorFx` pone un velo `ShaderMaterial` additive (óvalo cian con pulso) y un `PointLight` en el hueco. El velo no escribe depth; el picking de viaje sigue andando (lleva `portalId`). `tickAnimations` avanza `uTime`. Dos luces por zona (ida/vuelta); sin sombras. El fade de transición **sólo** arranca si el jugador está dentro de `interactionRadiusMeters` (default 4, mismo predicado que el Warden); si no, log + click-to-move hacia el portal, sin overlay.
 
@@ -88,10 +88,8 @@ Portales: además del arco, `attachPortalInteriorFx` pone un velo `ShaderMateria
 
 `createMobVisual` sigue siendo síncrono: un `Group` con cubo rojo (fallback + collider de picking) y una `PointLight` de aggro apagada. Si `mobTemplateKey` está en `mob-visual-catalog.ts`, se clona el `.gltf` con `SkeletonUtils.clone` (geometría/material compartidos) y un `MobAnimRig` por instancia. El fit de escala usa un **holder** (no pisa el matrix Sketchfab del root): se aplica el primer frame de idle, se mide el AABB **skineado**, se ignoran decals planos, y se escala el holder a `targetHeight`. Mixamo (goblin) deja la cadera a decenas de unidades en el clip; medir bind pose sin skin subestima la altura y el modelo sale titán.
 
-| templateKey | Asset | Escala | Notas de clip |
-|-------------|-------|--------|----------------|
+| `spider` / `spider2` | `models/mobs/spider/` | **0.5**, `yawOffset = π` | Mismo `.gltf` (walk / run / Attack / die). `spider2` es el pack SO lvl 12; el SE sigue en `spider` lvl 10. |
 | `skeleton` | `models/mobs/skeleton/` | 1.0 | idle / walk / attack |
-| `spider` | `models/mobs/spider/` | **0.5**, `yawOffset = π` | walk / run / Attack / die |
 | `goblin` | `models/mobs/goblin/` | 1.0 | `G_Idle*` / `G_Walk` / `G_Attack` |
 | `goblin2` | `models/mobs/goblin2/` | 1.0 | Idle / WalkForward / RunForward / **sólo** `AttackPower01` (DodgeStrike iba y venía) |
 | `scorpion` | `models/mobs/scorpion/` | **0.7**, `yawOffset = 0` | Idle / Walk / Area Attack / Death |
@@ -162,6 +160,16 @@ Reducir la sensación de latencia en movimiento y en **ataques cosméticos** sin
 ### Corrección
 
 - Si divergencia > umbral (`maxPositionError`), **snap** autoritativo sin animación larga en competencia PvP.
+
+### Rendimiento de frame (prueba Weaver)
+
+Tres cambios reversibles para el hitch al pegar/matar (el loop del Warden no se toca):
+
+1. Effects separados: el mapa (`reconcileMapObstacles`) ya no corre cuando cambia el HP de un mob.
+2. Daño/XP/heal/loot: sprites Three.js con pool (`world-combat-floaters.ts`), sin `div` CSS2D ni rAF extra. Barras de HP de mobs siguen en CSS2D.
+3. Cámara: ray vs AABB de `obstacleRects` (lo que bloquea movimiento). No recorre el bosque en `intersectObjects`.
+
+Si no convence, revertir `game-viewport.component.ts` + borrar `world-combat-floaters.ts`.
 
 ---
 

@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "source": "Quaternius Ultimate Nature Pack (Jun 2019), CC0 1.0",
+  "sourceUrl": "https://quaternius.com/packs/ultimatenature.html",
+  "rawVendorDir": "_raw/quaternius/ultimate-nature-2019",
+  "props": [
+    {
+      "propTemplateKey": "tree_oak",
+      "file": "/models/props/tree_oak.glb",
+      "sourceObj": "CommonTree_1.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "tree_oak_b",
+      "file": "/models/props/tree_oak_b.glb",
+      "sourceObj": "CommonTree_3.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "tree_birch",
+      "file": "/models/props/tree_birch.glb",
+      "sourceObj": "BirchTree_1.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "rock",
+      "file": "/models/props/rock.glb",
+      "sourceObj": "Rock_1.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "rock_b",
+      "file": "/models/props/rock_b.glb",
+      "sourceObj": "Rock_3.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "stump",
+      "file": "/models/props/stump.glb",
+      "sourceObj": "TreeStump.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "log",
+      "file": "/models/props/log.glb",
+      "sourceObj": "WoodLog.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "pine_snow",
+      "file": "/models/props/pine_snow.glb",
+      "sourceObj": "PineTree_Snow_1.obj",
+      "zoneHint": "Zone_1"
+    },
+    {
+      "propTemplateKey": "pine_snow_b",
+      "file": "/models/props/pine_snow_b.glb",
+      "sourceObj": "PineTree_Snow_3.obj",
+      "zoneHint": "Zone_1"
+    },
+    {
+      "propTemplateKey": "rock_snow",
+      "file": "/models/props/rock_snow.glb",
+      "sourceObj": "Rock_Snow_1.obj",
+      "zoneHint": "Zone_1"
+    },
+    {
+      "propTemplateKey": "stump_snow",
+      "file": "/models/props/stump_snow.glb",
+      "sourceObj": "TreeStump_Snow.obj",
+      "zoneHint": "Zone_1"
+    },
+    {
+      "propTemplateKey": "tree_dead_snow",
+      "file": "/models/props/tree_dead_snow.glb",
+      "sourceObj": "Willow_Dead_Snow_1.obj",
+      "zoneHint": "Zone_1"
+    },
+    {
+      "propTemplateKey": "column_round",
+      "file": "/models/props/column_round.glb",
+      "sourceObj": "Column_Round.obj",
+      "zoneHint": "plaza",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "column_square",
+      "file": "/models/props/column_square.glb",
+      "sourceObj": "Column_Square.obj",
+      "zoneHint": "plaza",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "column_short",
+      "file": "/models/props/column_short.glb",
+      "sourceObj": "Column_Round_Short.obj",
+      "zoneHint": "plaza",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "wall_broken",
+      "file": "/models/props/wall_broken.glb",
+      "sourceObj": "Wall_Broken.obj",
+      "zoneHint": "plaza",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "wall_half",
+      "file": "/models/props/wall_half.glb",
+      "sourceObj": "Wall_Half.obj",
+      "zoneHint": "plaza",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "wall_overgrown",
+      "file": "/models/props/wall_overgrown.glb",
+      "sourceObj": "Wall_Overgrown.obj",
+      "zoneHint": "Zone_0",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "arch_round",
+      "file": "/models/props/arch_round.glb",
+      "sourceObj": "Arch_Round_RoundColumn.obj",
+      "zoneHint": "portal",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "crate",
+      "file": "/models/props/crate.glb",
+      "sourceObj": "Crate.obj",
+      "zoneHint": "plaza",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "cart",
+      "file": "/models/props/cart.glb",
+      "sourceObj": "Cart.obj",
+      "zoneHint": "merchant",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "barrel",
+      "file": "/models/props/barrel.glb",
+      "sourceObj": "Barrel.obj",
+      "zoneHint": "merchant",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "chest",
+      "file": "/models/props/chest.glb",
+      "sourceObj": "Chest.obj",
+      "zoneHint": "merchant",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "torch",
+      "file": "/models/props/torch.glb",
+      "sourceObj": "Torch.obj",
+      "zoneHint": "merchant",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "pot",
+      "file": "/models/props/pot.glb",
+      "sourceObj": "Pot2.obj",
+      "zoneHint": "merchant",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "floor_path",
+      "file": "/models/props/floor_path.glb",
+      "sourceObj": "Floor_Standard.obj",
+      "zoneHint": "hunt-path",
+      "pack": "ruins"
+    },
+    {
+      "propTemplateKey": "bush",
+      "file": "/models/props/bush.glb",
+      "sourceObj": "Bush_1.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "bush_b",
+      "file": "/models/props/bush_b.glb",
+      "sourceObj": "Bush_2.obj",
+      "zoneHint": "Zone_0"
+    },
+    {
+      "propTemplateKey": "plant",
+      "file": "/models/props/plant.glb",
+      "sourceObj": "Plant_1.obj",
+      "zoneHint": "Zone_0"
+    }
+  ],
+  "ruinsSource": "Quaternius Ultimate Modular Ruins Pack (Aug 2021), CC0 1.0",
+  "ruinsSourceUrl": "https://quaternius.com/packs/ultimatemodularruins.html",
+  "ruinsRawVendorDir": "_raw/quaternius/ultimate-ruins-2021"
+}
