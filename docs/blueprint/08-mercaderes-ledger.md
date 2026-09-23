@@ -9,7 +9,7 @@ Definir un flujo único para abrir tiendas de NPC mercaderes con autoridad de se
 
 ## Reglas de interacción (Weaver)
 
-1. **Clic izquierdo** sobre un NPC con `npcRole = MERCHANT` envía intención de abrir tienda.
+1. **Clic izquierdo** sobre un NPC con `npcRole = MERCHANT` (el modelo del trader **o** su cofre compañero) envía intención de abrir tienda y reproduce el clip `Opening` del cofre. Al cerrar la tienda el clip se reproduce al revés (tapa cierra).
 2. **Clic derecho** queda reservado para movimiento manual en suelo (no abre tienda).
 3. El contexto de clic derecho del inventario (`contextmenu` de mochila/paperdoll) se limita a acciones de inventario y no debe bloquear la interacción de mercader por clic izquierdo en el mundo.
 4. El cliente abre la UI solo con `ack.ok = true` del servidor.
@@ -59,13 +59,13 @@ Definir un flujo único para abrir tiendas de NPC mercaderes con autoridad de se
 
 ## Impact Analysis
 
-- **Weaver:** picking de NPC, apertura/cierre de panel de tienda y logs de UX. El cubo verde del mercader convive con el puesto de mapa (carreta/barril/cofre/antorcha); no abre tienda el prop, sólo el NPC.
+- **Weaver:** picking de NPC, apertura/cierre de panel de tienda y logs de UX. Skin: trader + cofre en `npc-visual-catalog.ts` (mismo `npcInstanceId`; `Opening` al clic, reverse al cerrar). El puesto de mapa (carreta/barril/antorcha) no abre tienda.
 - **Warden:** routing de evento y guardas autoritativas de zona/distancia.
 - **Ledger:** resolución de catálogo, integridad de precios en Adena y transacciones de compra/venta.
 
 ## QA mínimo obligatorio
 
-- Clic izquierdo en MERCHANT abre tienda dentro de rango.
+- Clic izquierdo en MERCHANT (trader o cofre) abre tienda dentro de rango y anima el cofre.
 - Fuera de rango responde `TOO_FAR` y no abre UI.
 - Clic derecho en suelo mantiene movimiento y no abre tienda.
 - Clic derecho de inventario sigue ejecutando usar/equipar/desequipar sin romper la apertura de tienda por clic izquierdo.

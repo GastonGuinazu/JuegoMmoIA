@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "npcs": [
+    {
+      "npcTemplateKey": "merchant_aetheris",
+      "file": "/models/npcs/trader/scene.gltf",
+      "source": "Medieval Knight | Sculpture | Game ready",
+      "license": "CC-BY-4.0",
+      "author": "by__Rx"
+    },
+    {
+      "role": "companion-chest",
+      "file": "/models/npcs/traderBox/scene.gltf",
+      "source": "Medieval Wooden Chest",
+      "license": "CC-BY-4.0",
+      "author": "Dasamura",
+      "openClip": "Opening"
+    }
+  ]
+}

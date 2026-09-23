@@ -30,7 +30,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | A6 | hecho | Modelo de personaje | Asset del jugador (reemplazo del dummy). |
 | A7 | hecho | Modelos de mobs | Catálogo visual de mobs. |
 | A8 | hecho | Props de entorno | Nature + Ruins (árboles, ruinas, albedo). |
-| A9 | pendiente | Mercader y senderos | Puesto del NPC, losetas a cuadrantes de caza. |
+| A9 | hecho | Mercader y senderos | Puesto del NPC, losetas a cuadrantes de caza. |
 | A10 | pendiente | Cierre | Lo que reste (síntesis UI, karma, GM, dungeons stub). |
 
 ## A0 — archivos de esta oleada
@@ -123,3 +123,12 @@ Subset CC0 de Nature + Ruins (`.glb` estáticos), su catálogo visual y los albe
 - `apps/client/src/app/game/prop-visual-catalog.ts`
 - `apps/client/public/models/textures/ground_grass_0B.jpg`, `ground_snow_1.jpg`
 - `docs/agents/the_weaver.md`
+
+## A9 — archivos de esta oleada
+
+Skin GLTF del NPC mercader (trader + cofre compañero con clip `Opening`) y su catálogo visual. Sin síntesis UI, karma ni GM.
+
+- `apps/client/public/models/npcs/**`
+- `apps/client/src/app/game/npc-visual-catalog.ts`
+- `apps/client/scripts/convert-npc-merchant.mjs`
+- `docs/blueprint/08-mercaderes-ledger.md`
