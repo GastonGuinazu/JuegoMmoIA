@@ -7,7 +7,7 @@
       "grade": "None",
       "description": "A balanced blade for beginners.",
       "baseSlot": "WEAPON",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/starter_short_sword.svg",
       "baseStats": {
         "pAtk": 10
       }
@@ -18,7 +18,7 @@
       "grade": "None",
       "description": "Light protection that does not weigh you down.",
       "baseSlot": "ARMOR",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/starter_leather_armor.svg",
       "baseStats": {
         "pDef": 5
       }
@@ -29,7 +29,7 @@
       "grade": "None",
       "description": "Simple planks, better than nothing.",
       "baseSlot": "SHIELD",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/starter_wooden_shield.svg",
       "baseStats": {
         "pDef": 3
       }
@@ -40,7 +40,7 @@
       "grade": "None",
       "description": "Restaura un poco de vitalidad. Consumible; se apila en la mochila.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/health_potion_small.svg",
       "baseStats": {
         "consumable": true,
         "maxStack": 99,
@@ -53,7 +53,7 @@
       "grade": "None",
       "description": "Escudo de forja sencilla; fiable en el frente.",
       "baseSlot": "SHIELD",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/iron_shield.svg",
       "baseStats": {
         "pDef": 12
       }
@@ -67,7 +67,7 @@
       "hasSubSlots": true,
       "maxSubSlots": 4,
       "subSlotType": "TALISMAN_SLOT",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/initiate_bracelet.svg",
       "baseStats": {
         "pDef": 2,
         "atkSpeed": 1
@@ -80,7 +80,7 @@
       "description": "Talismán de entrenamiento enfocado en fuerza bruta.",
       "baseSlot": null,
       "parentSlotType": "TALISMAN_SLOT",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/initiate_talisman_power.svg",
       "baseStats": {
         "str": 10
       }
@@ -92,7 +92,7 @@
       "description": "Talismán de entrenamiento enfocado en agilidad.",
       "baseSlot": null,
       "parentSlotType": "TALISMAN_SLOT",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/initiate_talisman_swiftness.svg",
       "baseStats": {
         "agi": 15
       }
@@ -103,7 +103,7 @@
       "grade": "C",
       "description": "Espada militar de calidad C para cazadores intermedios.",
       "baseSlot": "WEAPON",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/knight_blade_c.svg",
       "baseStats": {
         "pAtk": 28
       }
@@ -114,7 +114,7 @@
       "grade": "B",
       "description": "Armadura pesada de grado B forjada para guerras abiertas.",
       "baseSlot": "ARMOR",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/war_plate_b.svg",
       "baseStats": {
         "pDef": 34
       }
@@ -125,7 +125,7 @@
       "grade": "A",
       "description": "Amuleto arcano de alto rango con energía ígnea controlada.",
       "baseSlot": "PENDANT",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/phoenix_pendant_a.svg",
       "baseStats": {
         "pAtk": 18,
         "atkSpeed": 6
@@ -137,7 +137,7 @@
       "grade": "S",
       "description": "Alas legendarias de grado S reservadas para élite.",
       "baseSlot": "WINGS",
-      "icon": "/icons/stub.png",
+      "icon": "/icons/seraph_wings_s.svg",
       "baseStats": {
         "pDef": 22,
         "atkSpeed": 12
@@ -149,7 +149,7 @@
       "grade": "None",
       "description": "Trofeo de caza de los campamentos goblin.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/goblin_ear.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -158,7 +158,7 @@
       "grade": "None",
       "description": "Restos de armas y escudos goblin.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/goblin_scrap.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -167,7 +167,7 @@
       "grade": "None",
       "description": "Hilo resistente de las arañas de la pradera.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/spider_silk.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -176,7 +176,7 @@
       "grade": "None",
       "description": "Púa venenosa de los escorpiones de duna.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/scorpion_stinger.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -185,7 +185,7 @@
       "grade": "None",
       "description": "Restos óseos de no-muertos.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/bone_fragment.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -194,7 +194,7 @@
       "grade": "None",
       "description": "Restos de zombies del valle.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/zombie_flesh.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -203,7 +203,7 @@
       "grade": "None",
       "description": "Harapos de shamblers.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/rotten_cloth.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -212,7 +212,7 @@
       "grade": "None",
       "description": "Colmillo de los ogros del valle.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/ogre_tusk.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -221,7 +221,7 @@
       "grade": "None",
       "description": "Cuerno de los bull fighters.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/bull_horn.svg",
       "baseStats": { "maxStack": 99 }
     },
     {
@@ -230,7 +230,7 @@
       "grade": "None",
       "description": "Escama del Silver Dragonkin. Material de boss.",
       "baseSlot": null,
-      "icon": "/icons/stub.png",
+      "icon": "/icons/dragon_scale.svg",
       "baseStats": { "maxStack": 99 }
     }
   ]
