@@ -7,6 +7,12 @@ export type TargetFrameViewModel = {
   hpPercent: number;
   currentHp: number;
   maxHp: number;
+  /** `player` = otro jugador (PvP): sin nivel, sin vista de drops y HP sólo conocido tras golpearlo. */
+  kind?: 'mob' | 'player';
+  /** Color del nombre (flag de karma del jugador objetivo). */
+  nameColor?: string;
+  /** Línea de ayuda bajo la barra (p. ej. cómo atacar a un jugador). */
+  hint?: string;
 };
 
 export type TargetDropPreviewItemViewModel = {

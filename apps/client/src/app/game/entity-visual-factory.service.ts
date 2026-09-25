@@ -44,6 +44,25 @@ export const NPC_MERCHANT_COLOR = 0x22c55e;
 export const BOX = 0.8;
 export const Y_LIFT = BOX / 2;
 export const DROP_BOX = 0.38;
+
+let mobAggroRingGeometry: THREE.RingGeometry | undefined;
+let mobAggroRingMaterial: THREE.MeshBasicMaterial | undefined;
+
+/** Geometría y material compartidos por todos los mobs (aro de aggro, sin luces). */
+function getMobAggroRingGeometry(): THREE.RingGeometry {
+  return (mobAggroRingGeometry ??= new THREE.RingGeometry(0.7, 0.95, 32));
+}
+
+function getMobAggroRingMaterial(): THREE.MeshBasicMaterial {
+  return (mobAggroRingMaterial ??= new THREE.MeshBasicMaterial({
+    color: 0xff6a28,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }));
+}
+
 export const DROP_Y_LIFT = DROP_BOX / 2 + 0.06;
 
 const OBSTACLE_COLOR = 0x9aa3ad;
@@ -282,10 +301,16 @@ export class EntityVisualFactoryService {
     group.userData['mobInstanceId'] = mobInstanceId;
     group.userData['bodyMesh'] = cube;
     group.userData['mobPickCollider'] = cube;
-    const aggroLight = new THREE.PointLight(0xff6a28, 0, 2.6, 2);
-    aggroLight.position.set(0, 0.14, 0);
-    group.add(aggroLight);
-    group.userData['mobAggroLight'] = aggroLight;
+    // Aro plano sin iluminación: una PointLight por mob (19+ por zona) encarece el fragment
+    // shader de TODOS los materiales y prender/apagar luces fuerza recompilar shaders.
+    const aggroRing = new THREE.Mesh(getMobAggroRingGeometry(), getMobAggroRingMaterial());
+    aggroRing.rotation.x = -Math.PI / 2;
+    aggroRing.position.set(0, -Y_LIFT + 0.05, 0);
+    aggroRing.visible = false;
+    aggroRing.raycast = () => undefined;
+    aggroRing.userData['sharedGltfAsset'] = true;
+    group.add(aggroRing);
+    group.userData['mobAggroRing'] = aggroRing;
     if (mobTemplateKey) {
       group.userData['mobTemplateKey'] = mobTemplateKey;
     }
@@ -1356,9 +1381,9 @@ export class EntityVisualFactoryService {
     if (!visual) {
       return;
     }
-    const light = visual.userData['mobAggroLight'] as THREE.PointLight | undefined;
-    if (light) {
-      light.intensity = chasing ? 0.65 : 0;
+    const ring = visual.userData['mobAggroRing'] as THREE.Mesh | undefined;
+    if (ring) {
+      ring.visible = chasing;
     }
   }
 
@@ -1412,9 +1437,9 @@ export class EntityVisualFactoryService {
     visual.userData['mobDeathPlaying'] = false;
     visual.userData['mobDeathUntilMs'] = undefined;
     visual.userData['mobPendingAttack'] = undefined;
-    const light = visual.userData['mobAggroLight'] as THREE.PointLight | undefined;
-    if (light) {
-      light.intensity = 0;
+    const ring = visual.userData['mobAggroRing'] as THREE.Mesh | undefined;
+    if (ring) {
+      ring.visible = false;
     }
     const rig = visual.userData['mobAnimRig'] as MobAnimRig | undefined;
     rig?.resetToIdle();

@@ -1,9 +1,12 @@
 <div class="overlay-target-frame" role="status" aria-label="Objetivo seleccionado">
   <div class="target-frame__header">
     <div class="target-frame__name">
-      <span class="target-frame__mob">{{ target().name }}</span>
-      <span class="target-frame__level">Lv. {{ target().level }}</span>
+      <span class="target-frame__mob" [style.color]="target().nameColor ?? null">{{ target().name }}</span>
+      @if (target().level > 0) {
+        <span class="target-frame__level">Lv. {{ target().level }}</span>
+      }
     </div>
+    @if (target().kind !== 'player') {
     <button
       type="button"
       class="target-frame__preview-btn"
@@ -14,11 +17,19 @@
     >
       {{ previewOpen() ? '▴' : '▾' }}
     </button>
+    }
   </div>
-  <div class="target-frame__bar">
-    <div class="target-frame__fill" [style.width.%]="target().hpPercent"></div>
-    <div class="target-frame__text">{{ target().currentHp }} / {{ target().maxHp }}</div>
-  </div>
+  @if (target().maxHp > 0) {
+    <div class="target-frame__bar">
+      <div class="target-frame__fill" [style.width.%]="target().hpPercent"></div>
+      <div class="target-frame__text">{{ target().currentHp }} / {{ target().maxHp }}</div>
+    </div>
+  } @else if (target().currentHp > 0) {
+    <div class="target-frame__hint">HP: {{ target().currentHp }}</div>
+  }
+  @if (target().hint) {
+    <div class="target-frame__hint">{{ target().hint }}</div>
+  }
 
   @if (previewOpen()) {
     <div class="target-frame__preview" role="region" aria-label="Vista previa de drop">

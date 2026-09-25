@@ -1,3 +1,4 @@
+import { PerfHud, warnIfSoftwareRenderer } from './perf-hud';
 import {
   AfterViewInit,
   Component,
@@ -24,6 +25,7 @@ import { NpcShopPanelComponent } from '../ui/progress/npc-shop-panel.component';
 import { SynthesisComponent } from '../ui/progress/synthesis.component';
 import {
   TargetFrameComponent,
+  type TargetFrameViewModel,
   type TargetDropPreviewItemViewModel,
 } from '../ui/progress/target-frame.component';
 import { XpBarComponent } from '../ui/progress/xp-bar.component';
@@ -101,6 +103,9 @@ const CAMERA_ZOOM_SMOOTH = 0.14;
 const CAMERA_COLLISION_MARGIN = 0.2;
 const CAMERA_COLLISION_MIN_RADIUS = 2.5;
 const BASIC_ATTACK_RANGE_METERS = 1.5;
+/** Reintento del golpe a jugadores mientras siga el objetivo (el servidor aplica el enfriamiento real). */
+const PLAYER_AUTO_ATTACK_INTERVAL_MS = 250;
+const PLAYER_ATTACK_MIN_GAP_MS = 750;
 /** Holgura visual cliente vs attackRange autoritativo (interpolación). */
 const MOB_MELEE_VISUAL_SLACK_METERS = 0.55;
 const SKILL_LOCAL_RULES = {
@@ -380,6 +385,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private readonly glReady = signal(false);
   private resizeObserver?: ResizeObserver;
   private raf = 0;
+  private perfHud: PerfHud | null = null;
 
   /** Feedback visual: golpe propio conectó (daño > 0). */
   private meleeHitFlashUntilMs = 0;
@@ -397,6 +403,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   } | null = null;
   private activeTargetId: string | null = null;
   private activePlayerTargetId: string | null = null;
+  /** Último HP conocido de jugadores golpeados (el servidor no publica su HP máximo). */
+  private readonly playerTargetHp = new Map<string, number>();
+  private playerAutoAttackTimer: ReturnType<typeof setInterval> | null = null;
+  /** Instante del último golpe a jugador sin respuesta; evita acumular cola si el servidor tarda. */
+  private playerAttackAwaitingSinceMs: number | null = null;
   localCurrentMp = 0;
   localMaxMp = 0;
   private readonly localSkillCooldownUntil = new Map<string, number>();
@@ -733,6 +744,17 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       });
 
     this.worldSocket.attackDenied$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d) => {
+      if (
+        d.code === 'TARGET_ALREADY_DEAD' ||
+        d.code === 'ZONE_MISMATCH' ||
+        d.code === 'INVALID_TARGET' ||
+        d.code === 'CHARACTER_DEAD'
+      ) {
+        this.stopPlayerAutoAttack();
+      }
+      if (d.code === 'ATTACK_ON_COOLDOWN') {
+        return;
+      }
       this.lastDenied.set(`${d.code}: ${d.message}`);
       if (d.code === 'OUT_OF_RANGE' && this.activeTargetId) {
         this.pushCombatFeedback('Caminando hacia el objetivo...');
@@ -797,7 +819,25 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.worldSocket.attackPlayerResult$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((p) => {
+        this.playerTargetHp.set(p.targetCharacterId, p.targetHpAfter);
         this.triggerWeaponSwing(p.attackerCharacterId);
+        this.visuals.playCharacterCombatAnim(
+          this.resolveCharacterVisual(p.attackerCharacterId),
+          'attack',
+        );
+        if (this.glReady() && p.damage > 0) {
+          const targetVisual = this.resolveCharacterVisual(p.targetCharacterId);
+          if (targetVisual) {
+            const v = new THREE.Vector3();
+            targetVisual.getWorldPosition(v);
+            v.y += Y_LIFT;
+            this.spawnDamageFloater(v, p.damage, p.critical, false);
+          }
+        }
+        if (p.targetKilled && this.activePlayerTargetId === p.targetCharacterId) {
+          this.activePlayerTargetId = null;
+          this.stopPlayerAutoAttack();
+        }
       });
 
     this.worldSocket.attackMobRewards$
@@ -864,6 +904,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.glReady.set(true);
     this.resizeObserver = new ResizeObserver(() => this.onResize());
     this.resizeObserver.observe(this.viewportRef.nativeElement);
+    this.perfHud = new PerfHud(this.viewportRef.nativeElement);
+    warnIfSoftwareRenderer(this.renderer, this.viewportRef.nativeElement);
     this.startLoop();
     this.onResize();
 
@@ -878,6 +920,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     cancelAnimationFrame(this.raf);
+    this.stopPlayerAutoAttack();
+    this.perfHud?.dispose();
     this.combatFloaters?.dispose();
     this.combatFloaters = null;
     this.clearSkillFx();
@@ -1268,6 +1312,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (this.isEditableTarget(ev.target)) {
       return;
     }
+    if (ev.key === 'F3') {
+      ev.preventDefault();
+      this.perfHud?.toggle();
+      return;
+    }
     if (ev.key === 'Tab' || ev.key.toLowerCase() === 'i') {
       ev.preventDefault();
       this.inventoryPanelOpen.update((open) => !open);
@@ -1337,7 +1386,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   private requestBasicAttack(): void {
     if (this.activePlayerTargetId) {
-      this.worldSocket.attackPlayer({ targetCharacterId: this.activePlayerTargetId });
+      this.sendPlayerAttack(this.activePlayerTargetId);
+      this.startPlayerAutoAttack();
       return;
     }
     if (!this.activeTargetId) {
@@ -1354,7 +1404,48 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** Repite el golpe a un jugador mientras siga seleccionado; Esc, muerte o cambio de objetivo lo cortan. */
+  private startPlayerAutoAttack(): void {
+    if (this.playerAutoAttackTimer !== null) {
+      return;
+    }
+    this.playerAutoAttackTimer = setInterval(() => {
+      const targetId = this.activePlayerTargetId;
+      if (!targetId || !this.worldSocket.socketConnected()) {
+        this.stopPlayerAutoAttack();
+        return;
+      }
+      this.sendPlayerAttack(targetId);
+    }, PLAYER_AUTO_ATTACK_INTERVAL_MS);
+  }
+
+  /**
+   * Ritmo de golpes a jugadores: no más de uno cada ~750 ms (≈ enfriamiento del servidor). La respuesta
+   * tarda ~1 s por la base remota, así que esperar cada respuesta bajaría el DPS y enviar cada tick
+   * dejaría cola de golpes pendientes al soltar el objetivo.
+   */
+  private sendPlayerAttack(targetId: string): void {
+    const now = performance.now();
+    if (this.playerAttackAwaitingSinceMs !== null && now - this.playerAttackAwaitingSinceMs < PLAYER_ATTACK_MIN_GAP_MS) {
+      return;
+    }
+    this.playerAttackAwaitingSinceMs = now;
+    this.worldSocket.attackPlayer({ targetCharacterId: targetId });
+  }
+
+  private stopPlayerAutoAttack(): void {
+    if (this.playerAutoAttackTimer !== null) {
+      clearInterval(this.playerAutoAttackTimer);
+      this.playerAutoAttackTimer = null;
+    }
+    this.playerAttackAwaitingSinceMs = null;
+  }
+
   private requestSkillCast(skillId: SkillHotkeyId): void {
+    if (!this.activeTargetId && this.activePlayerTargetId) {
+      this.pushCombatFeedback('Las habilidades sólo funcionan contra mobs; usá 1 para atacar jugadores');
+      return;
+    }
     if (!this.activeTargetId) {
       this.pushCombatFeedback('Debes seleccionar un objetivo primero');
       return;
@@ -1399,9 +1490,23 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     return Math.max(0, Math.min(100, (100 * this.localCurrentMp) / this.localMaxMp));
   }
 
-  activeTargetFrame():
-    | { name: string; level: number; hpPercent: number; currentHp: number; maxHp: number }
-    | null {
+  activeTargetFrame(): TargetFrameViewModel | null {
+    if (!this.activeTargetId && this.activePlayerTargetId) {
+      const other = this.entitySync.otherPlayers().get(this.activePlayerTargetId);
+      if (!other) {
+        return null;
+      }
+      return {
+        name: other.name,
+        level: 0,
+        hpPercent: 0,
+        currentHp: this.playerTargetHp.get(other.characterId) ?? 0,
+        maxHp: 0,
+        kind: 'player',
+        nameColor: KARMA_NAME_COLORS[other.karmaFlag],
+        hint: 'Jugador: pulsá 1 para atacar (Esc cancela)',
+      };
+    }
     if (!this.activeTargetId) {
       return null;
     }
@@ -1678,7 +1783,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Tope 1.5: en pantallas HiDPI, 2x renderiza 4x píxeles con poca ganancia visible.
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setSize(w, h);
     this.renderer.domElement.style.display = 'block';
     this.renderer.domElement.style.width = '100%';
@@ -2003,6 +2109,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
           ? Math.min(0.05, Math.max(0, rawDt))
           : 1 / 60;
         if (this.renderer && this.scene && this.camera) {
+          const tSim0 = performance.now();
           this.tickMovement(dt);
           this.tickCharacterLocomotionAnim();
           this.visuals.tickAnimations(dt);
@@ -2021,8 +2128,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
             this.maybeEmitMoveSample();
           }
           this.tickShopDistanceAutoClose();
+          const tGl0 = performance.now();
           this.renderer.render(this.scene, this.camera);
+          const tCss0 = performance.now();
           this.css2d.render(this.scene, this.camera);
+          const tEnd = performance.now();
+          this.perfHud?.sample(
+            timestamp,
+            tGl0 - tSim0,
+            tCss0 - tGl0,
+            tEnd - tCss0,
+            this.renderer,
+            this.scene,
+            { mobs: this.mobRoot.children.length, drops: this.dropsRoot.children.length },
+          );
         }
       } catch (e) {
         console.error('[GameViewport] Error en requestAnimationFrame / tick', e);
