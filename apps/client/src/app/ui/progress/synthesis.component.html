@@ -1,0 +1,101 @@
+<section class="synthesis-panel" aria-label="Panel de síntesis">
+  <header class="synthesis-header">
+    <h3>Synthesis Engine</h3>
+    <p>Combiná dos ítems iguales para subir el nivel de síntesis.</p>
+  </header>
+
+  <div class="slots-grid">
+    <div class="slot-card">
+      <label for="synth-base">Base</label>
+      <select
+        id="synth-base"
+        [ngModel]="baseItemId()"
+        (ngModelChange)="onBaseSelectionChanged($event)"
+      >
+        <option value="">Seleccionar</option>
+        @for (item of baseCandidates(); track item.id) {
+          <option [value]="item.id">{{ displayItem(item) }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="slot-card">
+      <label for="synth-material">Material</label>
+      <select
+        id="synth-material"
+        [ngModel]="materialItemId()"
+        (ngModelChange)="onMaterialSelectionChanged($event)"
+      >
+        <option value="">Seleccionar</option>
+        @for (item of materialCandidates(); track item.id) {
+          <option [value]="item.id">{{ displayItem(item) }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="slot-card result-slot" [class]="resultFxClass()">
+      <label>Resultado</label>
+      <div class="result-level">{{ resultLevelLabel() }}</div>
+      @if (state.synthesisBusy()) {
+        <div class="processing">Procesando...</div>
+      }
+      @if (outcome(); as result) {
+        @if (!result.success) {
+        <div class="smoke-layer" aria-hidden="true">
+          @for (particle of smokeParticles; track particle) {
+            <span class="smoke-particle"></span>
+          }
+        </div>
+        }
+      }
+    </div>
+  </div>
+
+  <div class="quote-card">
+    @if (quote(); as q) {
+      <div class="quote-row">
+        <span>Costo en Adena</span>
+        <strong>{{ formatAdena(q.adenaCost) }}</strong>
+      </div>
+      <div class="quote-row">
+        <span>Probabilidad de éxito</span>
+        <strong>{{ q.effectiveSuccessPercent.toFixed(1) + '%' }}</strong>
+      </div>
+      <div class="quote-row pity">
+        <span>Pity</span>
+        <strong>
+          {{
+            q.pityCount + ' / ' + q.pityMaxFails + ' (+' + q.pityBonusPerFailPercent.toFixed(1)
+            + '% por fallo)'
+          }}
+        </strong>
+      </div>
+    } @else {
+      <div class="quote-row">
+        <span>Costo en Adena</span>
+        <strong>—</strong>
+      </div>
+      <div class="quote-row">
+        <span>Probabilidad de éxito</span>
+        <strong>—</strong>
+      </div>
+      <div class="quote-row pity">
+        <span>Pity</span>
+        <strong>—</strong>
+      </div>
+    }
+  </div>
+
+  <button
+    type="button"
+    class="synth-btn"
+    [disabled]="!canSynthesize()"
+    (click)="runSynthesis()"
+  >
+    Sintetizar
+  </button>
+
+  @if (state.synthesisError(); as err) {
+    <p class="error-msg">{{ err }}</p>
+  }
+</section>

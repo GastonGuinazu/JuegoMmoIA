@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "_comment": "Bonos aditivos por nivel de síntesis por encima de 1 (Ledger ItemInstance.synthesisLevel).",
+  "flatPerSynthesisLevelAboveOne": {
+    "pAtk": 2.2,
+    "mAtk": 1.8,
+    "pDef": 0.9,
+    "atkSpeed": 0.0018,
+    "critRate": 0.00065
+  },
+  "coreFlatPerSynthesisLevelAboveOne": {
+    "str": 0.15,
+    "agi": 0.15,
+    "vit": 0.15,
+    "ene": 0.15
+  }
+}

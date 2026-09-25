@@ -1,0 +1,77 @@
+{
+  "maxSynthesisLevel": 10,
+  "tiers": [
+    {
+      "fromLevel": 1,
+      "baseSuccessPercent": 85,
+      "maxPityConsecutiveFails": 4,
+      "adenaCost": "5000",
+      "pityBonusPerFailPercent": 2,
+      "statBonusPercent": 10
+    },
+    {
+      "fromLevel": 2,
+      "baseSuccessPercent": 75,
+      "maxPityConsecutiveFails": 5,
+      "adenaCost": "9000",
+      "pityBonusPerFailPercent": 2,
+      "statBonusPercent": 10
+    },
+    {
+      "fromLevel": 3,
+      "baseSuccessPercent": 65,
+      "maxPityConsecutiveFails": 6,
+      "adenaCost": "15000",
+      "pityBonusPerFailPercent": 2.5,
+      "statBonusPercent": 10
+    },
+    {
+      "fromLevel": 4,
+      "baseSuccessPercent": 55,
+      "maxPityConsecutiveFails": 7,
+      "adenaCost": "23000",
+      "pityBonusPerFailPercent": 3,
+      "statBonusPercent": 10
+    },
+    {
+      "fromLevel": 5,
+      "baseSuccessPercent": 45,
+      "maxPityConsecutiveFails": 8,
+      "adenaCost": "35000",
+      "pityBonusPerFailPercent": 3.5,
+      "statBonusPercent": 10
+    },
+    {
+      "fromLevel": 6,
+      "baseSuccessPercent": 35,
+      "maxPityConsecutiveFails": 10,
+      "adenaCost": "52000",
+      "pityBonusPerFailPercent": 4,
+      "statBonusPercent": 10
+    },
+    {
+      "fromLevel": 7,
+      "baseSuccessPercent": 25,
+      "maxPityConsecutiveFails": 12,
+      "adenaCost": "76000",
+      "pityBonusPerFailPercent": 4.5,
+      "statBonusPercent": 10
+    },
+    {
+      "fromLevel": 8,
+      "baseSuccessPercent": 15,
+      "maxPityConsecutiveFails": 15,
+      "adenaCost": "110000",
+      "pityBonusPerFailPercent": 5,
+      "statBonusPercent": 10
+    },
+    {
+      "fromLevel": 9,
+      "baseSuccessPercent": 10,
+      "maxPityConsecutiveFails": 20,
+      "adenaCost": "160000",
+      "pityBonusPerFailPercent": 6,
+      "statBonusPercent": 10
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "karmaThresholds": {
+    "tier2MaxPoints": -1,
+    "tier3MaxPoints": -100
+  },
+  "attackOnWhite": {
+    "karmaPointsDelta": -5,
+    "forceMinimumTier": "TIER_II"
+  },
+  "killOnWhite": {
+    "karmaPointsDelta": -120,
+    "unjustifiedKillIncrement": 1,
+    "forceTier": "TIER_III"
+  },
+  "redDeathDrop": {
+    "baseChance": 0.05,
+    "valueScoreFactor": 0.00045,
+    "maxChance": 0.85
+  }
+}
