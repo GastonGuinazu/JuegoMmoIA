@@ -730,6 +730,12 @@ export class CombatService {
     const rand = options?.rng ?? Math.random;
     const outcome = await this.prisma.$transaction(
       async (tx) => {
+        // Bloqueo de ambas filas en orden fijo (por id) ANTES de leer o escribir. Sin esto, dos
+        // jugadores que se pegan a la vez (A actualiza A y luego B; B actualiza B y luego A) o dos
+        // golpes solapados del mismo atacante se bloquean mutuamente (Postgres 40P01 "deadlock detected").
+        const lockIds = [...new Set([attackerCharacterId, targetCharacterId])].sort();
+        await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" IN (${Prisma.join(lockIds.map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY "id" FOR UPDATE`;
+
         const [attacker, target] = await Promise.all([
           tx.character.findUnique({ where: { id: attackerCharacterId } }),
           tx.character.findUnique({ where: { id: targetCharacterId } }),
@@ -925,7 +931,13 @@ export class CombatService {
           targetName: target.name,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        // La transacción hace ~15 consultas a una base remota y ahora espera el bloqueo de filas:
+        // el timeout por defecto de Prisma (5 s) se agotaba con golpes solapados (P2028).
+        maxWait: 5000,
+        timeout: 15000,
+      },
     );
 
     const targetVitals = await this.statEngine.getCombatVitals(outcome.targetCharacterId);

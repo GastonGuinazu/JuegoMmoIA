@@ -1437,6 +1437,16 @@ export class WorldGateway
         data: { worldFacingYaw: body.attackerFacingYaw },
       });
     }
+    // Un golpe PvP en curso por atacante: los solapados sólo harían cola sobre las mismas filas
+    // (bloqueos, timeouts) y de todos modos caerían en el enfriamiento.
+    if (this.pvpAttacksInFlight.has(attackerCharacterId)) {
+      this.emitDenied(client, {
+        code: 'ATTACK_ON_COOLDOWN',
+        message: 'Melee swing on cooldown',
+      });
+      return;
+    }
+    this.pvpAttacksInFlight.add(attackerCharacterId);
     try {
       await this.combat.attackCharacter(
         attackerCharacterId,
@@ -1444,6 +1454,8 @@ export class WorldGateway
       );
     } catch (e) {
       this.emitDeniedFromError(client, e);
+    } finally {
+      this.pvpAttacksInFlight.delete(attackerCharacterId);
     }
   }
 
@@ -2066,6 +2078,9 @@ export class WorldGateway
       message: 'Unexpected error processing inventory action',
     };
   }
+
+  /** Atacantes con un `attack-player` en proceso (ver `handleAttackPlayer`). */
+  private readonly pvpAttacksInFlight = new Set<string>();
 
   private emitDenied(client: Socket, payload: WsAttackMobDeniedPayload): void {
     client.emit(WS_WORLD_EVENTS.ATTACK_MOB_DENIED, payload);
