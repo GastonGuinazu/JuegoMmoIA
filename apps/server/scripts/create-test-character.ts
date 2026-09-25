@@ -1,5 +1,7 @@
 /**
- * Uso: desde apps/server → `npx tsx scripts/create-test-character.ts`
+ * Uso: desde apps/server → `npx tsx scripts/create-test-character.ts [nombre]`
+ * Sin nombre se crea `ilovethecoco`. Ejecutarlo dos veces con nombres distintos da dos
+ * jugadores para probar multijugador (cada uno con su cuenta y su `characterId`).
  * Crea cuenta + personaje de prueba (no usar en producción).
  */
 import { PrismaClient, CharacterClass } from '@prisma/client';
@@ -9,12 +11,13 @@ const prisma = new PrismaClient();
 const statEngine = new StatEngineService(prisma as never);
 
 async function main(): Promise<void> {
+  const characterName = process.argv[2]?.trim() || 'ilovethecoco';
   const acc = await prisma.account.create({ data: {} });
 
   const created = await prisma.character.create({
     data: {
       accountId: acc.id,
-      name: 'ilovethecoco',
+      name: characterName,
       level: 1,
       characterClass: CharacterClass.DARK_KNIGHT,
       statStr: 28,

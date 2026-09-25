@@ -25,3 +25,13 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Notas locales (no se publican)
+docs/stack.md
+
+# Enunciado de la cátedra (no se publica)
+Enunciado SolutionDesignDocument-2Q.pdf
+docs/enunciado-sdd.md
+
+# SDD: salida generada
+docs/sdd/out/
