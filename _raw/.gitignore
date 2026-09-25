@@ -1,0 +1,4 @@
+# Vendor dumps (Quaternius packs, etc.). Angular serves only public/.
+*
+!.gitignore
+!README.md

@@ -35,3 +35,6 @@ docs/enunciado-sdd.md
 
 # SDD: salida generada
 docs/sdd/out/
+
+# Artefactos de tests del cliente
+apps/client/test-results/
