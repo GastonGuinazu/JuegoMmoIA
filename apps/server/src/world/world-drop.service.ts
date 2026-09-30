@@ -8,6 +8,7 @@ import { mapInventoryItemInstanceToRow } from '../inventory/inventory-item-row.m
 import type { CharacterWithInventoryItems } from '../inventory/inventory.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { readMaxStackFromTemplate } from './npc-shop.service';
 import { WorldSpatialService } from './world-spatial.service';
 import { zonesMatch } from './world-zone.util';
 
@@ -113,15 +114,29 @@ export class WorldDropService {
               });
             }
 
-            const stack = await tx.itemInstance.findFirst({
-              where: {
-                ownerId: characterId,
-                itemTemplateId: item.itemTemplateId,
-                location: ItemInstanceLocation.INVENTORY,
-              },
-            });
+            /**
+             * Equipo (`baseSlot` definido: arma, armadura, escudo...) nunca apila: cada
+             * unidad es una instancia propia con su propio `synthesisLevel` y rolls, y la
+             * síntesis sólo puede elegir ítems con `quantity === 1`. Antes esto no se
+             * chequeaba acá (a diferencia de la compra en tienda, que sí lo hace) y recoger
+             * un segundo arma igual la fusionaba en una sola fila con quantity 2, dejándola
+             * invisible para el panel de síntesis.
+             */
+            const maxStack = item.template.baseSlot
+              ? 1
+              : readMaxStackFromTemplate(item.template.baseStats);
+            const stack =
+              maxStack > 1
+                ? await tx.itemInstance.findFirst({
+                    where: {
+                      ownerId: characterId,
+                      itemTemplateId: item.itemTemplateId,
+                      location: ItemInstanceLocation.INVENTORY,
+                    },
+                  })
+                : null;
 
-            if (stack && stack.id !== item.id) {
+            if (stack && stack.id !== item.id && stack.quantity + item.quantity <= maxStack) {
               await tx.itemInstance.update({
                 where: { id: stack.id },
                 data: {

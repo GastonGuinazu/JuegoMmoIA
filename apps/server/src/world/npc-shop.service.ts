@@ -20,7 +20,7 @@ function sellUnitPriceFromBuy(buyAdena: bigint): bigint {
   return buyAdena / 3n;
 }
 
-function readMaxStackFromTemplate(baseStats: unknown): number {
+export function readMaxStackFromTemplate(baseStats: unknown): number {
   if (!baseStats || typeof baseStats !== 'object') {
     return 99;
   }
