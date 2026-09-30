@@ -61,6 +61,23 @@ export class SynthesisComponent {
     null,
   );
 
+  /**
+   * El sacrificio debe ser el MISMO ítem y el MISMO nivel +N que la base (regla del
+   * servidor, `synthesis.service.ts`): dos +0 se funden entre sí para dar un +1, pero
+   * un +0 nunca sirve de sacrificio para una base +7. Sin este texto, un material que
+   * no aparece en el desplegable se ve como un bug en vez de la regla del juego.
+   */
+  readonly materialHint = computed(() => {
+    const base = this.selectedBase();
+    if (!base) {
+      return '';
+    }
+    if (this.materialCandidates().length > 0) {
+      return '';
+    }
+    return `Necesitás otro "${base.name}" +${this.plusLevel(base)} para usar de sacrificio (mismo ítem y mismo nivel).`;
+  });
+
   readonly quote = computed(() => this.state.synthesisQuote());
   readonly outcome = computed(() => this.state.synthesisOutcome());
   readonly canSynthesize = computed(() => {

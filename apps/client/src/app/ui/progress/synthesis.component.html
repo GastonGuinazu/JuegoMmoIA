@@ -31,6 +31,9 @@
           <option [value]="item.id">{{ displayItem(item) }}</option>
         }
       </select>
+      @if (materialHint(); as hint) {
+        <p class="slot-hint">{{ hint }}</p>
+      }
     </div>
 
     <div class="slot-card result-slot" [class]="resultFxClass()">
@@ -94,6 +97,9 @@
   >
     Sintetizar
   </button>
+  <p class="sacrifice-warning">
+    ⚠ El material sacrificado se pierde siempre, incluso si el intento falla.
+  </p>
 
   @if (state.synthesisError(); as err) {
     <p class="error-msg">{{ err }}</p>

@@ -206,6 +206,20 @@
   color: #ffc2bb;
 }
 
+.slot-hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.62rem;
+  line-height: 1.25;
+  color: #8fa0c2;
+}
+
+.sacrifice-warning {
+  margin: 0.4rem 0 0;
+  font-size: 0.65rem;
+  color: #e8b96a;
+  text-align: center;
+}
+
 @keyframes synth-processing-pulse {
   0%,
   100% {
