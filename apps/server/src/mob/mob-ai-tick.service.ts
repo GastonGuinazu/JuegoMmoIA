@@ -404,7 +404,19 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
     const minRing = Math.max(mob.template.attackRange * ringFactor, bodyR * 2.1);
     const packRing = n > 1 ? (n * 2 * bodyR) / (Math.PI * 2) : minRing;
     const ring = Math.max(minRing, packRing);
-    const angle = (index / n) * Math.PI * 2;
+    /**
+     * Ángulo base del abanico: para un mob solo (n=1, ej. un boss) angle=0 siempre
+     * apuntaba "al norte" del jugador sin importar de dónde venía el mob. Si lo
+     * atacabas desde cualquier otro lado, el hold point quedaba a varios metros de
+     * su posición real y el mob seguía caminando hacia ahí tick a tick aunque ya
+     * estuviera en rango de golpear: eso se veía como que "retrocedía" al pegarle.
+     * Con un solo atacante, el punto de hold va en la dirección real mob->jugador
+     * (así solo cierra distancia en línea recta); en manada (n>1) se mantiene el
+     * abanico fijo, que sí sirve para repartir a varios atacantes alrededor.
+     */
+    const baseAngle =
+      n > 1 ? 0 : Math.atan2(mob.posX - target.x, mob.posZ - target.z);
+    const angle = baseAngle + (index / n) * Math.PI * 2;
     return {
       x: target.x + Math.sin(angle) * ring,
       y: target.y,

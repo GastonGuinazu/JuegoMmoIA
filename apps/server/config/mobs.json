@@ -461,8 +461,8 @@
       "attackRange": 4.8,
       "meleeCooldownMs": 1000,
       "meleeHitDelayMs": 280,
-      "baseMoveSpeed": 5.3,
-      "chaseSpeed": 8.2,
+      "baseMoveSpeed": 1.325,
+      "chaseSpeed": 2.05,
       "aggroRadius": 14,
       "socialLinkRadius": 5,
       "dropTable": {
