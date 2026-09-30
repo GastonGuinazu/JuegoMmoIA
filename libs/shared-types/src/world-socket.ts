@@ -584,6 +584,7 @@ export type WsUseItemAckPayload =
       items: InventoryItemRowDto[];
       adena: string;
       hpRestored: number;
+      mpRestored: number;
     }
   | { ok: false; code: string; message: string };
 
@@ -603,6 +604,8 @@ export type WsDistributeStatAckPayload =
 export type WsPlayerConsumableHealPayload = {
   characterId: string;
   hpRestored: number;
+  /** Ausente/0 en pociones que no restauran maná (compat con clientes viejos). */
+  mpRestored?: number;
 };
 
 export type WsRequestSynthesisClientPayload = {

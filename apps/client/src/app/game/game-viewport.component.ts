@@ -108,6 +108,15 @@ const PLAYER_AUTO_ATTACK_INTERVAL_MS = 250;
 const PLAYER_ATTACK_MIN_GAP_MS = 750;
 /** Holgura visual cliente vs attackRange autoritativo (interpolación). */
 const MOB_MELEE_VISUAL_SLACK_METERS = 0.55;
+const HEALTH_POTION_CATALOG_KEY = 'health_potion_small';
+const MANA_POTION_CATALOG_KEY = 'mana_potion_small';
+/**
+ * Cooldown de consumibles: el servidor comparte UNO solo entre TODOS los consumibles
+ * por personaje (`CONSUMABLE_USE_COOLDOWN_MS` en player-combat-runtime.service.ts) —
+ * tomar una poción de vida también frena la de maná por este mismo tiempo. Se refleja
+ * igual acá para que el overlay de cooldown de la barra no mienta.
+ */
+const POTION_COOLDOWN_MS = 1000;
 const SKILL_LOCAL_RULES = {
   power_strike: { name: 'Power Strike', manaCost: 15, cooldownMs: 2000, rangeMeters: 2 },
   rageful_blow: { name: 'Rageful Blow', manaCost: 30, cooldownMs: 5000, rangeMeters: 2 },
@@ -120,6 +129,10 @@ type ActionBarSlot = {
   iconGlyph: string;
   skillId: SkillHotkeyId | null;
   isBasic: boolean;
+  /** Si está presente, el slot usa este consumible del inventario en vez de una skill. */
+  potionCatalogKey?: string;
+  /** Nombre corto del consumible, para el mensaje de "no te quedan ...". */
+  potionLabel?: string;
 };
 
 type ActiveSlashFx = {
@@ -232,12 +245,22 @@ const ACTION_BAR_SLOTS: readonly ActionBarSlot[] = [
   },
   {
     hotkey: '4',
-    label: 'Power Strike',
-    iconGlyph: '✦',
-    skillId: 'power_strike',
+    label: 'Poción HP',
+    iconGlyph: '🧪',
+    skillId: null,
     isBasic: false,
+    potionCatalogKey: HEALTH_POTION_CATALOG_KEY,
+    potionLabel: 'Pociones de Vida',
   },
-  { hotkey: '5', label: '-', iconGlyph: '·', skillId: null, isBasic: false },
+  {
+    hotkey: '5',
+    label: 'Poción MP',
+    iconGlyph: '🔮',
+    skillId: null,
+    isBasic: false,
+    potionCatalogKey: MANA_POTION_CATALOG_KEY,
+    potionLabel: 'Pociones de Maná',
+  },
 ] as const;
 const DEFAULT_CAMERA_RADIUS = ISO_OFFSET.length();
 const DEFAULT_CAMERA_AZIMUTH = Math.atan2(ISO_OFFSET.x, ISO_OFFSET.z);
@@ -411,6 +434,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   localCurrentMp = 0;
   localMaxMp = 0;
   private readonly localSkillCooldownUntil = new Map<string, number>();
+  /** Último uso de CUALQUIER consumible; el cooldown real del servidor es compartido. */
+  private lastPotionUseAtMs = 0;
   readonly actionBarSlots = ACTION_BAR_SLOTS;
   readonly cooldownNowMs = signal(0);
   readonly chaseFeedback = signal<string | null>(null);
@@ -1369,7 +1394,13 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     }
     if (ev.key === '4') {
       ev.preventDefault();
-      this.requestSkillCast('power_strike');
+      this.usePotion(HEALTH_POTION_CATALOG_KEY, 'Pociones de Vida');
+      return;
+    }
+    if (ev.key === '5') {
+      ev.preventDefault();
+      this.usePotion(MANA_POTION_CATALOG_KEY, 'Pociones de Maná');
+      return;
     }
   }
 
@@ -1470,7 +1501,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   }
 
   onActionSlotPressed(slot: ActionBarSlot): void {
-    if (slot.hotkey === '5') {
+    if (slot.potionCatalogKey) {
+      this.usePotion(slot.potionCatalogKey, slot.potionLabel ?? 'Pociones');
       return;
     }
     if (slot.isBasic) {
@@ -1481,6 +1513,28 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.requestSkillCast(slot.skillId);
+  }
+
+  /** Busca el consumible pedido en la mochila y pide usarlo (el servidor valida stock/cura). */
+  private usePotion(catalogKey: string, label: string): void {
+    if (!this.worldSocket.socketConnected()) {
+      this.pushCombatFeedback('Conectate al mundo para usar ítems');
+      return;
+    }
+    const now = performance.now();
+    if (now - this.lastPotionUseAtMs < POTION_COOLDOWN_MS) {
+      return;
+    }
+    const items = this.playerState.inventoryItems();
+    const potion = items.find(
+      (item) => item.location === 'INVENTORY' && item.catalogKey === catalogKey,
+    );
+    if (!potion) {
+      this.pushCombatFeedback(`No te quedan ${label}`);
+      return;
+    }
+    this.lastPotionUseAtMs = now;
+    this.playerState.requestUseConsumable(this.characterIdModel.trim(), potion.id);
   }
 
   manaPercent(): number {
@@ -1553,21 +1607,23 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   }
 
   slotCooldownRatio(slot: ActionBarSlot): number {
-    if (!slot.skillId) {
-      return 0;
-    }
     const remaining = this.slotCooldownRemainingMs(slot);
     if (remaining <= 0) {
       return 0;
     }
-    return Math.max(0, Math.min(1, remaining / SKILL_LOCAL_RULES[slot.skillId].cooldownMs));
+    const totalMs = slot.skillId ? SKILL_LOCAL_RULES[slot.skillId].cooldownMs : POTION_COOLDOWN_MS;
+    return Math.max(0, Math.min(1, remaining / totalMs));
   }
 
   slotCooldownRemainingMs(slot: ActionBarSlot): number {
+    const now = this.cooldownNowMs();
+    if (slot.potionCatalogKey) {
+      // Un solo reloj compartido: usar cualquier consumible frena a los dos slots por igual.
+      return Math.max(0, Math.ceil(this.lastPotionUseAtMs + POTION_COOLDOWN_MS - now));
+    }
     if (!slot.skillId) {
       return 0;
     }
-    const now = this.cooldownNowMs();
     const until = this.localSkillCooldownUntil.get(slot.skillId) ?? 0;
     return Math.max(0, Math.ceil(until - now));
   }

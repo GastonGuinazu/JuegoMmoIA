@@ -5,6 +5,7 @@
       "npcTemplateKey": "merchant_aetheris",
       "offers": [
         { "catalogKey": "health_potion_small", "buyPriceAdena": 150 },
+        { "catalogKey": "mana_potion_small", "buyPriceAdena": 150 },
         { "catalogKey": "iron_shield", "buyPriceAdena": 5000 }
       ]
     }

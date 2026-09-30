@@ -48,6 +48,19 @@
       }
     },
     {
+      "catalogKey": "mana_potion_small",
+      "name": "Poción de Maná",
+      "grade": "None",
+      "description": "Restaura un poco de maná. Consumible; se apila en la mochila.",
+      "baseSlot": null,
+      "icon": "/icons/mana_potion_small.svg",
+      "baseStats": {
+        "consumable": true,
+        "maxStack": 99,
+        "manaAmount": 30
+      }
+    },
+    {
       "catalogKey": "iron_shield",
       "name": "Escudo de Hierro",
       "grade": "None",
