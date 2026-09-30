@@ -31,7 +31,7 @@ No versionar secretos (`.env`), `node_modules`, `dist` ni el dump `_raw/quaterni
 | A7 | hecho | Modelos de mobs | Catálogo visual de mobs. |
 | A8 | hecho | Props de entorno | Nature + Ruins (árboles, ruinas, albedo). |
 | A9 | hecho | Mercader y senderos | Puesto del NPC, losetas a cuadrantes de caza. |
-| A10 | pendiente | Cierre | Lo que reste (síntesis UI, karma, GM, dungeons stub). |
+| A10 | hecho | Cierre | Síntesis UI, karma y comandos GM. Mazmorras diarias quedan fuera (sin stub); ver `docs/blueprint/06-mazmorras-diarias-cartographer.md` para cuando se retomen. |
 
 ## A0 — archivos de esta oleada
 
@@ -132,3 +132,13 @@ Skin GLTF del NPC mercader (trader + cofre compañero con clip `Opening`) y su c
 - `apps/client/src/app/game/npc-visual-catalog.ts`
 - `apps/client/scripts/convert-npc-merchant.mjs`
 - `docs/blueprint/08-mercaderes-ledger.md`
+
+## A10 — archivos de esta oleada
+
+Síntesis 2×1 con UI, karma/penalizaciones y comandos GM locales. Mazmorras diarias no entran en esta oleada (sin stub); quedan para un hito futuro si se retoman.
+
+- `apps/client/src/app/ui/progress/synthesis.component.*`
+- `apps/server/config/karma-rules.json`, `synthesis-equipment-bonuses.json`, `synthesis-tiers.json`
+- `apps/server/src/combat/penalty-config.loaders.ts`, `penalty-manager.service.ts`
+- `apps/server/src/gm/**`
+- `apps/server/src/synthesis/**`
