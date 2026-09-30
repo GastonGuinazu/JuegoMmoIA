@@ -15,6 +15,19 @@ import { normalizeZoneId } from '../world/world-zone.util';
 import { clampAxisToPlayable } from '../world/config/world-zones.loaders';
 
 const TICK_MS = 50;
+/**
+ * Cada cuánto se refresca desde la base la lista de mobs vivos y las posiciones de
+ * personajes que usa la IA (aggro, objetivos). Antes se releía en CADA tick de 50 ms
+ * (dos consultas completas a Postgres remoto, ~150-450 ms medido contra Supabase),
+ * lo que en la práctica bajaba el tick real de IA de 20 TPS a ~4-7 TPS: el movimiento
+ * y los `mob-moved` salían en ráfagas irregulares en vez de cada 50 ms, y el cliente
+ * (pensado para huecos de ~50-250 ms, ver `mob-visual-interp.ts`) terminaba
+ * congelando o corrigiendo de golpe la posición visual ("teletransporte").
+ * La posición/HP en sí siguen siendo 100% RAM (`livePose`, `playerCombatRuntime`);
+ * este refresco solo trae altas/bajas de mobs, `aggroTargetCharacterId` y dónde
+ * están los personajes, que no necesitan ser exactos al frame.
+ */
+const DB_CACHE_REFRESH_MS = 300;
 /** Tope de dt de movimiento si el tick de IA se atrasó (evita tunelizar obstáculos). */
 const MAX_AI_MOVE_DT_SEC = 0.1;
 /** Tras daño al mob: sin curación OOC completa durante esta ventana (separación IA / combate). */
@@ -87,6 +100,13 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
    * lo que agota el pool (P2024) y tumba el proceso — sin snapshot / mobs en cliente.
    */
   private tickInFlight = false;
+  /** Snapshot de mobs vivos + personajes, refrescado por `refreshDbCache` (no en el tick de 50 ms). */
+  private cachedAliveMobs: MobTickRow[] = [];
+  private cachedCharsByZone: Map<string, { id: string; x: number; y: number; z: number }[]> =
+    new Map();
+  private dbCacheRefreshInFlight = false;
+  private dbCacheTimer: ReturnType<typeof setInterval> | undefined;
+
   /** Reloj del último tick de IA ejecutado (para dt real si el intervalo se saltó). */
   private lastAiTickAtMs = 0;
   /** Pose viva: la DB no es el bus de movimiento (un UPDATE por mob/tick tumba el 20 TPS). */
@@ -126,6 +146,10 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
+    void this.refreshDbCache();
+    this.dbCacheTimer = setInterval(() => {
+      void this.refreshDbCache();
+    }, DB_CACHE_REFRESH_MS);
     this.timer = setInterval(() => {
       void this.tick();
     }, TICK_MS);
@@ -134,12 +158,40 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
     }, 2000);
   }
 
+  /**
+   * Trae de Postgres los mobs vivos y las posiciones de personajes; independiente del
+   * tick de 50 ms para que la latencia de red hacia la base nunca frene el movimiento.
+   * Si tarda más que `DB_CACHE_REFRESH_MS`, la siguiente llamada se salta (in-flight guard)
+   * y el tick de IA sigue usando el snapshot anterior hasta que la próxima termine.
+   */
+  private async refreshDbCache(): Promise<void> {
+    if (this.dbCacheRefreshInFlight) {
+      return;
+    }
+    this.dbCacheRefreshInFlight = true;
+    try {
+      const [mobs, charsByZone] = await Promise.all([
+        this.loadAliveMobs(),
+        this.loadCharactersByZone(),
+      ]);
+      this.cachedAliveMobs = mobs;
+      this.cachedCharsByZone = charsByZone;
+    } catch {
+      /* se reintenta en el próximo ciclo; el tick sigue con el snapshot previo */
+    } finally {
+      this.dbCacheRefreshInFlight = false;
+    }
+  }
+
   onModuleDestroy(): void {
     if (this.timer) {
       clearInterval(this.timer);
     }
     if (this.poseFlushTimer) {
       clearInterval(this.poseFlushTimer);
+    }
+    if (this.dbCacheTimer) {
+      clearInterval(this.dbCacheTimer);
     }
     void this.flushDirtyLivePoses();
   }
@@ -979,16 +1031,9 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
       Math.max(0.016, elapsedMs / 1000),
     );
     try {
-      let mobs: MobTickRow[];
-      let charsByZone: Map<string, { id: string; x: number; y: number; z: number }[]>;
-      try {
-        [mobs, charsByZone] = await Promise.all([
-          this.loadAliveMobs(),
-          this.loadCharactersByZone(),
-        ]);
-      } catch {
-        return;
-      }
+      // Snapshot en RAM (ver `refreshDbCache`): el tick de 50 ms nunca espera a Postgres.
+      const mobs = this.cachedAliveMobs;
+      const charsByZone = this.cachedCharsByZone;
 
       this.applyLivePoses(mobs);
       this.playerCombatRuntime.hydrateMobsForAiTick(mobs);
