@@ -568,8 +568,35 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     return { actualHeal, currentHp: stats.currentHp, maxHp: stats.maxHp };
   }
 
-  async assertCanHealWithConsumable(
+  /** Análogo a `applyHealFromConsumable` pero sobre MP; el maná nunca se persiste en DB. */
+  applyManaRestoreFromConsumable(
     characterId: string,
+    flatRestore: number,
+  ): { actualRestore: number; currentMp: number; maxMp: number } {
+    const stats = this.charStats.get(characterId);
+    if (!stats) {
+      throw new Error(`applyManaRestoreFromConsumable: missing charStats for ${characterId}`);
+    }
+    const room = Math.max(0, stats.maxMp - stats.currentMp);
+    const actualRestore = Math.min(Math.max(0, Math.floor(flatRestore)), room);
+    stats.currentMp = Math.min(stats.maxMp, stats.currentMp + actualRestore);
+    this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
+      characterId,
+      currentHp: stats.currentHp,
+      maxHp: stats.maxHp,
+      currentMp: stats.currentMp,
+      maxMp: stats.maxMp,
+    });
+    return { actualRestore, currentMp: stats.currentMp, maxMp: stats.maxMp };
+  }
+
+  /**
+   * Sólo bloquea si TODO lo que este consumible restaura ya está al tope (p. ej. una
+   * poción de maná con el MP lleno); una de vida con MP lleno pero HP no sigue sirviendo.
+   */
+  async assertCanUseConsumable(
+    characterId: string,
+    meta: { healAmount: number; manaAmount: number },
   ): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
     let stats = this.charStats.get(characterId);
     if (!stats) {
@@ -590,11 +617,13 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
         message: 'No podés usar eso en este estado',
       };
     }
-    if (stats.currentHp >= stats.maxHp) {
+    const hpBlocked = meta.healAmount <= 0 || stats.currentHp >= stats.maxHp;
+    const mpBlocked = meta.manaAmount <= 0 || stats.currentMp >= stats.maxMp;
+    if (hpBlocked && mpBlocked) {
       return {
         ok: false,
-        code: 'ALREADY_FULL_HP',
-        message: 'La vitalidad ya está al máximo',
+        code: 'ALREADY_FULL',
+        message: 'Ya está al máximo',
       };
     }
     return { ok: true };

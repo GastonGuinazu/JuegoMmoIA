@@ -13,6 +13,10 @@ export class WorldPresenceService {
     this.ids.add(characterId);
   }
 
+  isConnected(characterId: string): boolean {
+    return this.ids.has(characterId);
+  }
+
   unregister(characterId: string): void {
     this.ids.delete(characterId);
     this.activeMobTargetByCharacter.delete(characterId);

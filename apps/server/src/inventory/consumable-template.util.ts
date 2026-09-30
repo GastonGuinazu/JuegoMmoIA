@@ -4,7 +4,10 @@
 
 export type ConsumableHealMeta = {
   consumable: true;
+  /** HP a restaurar (0 si este consumible no toca HP, p. ej. una poción de maná). */
   healAmount: number;
+  /** MP a restaurar (0 si este consumible no toca MP, p. ej. una poción de vida). */
+  manaAmount: number;
 };
 
 export function parseConsumableHealMeta(baseStats: unknown): ConsumableHealMeta | null {
@@ -15,10 +18,14 @@ export function parseConsumableHealMeta(baseStats: unknown): ConsumableHealMeta 
   if (o.consumable !== true) {
     return null;
   }
-  const raw = o.healAmount;
-  const n = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isFinite(n) || n <= 0) {
+  const toAmount = (raw: unknown): number => {
+    const n = typeof raw === 'number' ? raw : Number(raw);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  };
+  const healAmount = toAmount(o.healAmount);
+  const manaAmount = toAmount(o.manaAmount);
+  if (healAmount <= 0 && manaAmount <= 0) {
     return null;
   }
-  return { consumable: true, healAmount: Math.floor(n) };
+  return { consumable: true, healAmount, manaAmount };
 }

@@ -200,7 +200,11 @@ export class WorldGateway
     });
 
     const charZoneWhere = prismaCharacterZoneFilter(zoneId);
-    const othersInZone = await this.prisma.character.findMany({
+    // La fila de personaje persiste en la base incluso sin nadie jugándola: sin el
+    // filtro de presencia, cualquier personaje que haya existido alguna vez en la
+    // zona reaparece como "otro jugador" fantasma en TODO snapshot nuevo (recarga
+    // de página, portal, reconexión), sin importar si su socket sigue conectado.
+    const othersInZoneRows = await this.prisma.character.findMany({
       where: {
         AND: [charZoneWhere, { id: { not: characterId } }],
       },
@@ -222,6 +226,7 @@ export class WorldGateway
         },
       },
     });
+    const othersInZone = othersInZoneRows.filter((c) => this.presence.isConnected(c.id));
 
     const moveSpeed = this.spatial.getEffectiveWorldMoveSpeed(row.derivedAtkSpeed);
     const vitals = await this.statEngine.getCombatVitals(characterId);
@@ -467,6 +472,13 @@ export class WorldGateway
   async handleDisconnect(client: Socket): Promise<void> {
     const id = client.data.characterId as string | undefined;
     if (id) {
+      // Sin esto, un cierre de pestaña / corte de red (a diferencia de portal o respawn
+      // a otra zona) nunca avisaba a la sala: el personaje quedaba parado como un
+      // "fantasma" para todo el que ya estuviera conectado en esa zona.
+      const zoneId = normalizeZoneId(client.data.zoneId as string | undefined);
+      this.bridge.broadcastToZone(zoneId, WS_WORLD_EVENTS.PLAYER_LEFT_ZONE, {
+        characterId: id,
+      } satisfies WsPlayerLeftZonePayload);
       await this.playerCombatRuntime.onCharacterDisconnect(id);
       this.presence.unregister(id);
       void this.mobService.clearAggroTargetingCharacter(id);
@@ -1180,9 +1192,9 @@ export class WorldGateway
       };
     }
 
-    const canHeal = await this.playerCombatRuntime.assertCanHealWithConsumable(characterId);
-    if (!canHeal.ok) {
-      return canHeal;
+    const canUse = await this.playerCombatRuntime.assertCanUseConsumable(characterId, meta);
+    if (!canUse.ok) {
+      return canUse;
     }
 
     try {
@@ -1190,23 +1202,44 @@ export class WorldGateway
         characterId,
         body.itemInstanceId,
       );
-      const heal = this.playerCombatRuntime.applyHealFromConsumable(characterId, meta.healAmount);
+      let hpRestored = 0;
+      if (meta.healAmount > 0) {
+        hpRestored = this.playerCombatRuntime.applyHealFromConsumable(
+          characterId,
+          meta.healAmount,
+        ).actualHeal;
+      }
+      let mpRestored = 0;
+      if (meta.manaAmount > 0) {
+        mpRestored = this.playerCombatRuntime.applyManaRestoreFromConsumable(
+          characterId,
+          meta.manaAmount,
+        ).actualRestore;
+      }
       this.playerCombatRuntime.touchConsumableUseCooldown(characterId);
       const zoneId = normalizeZoneId(client.data.zoneId as string | undefined);
-      const healBroadcast: WsPlayerConsumableHealPayload = {
-        characterId,
-        hpRestored: heal.actualHeal,
-      };
-      this.bridge.broadcastToZone(zoneId, WS_WORLD_EVENTS.PLAYER_CONSUMABLE_HEAL, healBroadcast);
+      if (hpRestored > 0 || mpRestored > 0) {
+        const healBroadcast: WsPlayerConsumableHealPayload = {
+          characterId,
+          hpRestored,
+          mpRestored,
+        };
+        this.bridge.broadcastToZone(zoneId, WS_WORLD_EVENTS.PLAYER_CONSUMABLE_HEAL, healBroadcast);
+      }
 
       const wallet = await this.prisma.wallet.findUnique({
         where: { accountId: character.accountId },
         select: { adena: true },
       });
       const adena = (wallet?.adena ?? 0n).toString();
+      // `assertCanUseConsumable` ya sembró el estado de combate en RAM si hacía falta.
+      const vitals = this.playerCombatRuntime.getRuntimeVitals(characterId);
+      if (!vitals) {
+        return { ok: false, code: 'NO_COMBAT_STATE', message: 'Personaje sin estado de combate' };
+      }
       const characterDto = buildCharacterSheetDto(
         character,
-        { currentHp: heal.currentHp, maxHp: heal.maxHp },
+        { currentHp: vitals.currentHp, maxHp: vitals.maxHp },
         this.statEngine,
         await this.statEngine.getEffectiveCoreStats(characterId),
       );
@@ -1218,7 +1251,8 @@ export class WorldGateway
         character: characterDto,
         items,
         adena,
-        hpRestored: heal.actualHeal,
+        hpRestored,
+        mpRestored,
       };
     } catch (e) {
       return this.mapInventoryErrorToUseItemAck(e);
