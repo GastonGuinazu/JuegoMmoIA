@@ -54,6 +54,7 @@ import {
 import { MobVisualInterp } from './mob-visual-interp';
 import { WorldCombatFloaters } from './world-combat-floaters';
 import { environment } from '../../environments/environment';
+import type { CharacterCombatAnim } from './character-anim-rig';
 import type {
   WsAttackMobRewardsPayload,
   WsMobDropPreviewItemPayload,
@@ -274,6 +275,13 @@ const RAGEFUL_BLOW_AOE_RADIUS = 3.5;
 const RAGEFUL_BLOW_PARTICLES = 24;
 const AUTO_ATTACK_RESUME_EMIT_MS = 250;
 const WEAPON_SWING_MS = 180;
+/**
+ * Ventana tras una animación de combate disparada localmente (optimista) durante la cual
+ * se ignora el re-disparo que llegaría con la confirmación del servidor para ese mismo golpe.
+ * Mayor que el RTT + tick típico (~150-300ms) pero menor que la duración del swing (~600ms),
+ * para no pisar un golpe automático real que llegue después.
+ */
+const SELF_OPTIMISTIC_ANIM_SUPPRESS_MS = 400;
 
 function isFiniteVec3(p: { x: unknown; y: unknown; z: unknown }): boolean {
   return (
@@ -431,6 +439,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private playerAutoAttackTimer: ReturnType<typeof setInterval> | null = null;
   /** Instante del último golpe a jugador sin respuesta; evita acumular cola si el servidor tarda. */
   private playerAttackAwaitingSinceMs: number | null = null;
+  /** Instante del último disparo optimista de animación propia (ver `playSelfCombatAnimOptimistic`). */
+  private lastSelfOptimisticComboAtMs = 0;
   localCurrentMp = 0;
   localMaxMp = 0;
   private readonly localSkillCooldownUntil = new Map<string, number>();
@@ -605,11 +615,13 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       });
 
     this.worldSocket.attackMobResult$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
-      this.triggerWeaponSwing(p.attackerCharacterId);
-      this.visuals.playCharacterCombatAnim(
-        this.resolveCharacterVisual(p.attackerCharacterId),
-        'attack',
-      );
+      if (!this.isSelfOptimisticAnimStillFresh(p.attackerCharacterId)) {
+        this.triggerWeaponSwing(p.attackerCharacterId);
+        this.visuals.playCharacterCombatAnim(
+          this.resolveCharacterVisual(p.attackerCharacterId),
+          'attack',
+        );
+      }
       if (p.attackerCharacterId === this.entitySync.selfCharacterId()) {
         if (p.damage > 0) {
           this.meleeHitFlashUntilMs = performance.now() + 220;
@@ -642,11 +654,13 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     });
 
     this.worldSocket.skillHitResult$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
-      this.triggerWeaponSwing(p.attackerCharacterId);
-      this.visuals.playCharacterCombatAnim(
-        this.resolveCharacterVisual(p.attackerCharacterId),
-        'skill',
-      );
+      if (!this.isSelfOptimisticAnimStillFresh(p.attackerCharacterId)) {
+        this.triggerWeaponSwing(p.attackerCharacterId);
+        this.visuals.playCharacterCombatAnim(
+          this.resolveCharacterVisual(p.attackerCharacterId),
+          'skill',
+        );
+      }
       const ownHit = p.attackerCharacterId === this.entitySync.selfCharacterId();
       if (ownHit) {
         this.localCurrentMp = p.mpAfter;
@@ -845,11 +859,13 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((p) => {
         this.playerTargetHp.set(p.targetCharacterId, p.targetHpAfter);
-        this.triggerWeaponSwing(p.attackerCharacterId);
-        this.visuals.playCharacterCombatAnim(
-          this.resolveCharacterVisual(p.attackerCharacterId),
-          'attack',
-        );
+        if (!this.isSelfOptimisticAnimStillFresh(p.attackerCharacterId)) {
+          this.triggerWeaponSwing(p.attackerCharacterId);
+          this.visuals.playCharacterCombatAnim(
+            this.resolveCharacterVisual(p.attackerCharacterId),
+            'attack',
+          );
+        }
         if (this.glReady() && p.damage > 0) {
           const targetVisual = this.resolveCharacterVisual(p.targetCharacterId);
           if (targetVisual) {
@@ -1461,6 +1477,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.playerAttackAwaitingSinceMs = now;
+    this.playSelfCombatAnimOptimistic('attack');
     this.worldSocket.attackPlayer({ targetCharacterId: targetId });
   }
 
@@ -1685,6 +1702,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   private executeCombatAction(action: PendingCombatAction): void {
     if (action.kind === 'basic') {
+      this.playSelfCombatAnimOptimistic('attack');
       this.emitAutoAttackIntent(action.targetId);
       this.lastDenied.set(null);
       return;
@@ -1693,6 +1711,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     const now = performance.now();
     this.localSkillCooldownUntil.set(action.skillId, now + def.cooldownMs);
     this.lastDenied.set(null);
+    this.playSelfCombatAnimOptimistic('skill');
     this.worldSocket.castSkill({
       skillId: action.skillId,
       targetId: action.targetId,
@@ -3168,6 +3187,33 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   private triggerWeaponSwing(characterId: string): void {
     this.weaponSwingUntilByCharacterId.set(characterId, performance.now() + WEAPON_SWING_MS);
+  }
+
+  /**
+   * Dispara el swing + la animación del propio jugador al instante en que se decide la acción
+   * (tecla/click ya validados localmente), sin esperar la confirmación del servidor. El servidor
+   * sigue siendo quien decide daño/crítico/muerte; esto sólo adelanta el feedback visual para que
+   * no se sienta el viaje de ida y vuelta (y, en autoataque, el tick de 150ms del servidor).
+   */
+  private playSelfCombatAnimOptimistic(kind: CharacterCombatAnim): void {
+    const selfId = this.entitySync.selfCharacterId();
+    if (!selfId) {
+      return;
+    }
+    this.lastSelfOptimisticComboAtMs = performance.now();
+    this.triggerWeaponSwing(selfId);
+    this.visuals.playCharacterCombatAnim(this.resolveCharacterVisual(selfId), kind);
+  }
+
+  /**
+   * true si el golpe confirmado por el servidor corresponde al que ya se animó de forma optimista
+   * (ver `playSelfCombatAnimOptimistic`); en ese caso hay que evitar reiniciar el clip de combate.
+   */
+  private isSelfOptimisticAnimStillFresh(attackerCharacterId: string): boolean {
+    return (
+      attackerCharacterId === this.entitySync.selfCharacterId() &&
+      performance.now() - this.lastSelfOptimisticComboAtMs < SELF_OPTIMISTIC_ANIM_SUPPRESS_MS
+    );
   }
 
   private applyWeaponSwing(mesh: EntityVisual, characterId: string): void {
