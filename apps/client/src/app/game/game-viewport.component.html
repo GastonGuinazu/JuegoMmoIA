@@ -72,6 +72,16 @@
           </div>
         }
         <app-system-log-panel />
+        @if (chatOpen()) {
+          <app-chat-panel
+            [globalMessages]="globalChatMessages()"
+            [partyMessages]="partyChatMessages()"
+            [hasParty]="partyMembers().length > 1"
+            [selfCharacterId]="characterIdModel.trim()"
+            (send)="sendChatMessage($event)"
+            (closeRequested)="closeChat()"
+          />
+        }
         <div class="overlay-vitals">
           <div class="overlay-hp">
             <app-player-hp-bar />

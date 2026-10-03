@@ -77,6 +77,10 @@ import {
   type WsPartyKickClientPayload,
   type WsPartyActionAckPayload,
   type WsPartyInviteReceivedPayload,
+  type WsChatSendClientPayload,
+  type WsChatSendAckPayload,
+  type WsChatMessagePayload,
+  CHAT_MESSAGE_MAX_LENGTH,
 } from '@aetheris/shared-types';
 import type { CharacterRespawnResolution } from '../character/character.service';
 import { CharacterService, isDeadHp } from '../character/character.service';
@@ -123,6 +127,9 @@ import {
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Anti-flood simple: un mensaje cada ~350ms por personaje, nada más sofisticado. */
+const CHAT_MIN_GAP_MS = 350;
 
 /**
  * Diagnóstico temporal (The Warden): con `WORLD_MOVEMENT_GOD_MODE=1` no se ejecuta
@@ -422,6 +429,7 @@ export class WorldGateway
     await client.join(room);
 
     client.data.characterId = characterId;
+    client.data.characterName = character.name;
     client.data.zoneId = zoneId;
     client.data.lastMoveSampleAtMs = Date.now();
 
@@ -500,6 +508,7 @@ export class WorldGateway
       void this.mobService.clearAggroTargetingCharacter(id);
       // No tiene sentido dejar esperando una invitación a alguien que ya se fue.
       this.party.clearPendingInviteTo(id);
+      this.lastChatSentAtMs.delete(id);
     }
   }
 
@@ -1440,6 +1449,41 @@ export class WorldGateway
       });
       return;
     }
+    if (body.targetKind === 'player') {
+      if (this.isSamePartyAttack(characterId, body.targetId)) {
+        this.emitDenied(client, {
+          code: 'TARGET_IS_PARTY_MEMBER',
+          message: 'No podés atacar a un miembro de tu grupo',
+        });
+        return;
+      }
+      // Mismo motivo que en `handleAttackPlayer`: una skill contra jugador termina
+      // llamando a `combat.attackCharacter`, que es la misma transacción PvP — no debe
+      // solaparse con un auto-ataque básico en curso del mismo atacante.
+      if (this.pvpAttacksInFlight.has(characterId)) {
+        this.emitDenied(client, {
+          code: 'ATTACK_ON_COOLDOWN',
+          message: 'Melee swing on cooldown',
+        });
+        return;
+      }
+      this.pvpAttacksInFlight.add(characterId);
+      try {
+        const cast = await this.playerCombatRuntime.tryCastSkillOnPlayerForCharacter(
+          characterId,
+          body.skillId,
+          body.targetId,
+        );
+        if (!cast.ok) {
+          this.emitDenied(client, { code: cast.code, message: cast.message });
+        }
+      } catch (e) {
+        this.emitDeniedFromError(client, e);
+      } finally {
+        this.pvpAttacksInFlight.delete(characterId);
+      }
+      return;
+    }
     const cast = await this.playerCombatRuntime.tryCastSkillForCharacter(
       characterId,
       body.skillId,
@@ -1453,6 +1497,21 @@ export class WorldGateway
     }
   }
 
+  /**
+   * Fuego amigo: sin esto, un compañero de grupo se ataca exactamente igual que cualquier
+   * otro jugador (mismo pipeline, mismo daño, mismo karma), tanto con ataque básico como
+   * con skill. El cliente ya no deja targetear "como atacar" a un miembro propio, pero la
+   * autoridad es el Warden: esto cubre un cliente modificado o un target que quedó stale.
+   */
+  private isSamePartyAttack(attackerCharacterId: string, targetCharacterId: string): boolean {
+    const partyId = this.party.getPartyIdForCharacter(attackerCharacterId);
+    return !!partyId && partyId === this.party.getPartyIdForCharacter(targetCharacterId);
+  }
+
+  // TODO: pendiente verificar el delay de golpe-a-golpe en PvP (jugador vs jugador):
+  // el usuario reportó percibir demora entre personajes; no confirmado aún si es la
+  // misma familia de bug que el teletransporte de mobs (ver fix en mob-ai-tick.service.ts)
+  // o simplemente latencia de red / el swing-cooldown (`timing.baseSwingCooldownMs`).
   @SubscribeMessage(WS_WORLD_EVENTS.ATTACK_PLAYER)
   async handleAttackPlayer(
     @ConnectedSocket() client: Socket,
@@ -1480,12 +1539,7 @@ export class WorldGateway
       });
       return;
     }
-    // Fuego amigo: sin esto, un compañero de grupo se ataca exactamente igual que
-    // cualquier otro jugador (mismo pipeline, mismo daño, mismo karma). El cliente ya
-    // no deja targetear "como atacar" a un miembro propio, pero la autoridad es el
-    // Warden: esto cubre un cliente modificado o un target que quedó stale en cliente.
-    const attackerPartyId = this.party.getPartyIdForCharacter(attackerCharacterId);
-    if (attackerPartyId && attackerPartyId === this.party.getPartyIdForCharacter(body.targetCharacterId)) {
+    if (this.isSamePartyAttack(attackerCharacterId, body.targetCharacterId)) {
       this.emitDenied(client, {
         code: 'TARGET_IS_PARTY_MEMBER',
         message: 'No podés atacar a un miembro de tu grupo',
@@ -1856,6 +1910,57 @@ export class WorldGateway
       WS_WORLD_EVENTS.PARTY_UPDATE,
       this.buildPartyUpdatePayload(partyId),
     );
+  }
+
+  @SubscribeMessage(WS_WORLD_EVENTS.CHAT_SEND)
+  handleChatSend(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsChatSendClientPayload,
+  ): WsChatSendAckPayload {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    if (!body || (body.channel !== 'global' && body.channel !== 'party')) {
+      return { ok: false, code: 'INVALID_PAYLOAD', message: 'channel must be "global" or "party"' };
+    }
+    const text = typeof body.text === 'string' ? body.text.trim() : '';
+    if (!text) {
+      return { ok: false, code: 'EMPTY_MESSAGE', message: 'El mensaje está vacío' };
+    }
+    if (text.length > CHAT_MESSAGE_MAX_LENGTH) {
+      return {
+        ok: false,
+        code: 'MESSAGE_TOO_LONG',
+        message: `El mensaje supera los ${CHAT_MESSAGE_MAX_LENGTH} caracteres`,
+      };
+    }
+    const now = Date.now();
+    const lastSentAt = this.lastChatSentAtMs.get(characterId) ?? 0;
+    if (now - lastSentAt < CHAT_MIN_GAP_MS) {
+      return { ok: false, code: 'RATE_LIMITED', message: 'Estás enviando mensajes muy rápido' };
+    }
+    let partyId: string | undefined;
+    if (body.channel === 'party') {
+      partyId = this.party.getPartyIdForCharacter(characterId);
+      if (!partyId) {
+        return { ok: false, code: 'NOT_IN_PARTY', message: 'No estás en un grupo' };
+      }
+    }
+    this.lastChatSentAtMs.set(characterId, now);
+    const payload: WsChatMessagePayload = {
+      channel: body.channel,
+      characterId,
+      name: (client.data.characterName as string | undefined) ?? '???',
+      text,
+      atMs: now,
+    };
+    if (body.channel === 'global') {
+      this.bridge.broadcastToAll(WS_WORLD_EVENTS.CHAT_MESSAGE, payload);
+    } else {
+      this.bridge.broadcastToRoom(this.bridge.partyRoomId(partyId!), WS_WORLD_EVENTS.CHAT_MESSAGE, payload);
+    }
+    return { ok: true };
   }
 
   /**
@@ -2320,6 +2425,8 @@ export class WorldGateway
 
   /** Atacantes con un `attack-player` en proceso (ver `handleAttackPlayer`). */
   private readonly pvpAttacksInFlight = new Set<string>();
+  /** Último chat enviado por personaje (anti-flood simple, ver `handleChatSend`). */
+  private readonly lastChatSentAtMs = new Map<string, number>();
 
   private emitDenied(client: Socket, payload: WsAttackMobDeniedPayload): void {
     client.emit(WS_WORLD_EVENTS.ATTACK_MOB_DENIED, payload);

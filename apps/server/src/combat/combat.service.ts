@@ -41,7 +41,7 @@ import {
   getMobLevelForTemplateKey,
   isGreyMobNoBenefitPenalty,
 } from '../mob/mob-config.loaders';
-import { loadCombatDamageConfig } from './combat-config.loaders';
+import { loadCombatDamageConfig, type SkillConfigRow } from './combat-config.loaders';
 import { resolveMobToPlayerMeleeDamage } from './pve-melee-damage.util';
 import { loadCombatTimingConfig } from './combat-timing.loaders';
 import { PenaltyManagerService, type KarmaFlag } from './penalty-manager.service';
@@ -94,6 +94,8 @@ export interface AttackPlayerCharacterResult {
   attackerWeaponPlusLevel: number;
   targetWeaponPlusLevel: number;
   pkDropSpawn?: WsWorldDropSpawnPayload;
+  skillId?: string;
+  skillName?: string;
 }
 
 /** Loot + EXP precomputados en RAM antes del commit optimista (auto-melee). */
@@ -725,9 +727,10 @@ export class CombatService {
   async attackCharacter(
     attackerCharacterId: string,
     targetCharacterId: string,
-    options?: { rng?: () => number },
+    options?: { rng?: () => number; skill?: SkillConfigRow },
   ): Promise<AttackPlayerCharacterResult> {
     const rand = options?.rng ?? Math.random;
+    const skill = options?.skill;
     const outcome = await this.prisma.$transaction(
       async (tx) => {
         // Bloqueo de ambas filas en orden fijo (por id) ANTES de leer o escribir. Sin esto, dos
@@ -762,27 +765,32 @@ export class CombatService {
           });
         }
 
-        const timing = loadCombatTimingConfig();
-        const atkSpeed = Math.max(0.65, attacker.derivedAtkSpeed);
-        let cooldownMs = timing.baseSwingCooldownMs / atkSpeed;
-        cooldownMs = Math.min(
-          timing.maxCooldownMs,
-          Math.max(timing.minCooldownMs, cooldownMs),
-        );
-        if (attacker.lastAttackServerAt) {
-          const elapsed = Date.now() - attacker.lastAttackServerAt.getTime();
-          if (elapsed < cooldownMs) {
-            throw new BadRequestException({
-              code: 'ATTACK_ON_COOLDOWN',
-              message: 'Melee swing on cooldown',
-            });
+        // El enfriamiento de swing básico no aplica a una skill: esa tiene su propio
+        // cooldown (RAM, validado en `tryCastSkillOnPlayerForCharacter` antes de llegar
+        // acá) e independiente del de auto-ataque, igual que en PvE.
+        if (!skill) {
+          const timing = loadCombatTimingConfig();
+          const atkSpeed = Math.max(0.65, attacker.derivedAtkSpeed);
+          let cooldownMs = timing.baseSwingCooldownMs / atkSpeed;
+          cooldownMs = Math.min(
+            timing.maxCooldownMs,
+            Math.max(timing.minCooldownMs, cooldownMs),
+          );
+          if (attacker.lastAttackServerAt) {
+            const elapsed = Date.now() - attacker.lastAttackServerAt.getTime();
+            if (elapsed < cooldownMs) {
+              throw new BadRequestException({
+                code: 'ATTACK_ON_COOLDOWN',
+                message: 'Melee swing on cooldown',
+              });
+            }
           }
         }
 
         const inRange = this.worldSpatial.isWithinMeleeAttackRange(
           { x: attacker.worldPosX, y: attacker.worldPosY, z: attacker.worldPosZ },
           { x: target.worldPosX, y: target.worldPosY, z: target.worldPosZ },
-          1.8,
+          skill?.rangeMeters ?? 1.8,
         );
         if (!inRange) {
           throw new BadRequestException({
@@ -800,6 +808,9 @@ export class CombatService {
         );
         if (!Number.isFinite(damage) || damage < dmgCfg.minimumDamage) {
           damage = dmgCfg.minimumDamage;
+        }
+        if (skill) {
+          damage = Math.max(1, Math.floor(damage * skill.damageMultiplier));
         }
 
         const attackTransition = this.penaltyManager.applyUnjustifiedAttackTransition({
@@ -819,10 +830,11 @@ export class CombatService {
         const hpAfter = Math.max(0, target.currentHp - damage);
         await tx.character.update({
           where: { id: attacker.id },
-          data: {
-            lastAttackServerAt: new Date(),
-            lastCombatAt: new Date(),
-          },
+          // Una skill no toca `lastAttackServerAt`: no debe frenar el próximo auto-ataque
+          // básico, igual que en PvE un cast no pisa el GCD del swing normal.
+          data: skill
+            ? { lastCombatAt: new Date() }
+            : { lastAttackServerAt: new Date(), lastCombatAt: new Date() },
         });
 
         let death: PvEDeathResolution | null = null;
@@ -929,6 +941,8 @@ export class CombatService {
           pkDropSpawn,
           death,
           targetName: target.name,
+          skillId: skill?.id,
+          skillName: skill?.name,
         };
       },
       {
@@ -954,6 +968,8 @@ export class CombatService {
       critical: outcome.critical,
       targetHpAfter: outcome.targetHpAfter,
       targetKilled: outcome.targetKilled,
+      skillId: outcome.skillId,
+      skillName: outcome.skillName,
     });
 
     this.bridge.broadcastToZone(outcome.zoneId, WS_WORLD_EVENTS.PLAYER_VISUAL_STATE, {

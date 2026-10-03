@@ -726,14 +726,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
 
     stats.currentMp = Math.max(0, stats.currentMp - skill.manaCost);
     lastBySkill.set(skillId, now);
-
-    this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
-      characterId,
-      currentHp: stats.currentHp,
-      maxHp: stats.maxHp,
-      currentMp: stats.currentMp,
-      maxMp: stats.maxMp,
-    });
+    this.emitCasterVitals(characterId, stats);
 
     const aoeRadius = skill.isAoe ? skill.aoeRadius ?? 0 : 0;
     const targetIds =
@@ -868,6 +861,63 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     }
     const primaryPayload = payloads.find((p) => p.targetId === targetId) ?? payloads[0];
     return { ok: true, zoneId, payload: primaryPayload };
+  }
+
+  /**
+   * Skill activa contra OTRO JUGADOR. El daño/rango/zona/muerte/karma/drop de PK ya están
+   * resueltos y probados en `combat.attackCharacter` (PvP básico) — acá sólo se valida lo
+   * que es propio de la skill (cooldown y maná, en RAM, igual que en PvE) y se le pasa el
+   * multiplicador de daño. Si `attackCharacter` rechaza (rango, zona, muerto, cooldown PvP),
+   * se devuelve el maná/cooldown ya reservados: el intento no llegó a pegar.
+   */
+  async tryCastSkillOnPlayerForCharacter(
+    characterId: string,
+    skillId: string,
+    targetCharacterId: string,
+  ): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+    const skills = loadSkillsConfig().skills;
+    const skill = skills.find((row) => row.id === skillId);
+    if (!skill) {
+      return { ok: false, code: 'SKILL_NOT_FOUND', message: 'Skill no encontrada' };
+    }
+    const stats = this.charStats.get(characterId);
+    if (!stats || stats.currentHp <= 0) {
+      return { ok: false, code: 'NO_COMBAT_STATE', message: 'Personaje sin estado de combate válido' };
+    }
+    const lastBySkill = this.lastSkillCastAtMs.get(characterId) ?? new Map<string, number>();
+    this.lastSkillCastAtMs.set(characterId, lastBySkill);
+    const now = Date.now();
+    const lastCast = lastBySkill.get(skillId) ?? 0;
+    if (now - lastCast < skill.cooldownMs) {
+      return { ok: false, code: 'SKILL_ON_COOLDOWN', message: 'La habilidad sigue en cooldown' };
+    }
+    if (stats.currentMp < skill.manaCost) {
+      return { ok: false, code: 'NO_MANA', message: 'No tienes mana suficiente' };
+    }
+
+    stats.currentMp = Math.max(0, stats.currentMp - skill.manaCost);
+    lastBySkill.set(skillId, now);
+    this.emitCasterVitals(characterId, stats);
+
+    try {
+      await this.combat.attackCharacter(characterId, targetCharacterId, { skill });
+      return { ok: true };
+    } catch (e) {
+      stats.currentMp = Math.min(stats.maxMp, stats.currentMp + skill.manaCost);
+      lastBySkill.set(skillId, lastCast);
+      this.emitCasterVitals(characterId, stats);
+      throw e;
+    }
+  }
+
+  private emitCasterVitals(characterId: string, stats: CharCombatStats): void {
+    this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
+      characterId,
+      currentHp: stats.currentHp,
+      maxHp: stats.maxHp,
+      currentMp: stats.currentMp,
+      maxMp: stats.maxMp,
+    } satisfies WsPlayerVitalsPayload);
   }
 
   private async findAoeMobTargets(params: {

@@ -1,7 +1,8 @@
 .sys-log {
   position: absolute;
   left: 0.65rem;
-  bottom: 4.5rem;
+  /* Encima del chat (ver `overlay-chat`, que ocupa desde bottom:0.75rem hasta ~12rem). */
+  bottom: 12.25rem;
   z-index: 12;
   max-width: min(22rem, calc(100vw - 1.5rem));
   max-height: 11rem;

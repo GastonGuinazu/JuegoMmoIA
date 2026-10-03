@@ -1,0 +1,47 @@
+<div class="overlay-chat" role="group" aria-label="Chat">
+  <div class="chat-panel__tabs">
+    <button
+      type="button"
+      class="chat-panel__tab"
+      [class.chat-panel__tab--active]="activeChannel === 'global'"
+      (click)="setChannel('global')"
+    >
+      Global
+    </button>
+    <button
+      type="button"
+      class="chat-panel__tab"
+      [class.chat-panel__tab--active]="activeChannel === 'party'"
+      [disabled]="!hasParty()"
+      [title]="hasParty() ? 'Chat de grupo' : 'Necesitás estar en un grupo'"
+      (click)="setChannel('party')"
+    >
+      Grupo
+    </button>
+  </div>
+  <div #list class="chat-panel__list" role="log" aria-live="polite">
+    @for (m of activeMessages(); track m.atMs + m.characterId) {
+      <p class="chat-panel__line">
+        <span class="chat-panel__time">{{ formatTime(m.atMs) }}</span>
+        <span class="chat-panel__name" [class.chat-panel__name--self]="isSelf(m.characterId)">{{ m.name }}:</span>
+        <span class="chat-panel__text">{{ m.text }}</span>
+      </p>
+    }
+  </div>
+  <div class="chat-panel__input-row">
+    <input
+      #chatInput
+      type="text"
+      class="chat-panel__input"
+      [(ngModel)]="draft"
+      name="chatDraft"
+      [maxlength]="maxLength"
+      [placeholder]="activeChannel === 'party' ? 'Mensaje al grupo...' : 'Mensaje global...'"
+      autocomplete="off"
+      (keydown.enter)="submit()"
+      (keydown.tab)="onInputTabKeydown($event)"
+      (keydown.escape)="onInputEscapeKeydown()"
+    />
+    <button type="button" class="chat-panel__send-btn" (click)="submit()">Enviar</button>
+  </div>
+</div>

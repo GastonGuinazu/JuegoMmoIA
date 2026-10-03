@@ -24,6 +24,7 @@ import { PlayerHpBarComponent } from '../ui/progress/player-hp-bar.component';
 import { NpcShopPanelComponent } from '../ui/progress/npc-shop-panel.component';
 import { SynthesisComponent } from '../ui/progress/synthesis.component';
 import { PartyPanelComponent } from '../ui/progress/party-panel.component';
+import { ChatPanelComponent } from '../ui/progress/chat-panel.component';
 import {
   TargetFrameComponent,
   type TargetFrameViewModel,
@@ -61,6 +62,8 @@ import type {
   WsMobDropPreviewItemPayload,
   WsPlayerDeathPayload,
   WsPartyMemberSnapshot,
+  WsChatMessagePayload,
+  ChatChannel,
 } from '../../../../../libs/shared-types/src/world-socket';
 
 const STORAGE_CHARACTER = 'aetheris.characterId';
@@ -284,6 +287,8 @@ const WEAPON_SWING_MS = 180;
  * para no pisar un golpe automático real que llegue después.
  */
 const SELF_OPTIMISTIC_ANIM_SUPPRESS_MS = 400;
+/** Historial de chat en memoria por canal; nada de persistencia (ver `ChatPanelComponent`). */
+const CHAT_HISTORY_MAX = 150;
 
 function isFiniteVec3(p: { x: unknown; y: unknown; z: unknown }): boolean {
   return (
@@ -314,6 +319,7 @@ function isFiniteYaw(y: unknown): y is number {
     NpcShopPanelComponent,
     SynthesisComponent,
     PartyPanelComponent,
+    ChatPanelComponent,
   ],
   templateUrl: './game-viewport.component.html',
   styleUrl: './game-viewport.component.scss',
@@ -343,6 +349,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   readonly partyMembers = signal<WsPartyMemberSnapshot[]>([]);
   readonly pendingPartyInvite = signal<{ fromCharacterId: string; fromName: string } | null>(null);
   private pendingPartyInviteTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly globalChatMessages = signal<WsChatMessagePayload[]>([]);
+  readonly partyChatMessages = signal<WsChatMessagePayload[]>([]);
+  readonly chatOpen = signal(false);
+  @ViewChild(ChatPanelComponent) private chatPanelRef?: ChatPanelComponent;
 
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
@@ -869,6 +879,18 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         }, 30_000);
       });
 
+    // TODO: pendiente — con el chat cerrado (antes de tocar Enter) un mensaje entrante no
+    // se ve en absoluto, aunque sí queda guardado acá. Sería mejor mostrar el panel en modo
+    // "solo lectura" (sin poder escribir hasta Enter) cuando llega algo con el chat cerrado,
+    // en vez de que quede invisible hasta que el jugador lo abra por su cuenta.
+    this.worldSocket.chatMessage$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
+      const target = p.channel === 'party' ? this.partyChatMessages : this.globalChatMessages;
+      target.update((prev) => {
+        const next = [...prev, p];
+        return next.length > CHAT_HISTORY_MAX ? next.slice(next.length - CHAT_HISTORY_MAX) : next;
+      });
+    });
+
     this.worldSocket.playerVisualState$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((p) => {
@@ -883,7 +905,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
           this.triggerWeaponSwing(p.attackerCharacterId);
           this.visuals.playCharacterCombatAnim(
             this.resolveCharacterVisual(p.attackerCharacterId),
-            'attack',
+            p.skillId ? 'skill' : 'attack',
           );
         }
         if (this.glReady() && p.damage > 0) {
@@ -892,7 +914,18 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
             const v = new THREE.Vector3();
             targetVisual.getWorldPosition(v);
             v.y += Y_LIFT;
-            this.spawnDamageFloater(v, p.damage, p.critical, false);
+            this.spawnDamageFloater(v, p.damage, p.critical, false, !!p.skillId);
+          }
+        }
+        if (p.skillId) {
+          this.spawnSkillImpactVfx(p.skillId, p.attackerCharacterId, p.targetCharacterId, 'player');
+          const ownHit = p.attackerCharacterId === this.entitySync.selfCharacterId();
+          if (
+            ownHit &&
+            p.damage > 0 &&
+            (p.skillId === 'power_strike' || p.skillId === 'rageful_blow')
+          ) {
+            this.startCameraShake(SKILL_CAMERA_SHAKE_MS, SKILL_CAMERA_SHAKE_STRENGTH);
           }
         }
         if (p.targetKilled && this.activePlayerTargetId === p.targetCharacterId) {
@@ -1036,6 +1069,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.correctionLerp = null;
     this.partyMembers.set([]);
     this.clearPendingPartyInviteTimer();
+    this.globalChatMessages.set([]);
+    this.partyChatMessages.set([]);
+    this.chatOpen.set(false);
     this.worldSocket.disconnect();
     this.worldSocket.connect(url, cid);
   }
@@ -1094,6 +1130,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.correctionLerp = null;
     this.partyMembers.set([]);
     this.clearPendingPartyInviteTimer();
+    this.globalChatMessages.set([]);
+    this.partyChatMessages.set([]);
+    this.chatOpen.set(false);
   }
 
   private onCanvasPointerDown(ev: PointerEvent): void {
@@ -1411,6 +1450,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (ev.repeat) {
       return;
     }
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      this.openChat();
+      return;
+    }
     if (ev.key === '1') {
       ev.preventDefault();
       this.requestBasicAttack();
@@ -1511,6 +1555,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     // animando el swing optimista cada 250ms aunque el objetivo ya esté lejos y el
     // servidor rechace cada golpe por ATTACK_OUT_OF_RANGE: se ve "pegando al aire"
     // indefinidamente al alejarse en vez de cortar la animación.
+    // TODO: pendiente — a diferencia del ataque a mobs (`requestCombatAction`, que camina
+    // solo hasta el target si está fuera de rango), atacar a un jugador fuera de rango hoy
+    // simplemente no hace nada (ver también `requestSkillCastOnPlayer`, que sí avisa "Objetivo
+    // fuera de rango" pero tampoco camina). Evaluar si conviene el mismo "chase" automático
+    // de PvE para jugadores, o al menos un aviso visible acá también.
     if (!this.isPlayerTargetInMeleeRange(targetId)) {
       return;
     }
@@ -1523,7 +1572,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.worldSocket.attackPlayer({ targetCharacterId: targetId });
   }
 
-  private isPlayerTargetInMeleeRange(targetCharacterId: string): boolean {
+  private isPlayerTargetInMeleeRange(
+    targetCharacterId: string,
+    rangeMeters: number = BASIC_ATTACK_RANGE_METERS,
+  ): boolean {
     const selfId = this.entitySync.selfCharacterId();
     if (!selfId) {
       return false;
@@ -1533,7 +1585,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (!selfXz || !targetXz) {
       return false;
     }
-    return Math.hypot(targetXz.x - selfXz.x, targetXz.z - selfXz.z) <= BASIC_ATTACK_RANGE_METERS;
+    return Math.hypot(targetXz.x - selfXz.x, targetXz.z - selfXz.z) <= rangeMeters;
   }
 
   private stopPlayerAutoAttack(): void {
@@ -1546,7 +1598,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   private requestSkillCast(skillId: SkillHotkeyId): void {
     if (!this.activeTargetId && this.activePlayerTargetId) {
-      this.pushCombatFeedback('Las habilidades sólo funcionan contra mobs; usá 1 para atacar jugadores');
+      this.requestSkillCastOnPlayer(skillId, this.activePlayerTargetId);
       return;
     }
     if (!this.activeTargetId) {
@@ -1569,6 +1621,43 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       skillId,
       label: def.name,
       rangeMeters: def.rangeMeters,
+    });
+  }
+
+  /**
+   * Skill contra jugador: sin "chase" (igual que el ataque básico a jugador) — si está
+   * fuera de rango simplemente no hace nada, en vez de caminar hacia él como con mobs.
+   */
+  private requestSkillCastOnPlayer(skillId: SkillHotkeyId, targetCharacterId: string): void {
+    if (this.isPartyMember(targetCharacterId)) {
+      this.pushCombatFeedback('No podés atacar a un miembro de tu grupo');
+      return;
+    }
+    const def = SKILL_LOCAL_RULES[skillId];
+    const now = performance.now();
+    const cdUntil = this.localSkillCooldownUntil.get(skillId) ?? 0;
+    if (now < cdUntil) {
+      this.pushCombatFeedback('En Cooldown');
+      return;
+    }
+    if (this.localCurrentMp < def.manaCost) {
+      this.pushCombatFeedback('Sin Mana');
+      return;
+    }
+    // TODO: pendiente — solo avisa, no camina hacia el jugador como sí hace PvE
+    // (`requestCombatAction`) cuando el mob está fuera de rango. Evaluar agregar el mismo
+    // "chase" para jugadores o dejarlo así a propósito (PvP sin auto-walk hacia el rival).
+    if (!this.isPlayerTargetInMeleeRange(targetCharacterId, def.rangeMeters)) {
+      this.pushCombatFeedback('Objetivo fuera de rango');
+      return;
+    }
+    this.localSkillCooldownUntil.set(skillId, now + def.cooldownMs);
+    this.lastDenied.set(null);
+    this.playSelfCombatAnimOptimistic('skill');
+    this.worldSocket.castSkill({
+      skillId,
+      targetId: targetCharacterId,
+      targetKind: 'player',
     });
   }
 
@@ -1662,6 +1751,30 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  sendChatMessage(msg: { channel: ChatChannel; text: string }): void {
+    this.worldSocket.emitChatSendWithAck(msg, (ack) => {
+      if (!ack.ok) {
+        this.pushCombatFeedback(`[Chat] ${ack.message}`);
+      }
+    });
+  }
+
+  /**
+   * Enter con el chat cerrado lo abre y enfoca el input (ver `handleSkillHotkeys`); con el
+   * chat ya abierto, el foco está en su `<input>` así que ese mismo Enter global ni llega
+   * acá (lo frena `isEditableTarget`) — lo maneja el propio input para enviar el mensaje.
+   */
+  openChat(): void {
+    this.chatOpen.set(true);
+    // El panel recién se monta con este `set` (está detrás de un `@if`); esperar al próximo
+    // ciclo de detección de cambios para que `chatPanelRef` exista antes de enfocar.
+    setTimeout(() => this.chatPanelRef?.focusInput(), 0);
+  }
+
+  closeChat(): void {
+    this.chatOpen.set(false);
+  }
+
   isSelfPartyLeader(): boolean {
     const selfId = this.entitySync.selfCharacterId();
     return this.partyMembers().some((m) => m.characterId === selfId && m.isLeader);
@@ -1703,7 +1816,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         nameColor: KARMA_NAME_COLORS[other.karmaFlag],
         hint: groupmate
           ? 'Compañero de grupo (no se puede atacar)'
-          : 'Jugador: pulsá 1 para atacar (Esc cancela)',
+          : 'Jugador: 1 ataca, 2/3 habilidades (Esc cancela)',
         isPartyMember: groupmate,
       };
     }
@@ -1844,6 +1957,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.worldSocket.castSkill({
       skillId: action.skillId,
       targetId: action.targetId,
+      targetKind: 'mob',
     });
   }
 
@@ -3120,8 +3234,18 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  private spawnSkillImpactVfx(skillId: string, attackerId: string, targetId: string): void {
-    const targetPos = this.resolveMobWorldPosition(targetId);
+  private spawnSkillImpactVfx(
+    skillId: string,
+    attackerId: string,
+    targetId: string,
+    targetKind: 'mob' | 'player' = 'mob',
+  ): void {
+    // `resolveAttackerWorldPosition` resuelve cualquier characterId (self u otro jugador);
+    // el nombre viene de su uso original para el atacante, pero sirve igual para el target.
+    const targetPos =
+      targetKind === 'player'
+        ? this.resolveAttackerWorldPosition(targetId)
+        : this.resolveMobWorldPosition(targetId);
     if (!targetPos) {
       return;
     }

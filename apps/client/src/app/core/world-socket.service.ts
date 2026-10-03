@@ -66,6 +66,9 @@ import {
   type WsPartyActionAckPayload,
   type WsPartyInviteReceivedPayload,
   type WsPartyUpdatePayload,
+  type WsChatSendClientPayload,
+  type WsChatSendAckPayload,
+  type WsChatMessagePayload,
 } from '../../../../../libs/shared-types/src/world-socket';
 
 @Injectable({ providedIn: 'root' })
@@ -100,6 +103,7 @@ export class WorldSocketService implements OnDestroy {
   readonly playerRespawn$ = new Subject<WsPlayerRespawnPayload>();
   readonly partyUpdate$ = new Subject<WsPartyUpdatePayload>();
   readonly partyInviteReceived$ = new Subject<WsPartyInviteReceivedPayload>();
+  readonly chatMessage$ = new Subject<WsChatMessagePayload>();
 
   private socket: Socket | null = null;
 
@@ -201,6 +205,9 @@ export class WorldSocketService implements OnDestroy {
     });
     this.socket.on(WS_WORLD_EVENTS.PARTY_INVITE_RECEIVED, (p: WsPartyInviteReceivedPayload) => {
       this.partyInviteReceived$.next(p);
+    });
+    this.socket.on(WS_WORLD_EVENTS.CHAT_MESSAGE, (p: WsChatMessagePayload) => {
+      this.chatMessage$.next(p);
     });
 
     this.socketConnected.set(this.socket.connected);
@@ -756,6 +763,25 @@ export class WorldSocketService implements OnDestroy {
           return;
         }
         cb(res as WsPartyActionAckPayload);
+      });
+  }
+
+  emitChatSendWithAck(
+    payload: WsChatSendClientPayload,
+    cb: (result: WsChatSendAckPayload) => void,
+  ): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(WS_WORLD_EVENTS.CHAT_SEND, payload, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({ ok: false, code: 'SOCKET_TIMEOUT', message: err.message || 'Chat send timed out' });
+          return;
+        }
+        cb(res as WsChatSendAckPayload);
       });
   }
 

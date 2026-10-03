@@ -129,6 +129,10 @@ export const WS_WORLD_EVENTS = {
    * completo del grupo. `null` = el personaje no tiene grupo.
    */
   PARTY_UPDATE: 'party-update',
+  /** Cliente → servidor: mensaje de chat (global o de grupo). Ack confirma/rechaza. */
+  CHAT_SEND: 'chat-send',
+  /** Broadcast: a todo el namespace si es `global`, a la sala `party:*` si es `party`. */
+  CHAT_MESSAGE: 'chat-message',
 } as const;
 
 export type WsMobAiState = 'IDLE' | 'PATROL' | 'CHASE';
@@ -340,6 +344,8 @@ export type WsAttackPlayerClientPayload = {
 export type WsCastSkillClientPayload = {
   skillId: string;
   targetId: string;
+  /** `targetId` es un mob instance id (default) o un characterId (PvP). */
+  targetKind?: 'mob' | 'player';
 };
 
 export type WsCombatTargetClientPayload = {
@@ -371,6 +377,9 @@ export type WsAttackPlayerResultPayload = {
   critical: boolean;
   targetHpAfter: number;
   targetKilled: boolean;
+  /** Presente solo si el golpe vino de una skill (ver `WsCastSkillClientPayload.targetKind`). */
+  skillId?: string;
+  skillName?: string;
 };
 
 export type WsSkillHitResultPayload = {
@@ -707,5 +716,27 @@ export type WsPartyInviteReceivedPayload = {
 };
 
 export type WsPartyActionAckPayload =
+  | { ok: true }
+  | { ok: false; code: string; message: string };
+
+export type ChatChannel = 'global' | 'party';
+
+/** SSOT: límite de largo de un mensaje de chat, usado por server y cliente. */
+export const CHAT_MESSAGE_MAX_LENGTH = 240;
+
+export type WsChatSendClientPayload = {
+  channel: ChatChannel;
+  text: string;
+};
+
+export type WsChatMessagePayload = {
+  channel: ChatChannel;
+  characterId: string;
+  name: string;
+  text: string;
+  atMs: number;
+};
+
+export type WsChatSendAckPayload =
   | { ok: true }
   | { ok: false; code: string; message: string };

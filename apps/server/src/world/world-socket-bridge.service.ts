@@ -37,6 +37,14 @@ export class WorldSocketBridgeService {
     void this.server.to(room).emit(event, payload);
   }
 
+  /** A todo el namespace `/world` sin filtrar por sala (chat global). */
+  broadcastToAll(event: string, payload: unknown): void {
+    if (!this.server) {
+      return;
+    }
+    void this.server.emit(event, payload);
+  }
+
   /** Emite solo a los sockets del namespace `/world` ligados a `characterId`. */
   emitToCharacter(
     characterId: string,
