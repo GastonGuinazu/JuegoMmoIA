@@ -17,6 +17,16 @@
     >
       {{ previewOpen() ? '▴' : '▾' }}
     </button>
+    } @else if (!target().isPartyMember) {
+    <button
+      type="button"
+      class="target-frame__invite-btn"
+      (click)="inviteToParty.emit()"
+      aria-label="Invitar al grupo"
+      title="Invitar al grupo"
+    >
+      + Grupo
+    </button>
     }
   </div>
   @if (target().maxHp > 0) {

@@ -11,6 +11,8 @@ export type TargetFrameViewModel = {
   kind?: 'mob' | 'player';
   /** Color del nombre (flag de karma del jugador objetivo). */
   nameColor?: string;
+  /** `true` si el jugador targeteado ya es compañero de grupo (oculta "+ Grupo" y el ataque). */
+  isPartyMember?: boolean;
   /** Línea de ayuda bajo la barra (p. ej. cómo atacar a un jugador). */
   hint?: string;
 };
@@ -39,6 +41,7 @@ export class TargetFrameComponent {
   readonly previewItems = input<TargetDropPreviewItemViewModel[]>([]);
 
   readonly togglePreview = output<void>();
+  readonly inviteToParty = output<void>();
 
   chanceLabel(chance: number): string {
     const pct = chance * 100;

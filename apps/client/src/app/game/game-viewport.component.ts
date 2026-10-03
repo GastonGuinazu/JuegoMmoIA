@@ -23,6 +23,7 @@ import { SystemLogPanelComponent } from '../ui/progress/system-log-panel.compone
 import { PlayerHpBarComponent } from '../ui/progress/player-hp-bar.component';
 import { NpcShopPanelComponent } from '../ui/progress/npc-shop-panel.component';
 import { SynthesisComponent } from '../ui/progress/synthesis.component';
+import { PartyPanelComponent } from '../ui/progress/party-panel.component';
 import {
   TargetFrameComponent,
   type TargetFrameViewModel,
@@ -59,6 +60,7 @@ import type {
   WsAttackMobRewardsPayload,
   WsMobDropPreviewItemPayload,
   WsPlayerDeathPayload,
+  WsPartyMemberSnapshot,
 } from '../../../../../libs/shared-types/src/world-socket';
 
 const STORAGE_CHARACTER = 'aetheris.characterId';
@@ -311,6 +313,7 @@ function isFiniteYaw(y: unknown): y is number {
     XpBarComponent,
     NpcShopPanelComponent,
     SynthesisComponent,
+    PartyPanelComponent,
   ],
   templateUrl: './game-viewport.component.html',
   styleUrl: './game-viewport.component.scss',
@@ -337,6 +340,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   readonly inventoryPanelOpen = signal(true);
   readonly characterSheetOpen = signal(true);
   readonly synthesisPanelOpen = signal(true);
+  readonly partyMembers = signal<WsPartyMemberSnapshot[]>([]);
+  readonly pendingPartyInvite = signal<{ fromCharacterId: string; fromName: string } | null>(null);
+  private pendingPartyInviteTimer: ReturnType<typeof setTimeout> | null = null;
 
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
@@ -849,6 +855,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         this.playerState.pushSystemLogLine(`Reapareciste en ${p.zoneId}.`);
       });
 
+    this.worldSocket.partyUpdate$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
+      this.partyMembers.set(p?.members ?? []);
+    });
+
+    this.worldSocket.partyInviteReceived$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((p) => {
+        this.clearPendingPartyInviteTimer();
+        this.pendingPartyInvite.set({ fromCharacterId: p.fromCharacterId, fromName: p.fromName });
+        this.pendingPartyInviteTimer = setTimeout(() => {
+          this.pendingPartyInvite.set(null);
+        }, 30_000);
+      });
+
     this.worldSocket.playerVisualState$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((p) => {
@@ -1014,6 +1034,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.localSkillCooldownUntil.clear();
     this.resetDropPreviewState();
     this.correctionLerp = null;
+    this.partyMembers.set([]);
+    this.clearPendingPartyInviteTimer();
     this.worldSocket.disconnect();
     this.worldSocket.connect(url, cid);
   }
@@ -1070,6 +1092,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.localSkillCooldownUntil.clear();
     this.resetDropPreviewState();
     this.correctionLerp = null;
+    this.partyMembers.set([]);
+    this.clearPendingPartyInviteTimer();
   }
 
   private onCanvasPointerDown(ev: PointerEvent): void {
@@ -1433,6 +1457,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   private requestBasicAttack(): void {
     if (this.activePlayerTargetId) {
+      if (this.isPartyMember(this.activePlayerTargetId)) {
+        this.pushCombatFeedback('No podés atacar a un miembro de tu grupo');
+        return;
+      }
       this.sendPlayerAttack(this.activePlayerTargetId);
       this.startPlayerAutoAttack();
       return;
@@ -1472,6 +1500,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
    * dejaría cola de golpes pendientes al soltar el objetivo.
    */
   private sendPlayerAttack(targetId: string): void {
+    // Por si el objetivo se unió al grupo mientras el auto-ataque ya estaba corriendo
+    // (invitación aceptada a mitad de pelea): el server también lo rechaza, pero esto
+    // evita seguir mandando golpes/animando contra un compañero recién agregado.
+    if (this.isPartyMember(targetId)) {
+      this.stopPlayerAutoAttack();
+      return;
+    }
+    // Sin este chequeo, el auto-ataque a jugador (sin "chase" como el de PvE) sigue
+    // animando el swing optimista cada 250ms aunque el objetivo ya esté lejos y el
+    // servidor rechace cada golpe por ATTACK_OUT_OF_RANGE: se ve "pegando al aire"
+    // indefinidamente al alejarse en vez de cortar la animación.
+    if (!this.isPlayerTargetInMeleeRange(targetId)) {
+      return;
+    }
     const now = performance.now();
     if (this.playerAttackAwaitingSinceMs !== null && now - this.playerAttackAwaitingSinceMs < PLAYER_ATTACK_MIN_GAP_MS) {
       return;
@@ -1479,6 +1521,19 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.playerAttackAwaitingSinceMs = now;
     this.playSelfCombatAnimOptimistic('attack');
     this.worldSocket.attackPlayer({ targetCharacterId: targetId });
+  }
+
+  private isPlayerTargetInMeleeRange(targetCharacterId: string): boolean {
+    const selfId = this.entitySync.selfCharacterId();
+    if (!selfId) {
+      return false;
+    }
+    const selfXz = this.resolveCharacterVisualXz(selfId);
+    const targetXz = this.resolveCharacterVisualXz(targetCharacterId);
+    if (!selfXz || !targetXz) {
+      return false;
+    }
+    return Math.hypot(targetXz.x - selfXz.x, targetXz.z - selfXz.z) <= BASIC_ATTACK_RANGE_METERS;
   }
 
   private stopPlayerAutoAttack(): void {
@@ -1554,6 +1609,76 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.playerState.requestUseConsumable(this.characterIdModel.trim(), potion.id);
   }
 
+  /** Invita al grupo al jugador actualmente targeteado (mismo target usado para PvP). */
+  inviteTargetToParty(): void {
+    const targetCharacterId = this.activePlayerTargetId;
+    if (!targetCharacterId) {
+      return;
+    }
+    this.worldSocket.emitPartyInviteWithAck({ targetCharacterId }, (ack) => {
+      if (!ack.ok) {
+        this.pushCombatFeedback(`[Grupo] ${ack.message}`);
+      }
+    });
+  }
+
+  acceptPartyInvite(): void {
+    const invite = this.pendingPartyInvite();
+    if (!invite) {
+      return;
+    }
+    this.clearPendingPartyInviteTimer();
+    this.pendingPartyInvite.set(null);
+    this.worldSocket.emitPartyAcceptWithAck({ fromCharacterId: invite.fromCharacterId }, (ack) => {
+      if (!ack.ok) {
+        this.pushCombatFeedback(`[Grupo] ${ack.message}`);
+      }
+    });
+  }
+
+  declinePartyInvite(): void {
+    const invite = this.pendingPartyInvite();
+    if (!invite) {
+      return;
+    }
+    this.clearPendingPartyInviteTimer();
+    this.pendingPartyInvite.set(null);
+    this.worldSocket.emitPartyDeclineWithAck({ fromCharacterId: invite.fromCharacterId }, () => {});
+  }
+
+  leaveParty(): void {
+    this.worldSocket.emitPartyLeaveWithAck((ack) => {
+      if (!ack.ok) {
+        this.pushCombatFeedback(`[Grupo] ${ack.message}`);
+      }
+    });
+  }
+
+  kickPartyMember(targetCharacterId: string): void {
+    this.worldSocket.emitPartyKickWithAck({ targetCharacterId }, (ack) => {
+      if (!ack.ok) {
+        this.pushCombatFeedback(`[Grupo] ${ack.message}`);
+      }
+    });
+  }
+
+  isSelfPartyLeader(): boolean {
+    const selfId = this.entitySync.selfCharacterId();
+    return this.partyMembers().some((m) => m.characterId === selfId && m.isLeader);
+  }
+
+  /** Propio grupo actual: evita ofrecer "atacar"/"invitar" sobre un compañero. */
+  isPartyMember(characterId: string): boolean {
+    return this.partyMembers().some((m) => m.characterId === characterId);
+  }
+
+  private clearPendingPartyInviteTimer(): void {
+    if (this.pendingPartyInviteTimer !== null) {
+      clearTimeout(this.pendingPartyInviteTimer);
+      this.pendingPartyInviteTimer = null;
+    }
+  }
+
   manaPercent(): number {
     if (this.localMaxMp <= 0) {
       return 0;
@@ -1567,6 +1692,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       if (!other) {
         return null;
       }
+      const groupmate = this.isPartyMember(other.characterId);
       return {
         name: other.name,
         level: 0,
@@ -1575,7 +1701,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         maxHp: 0,
         kind: 'player',
         nameColor: KARMA_NAME_COLORS[other.karmaFlag],
-        hint: 'Jugador: pulsá 1 para atacar (Esc cancela)',
+        hint: groupmate
+          ? 'Compañero de grupo (no se puede atacar)'
+          : 'Jugador: pulsá 1 para atacar (Esc cancela)',
+        isPartyMember: groupmate,
       };
     }
     if (!this.activeTargetId) {

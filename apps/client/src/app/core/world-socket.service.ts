@@ -59,6 +59,13 @@ import {
   type WsRequestRespawnAckPayload,
   type WsExecuteGmCommandAckPayload,
   type WsExecuteGmCommandClientPayload,
+  type WsPartyInviteClientPayload,
+  type WsPartyAcceptClientPayload,
+  type WsPartyDeclineClientPayload,
+  type WsPartyKickClientPayload,
+  type WsPartyActionAckPayload,
+  type WsPartyInviteReceivedPayload,
+  type WsPartyUpdatePayload,
 } from '../../../../../libs/shared-types/src/world-socket';
 
 @Injectable({ providedIn: 'root' })
@@ -91,6 +98,8 @@ export class WorldSocketService implements OnDestroy {
   readonly playerLeftZone$ = new Subject<WsPlayerLeftZonePayload>();
   readonly playerDeath$ = new Subject<WsPlayerDeathPayload>();
   readonly playerRespawn$ = new Subject<WsPlayerRespawnPayload>();
+  readonly partyUpdate$ = new Subject<WsPartyUpdatePayload>();
+  readonly partyInviteReceived$ = new Subject<WsPartyInviteReceivedPayload>();
 
   private socket: Socket | null = null;
 
@@ -186,6 +195,12 @@ export class WorldSocketService implements OnDestroy {
     });
     this.socket.on(WS_WORLD_EVENTS.PLAYER_RESPAWN, (p: WsPlayerRespawnPayload) => {
       this.playerRespawn$.next(p);
+    });
+    this.socket.on(WS_WORLD_EVENTS.PARTY_UPDATE, (p: WsPartyUpdatePayload) => {
+      this.partyUpdate$.next(p);
+    });
+    this.socket.on(WS_WORLD_EVENTS.PARTY_INVITE_RECEIVED, (p: WsPartyInviteReceivedPayload) => {
+      this.partyInviteReceived$.next(p);
     });
 
     this.socketConnected.set(this.socket.connected);
@@ -649,6 +664,98 @@ export class WorldSocketService implements OnDestroy {
           code: 'INVALID_ACK',
           message: 'Unexpected synthesis response from server',
         });
+      });
+  }
+
+  emitPartyInviteWithAck(
+    payload: WsPartyInviteClientPayload,
+    cb: (result: WsPartyActionAckPayload) => void,
+  ): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(WS_WORLD_EVENTS.PARTY_INVITE, payload, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({ ok: false, code: 'SOCKET_TIMEOUT', message: err.message || 'Party invite timed out' });
+          return;
+        }
+        cb(res as WsPartyActionAckPayload);
+      });
+  }
+
+  emitPartyAcceptWithAck(
+    payload: WsPartyAcceptClientPayload,
+    cb: (result: WsPartyActionAckPayload) => void,
+  ): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(WS_WORLD_EVENTS.PARTY_ACCEPT, payload, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({ ok: false, code: 'SOCKET_TIMEOUT', message: err.message || 'Party accept timed out' });
+          return;
+        }
+        cb(res as WsPartyActionAckPayload);
+      });
+  }
+
+  emitPartyDeclineWithAck(
+    payload: WsPartyDeclineClientPayload,
+    cb: (result: WsPartyActionAckPayload) => void,
+  ): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(WS_WORLD_EVENTS.PARTY_DECLINE, payload, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({ ok: false, code: 'SOCKET_TIMEOUT', message: err.message || 'Party decline timed out' });
+          return;
+        }
+        cb(res as WsPartyActionAckPayload);
+      });
+  }
+
+  emitPartyLeaveWithAck(cb: (result: WsPartyActionAckPayload) => void): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(WS_WORLD_EVENTS.PARTY_LEAVE, {}, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({ ok: false, code: 'SOCKET_TIMEOUT', message: err.message || 'Party leave timed out' });
+          return;
+        }
+        cb(res as WsPartyActionAckPayload);
+      });
+  }
+
+  emitPartyKickWithAck(
+    payload: WsPartyKickClientPayload,
+    cb: (result: WsPartyActionAckPayload) => void,
+  ): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(WS_WORLD_EVENTS.PARTY_KICK, payload, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({ ok: false, code: 'SOCKET_TIMEOUT', message: err.message || 'Party kick timed out' });
+          return;
+        }
+        cb(res as WsPartyActionAckPayload);
       });
   }
 

@@ -365,6 +365,29 @@
   pointer-events: none;
 }
 
+.overlay-party-invite {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.75rem;
+  z-index: 10;
+  width: min(18rem, calc(100% - 2rem));
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(154, 255, 193, 0.4);
+  background: rgba(10, 16, 14, 0.94);
+  color: #eafff2;
+  font-size: 0.76rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.overlay-party-invite__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .target-frame__name {
   display: flex;
   align-items: baseline;

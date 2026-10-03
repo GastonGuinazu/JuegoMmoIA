@@ -1,0 +1,39 @@
+<div class="overlay-party" role="group" aria-label="Grupo">
+  <div class="party-panel__header">
+    <span class="party-panel__title">Grupo ({{ members().length }}/5)</span>
+    <button type="button" class="party-panel__leave-btn" (click)="leaveParty.emit()" title="Abandonar grupo">
+      Salir
+    </button>
+  </div>
+  <ul class="party-panel__list">
+    @for (m of members(); track m.characterId) {
+      <li class="party-panel__member" [class.party-panel__member--offline]="!m.online">
+        <div class="party-panel__name-row">
+          @if (m.isLeader) {
+            <span class="party-panel__leader-mark" title="Líder del grupo">★</span>
+          }
+          <span class="party-panel__name" [class.party-panel__name--self]="isSelf(m.characterId)">
+            {{ m.name }}
+          </span>
+          @if (isSelfLeader() && !isSelf(m.characterId)) {
+            <button
+              type="button"
+              class="party-panel__kick-btn"
+              (click)="kickMember.emit(m.characterId)"
+              title="Expulsar del grupo"
+              aria-label="Expulsar del grupo"
+            >
+              ×
+            </button>
+          }
+        </div>
+        <div class="party-panel__bar party-panel__bar--hp">
+          <div class="party-panel__bar-fill" [style.width.%]="hpPercent(m)"></div>
+        </div>
+        <div class="party-panel__bar party-panel__bar--mp">
+          <div class="party-panel__bar-fill" [style.width.%]="mpPercent(m)"></div>
+        </div>
+      </li>
+    }
+  </ul>
+</div>

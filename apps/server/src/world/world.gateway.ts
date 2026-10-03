@@ -71,6 +71,12 @@ import {
   type WsRequestRespawnAckPayload,
   type WsExecuteGmCommandAckPayload,
   type WsExecuteGmCommandClientPayload,
+  type WsPartyInviteClientPayload,
+  type WsPartyAcceptClientPayload,
+  type WsPartyDeclineClientPayload,
+  type WsPartyKickClientPayload,
+  type WsPartyActionAckPayload,
+  type WsPartyInviteReceivedPayload,
 } from '@aetheris/shared-types';
 import type { CharacterRespawnResolution } from '../character/character.service';
 import { CharacterService, isDeadHp } from '../character/character.service';
@@ -102,6 +108,7 @@ import { WorldDropService } from './world-drop.service';
 import { NpcShopService } from './npc-shop.service';
 import { WorldSocketBridgeService } from './world-socket-bridge.service';
 import { GmCommandService } from '../gm/gm-command.service';
+import { PartyService } from '../party/party.service';
 import { findMapPortalById } from '../combat/combat-config.loaders';
 import { getWorldZoneDefinition, clampAxisToPlayable } from './config/world-zones.loaders';
 import { resolveRespawnTarget } from './config/world-spawn.loaders';
@@ -159,6 +166,7 @@ export class WorldGateway
     private readonly npcShop: NpcShopService,
     private readonly synthesisService: SynthesisService,
     private readonly gmCommandService: GmCommandService,
+    private readonly party: PartyService,
   ) {}
 
   afterInit(): void {
@@ -422,6 +430,14 @@ export class WorldGateway
       await this.characterService.initializeCurrentHpIfUnset(characterId);
     await this.playerCombatRuntime.seedCharacterCombatState(characterId);
 
+    // Reconexión con grupo ya formado: recuperar la sala y reenviar el estado actual
+    // (si no, el panel de party quedaría vacío hasta el próximo cambio de membresía).
+    const existingPartyId = this.party.getPartyIdForCharacter(characterId);
+    if (existingPartyId) {
+      await client.join(this.bridge.partyRoomId(existingPartyId));
+      client.emit(WS_WORLD_EVENTS.PARTY_UPDATE, this.buildPartyUpdatePayload(existingPartyId));
+    }
+
     const built = await this.buildZoneSnapshotPayload(characterId, zoneId);
     if (!built) {
       return;
@@ -482,6 +498,8 @@ export class WorldGateway
       await this.playerCombatRuntime.onCharacterDisconnect(id);
       this.presence.unregister(id);
       void this.mobService.clearAggroTargetingCharacter(id);
+      // No tiene sentido dejar esperando una invitación a alguien que ya se fue.
+      this.party.clearPendingInviteTo(id);
     }
   }
 
@@ -1462,6 +1480,18 @@ export class WorldGateway
       });
       return;
     }
+    // Fuego amigo: sin esto, un compañero de grupo se ataca exactamente igual que
+    // cualquier otro jugador (mismo pipeline, mismo daño, mismo karma). El cliente ya
+    // no deja targetear "como atacar" a un miembro propio, pero la autoridad es el
+    // Warden: esto cubre un cliente modificado o un target que quedó stale en cliente.
+    const attackerPartyId = this.party.getPartyIdForCharacter(attackerCharacterId);
+    if (attackerPartyId && attackerPartyId === this.party.getPartyIdForCharacter(body.targetCharacterId)) {
+      this.emitDenied(client, {
+        code: 'TARGET_IS_PARTY_MEMBER',
+        message: 'No podés atacar a un miembro de tu grupo',
+      });
+      return;
+    }
     if (
       typeof body.attackerFacingYaw === 'number' &&
       Number.isFinite(body.attackerFacingYaw)
@@ -1651,6 +1681,181 @@ export class WorldGateway
     await this.emitGmFollowUp(characterId, result.command, result.previousLevel);
 
     return { ok: true };
+  }
+
+  @SubscribeMessage(WS_WORLD_EVENTS.PARTY_INVITE)
+  async handlePartyInvite(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsPartyInviteClientPayload,
+  ): Promise<WsPartyActionAckPayload> {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    if (!body || !isUuid(body.targetCharacterId)) {
+      return { ok: false, code: 'INVALID_PAYLOAD', message: 'targetCharacterId (UUID) is required' };
+    }
+    if (!this.presence.isConnected(body.targetCharacterId)) {
+      return { ok: false, code: 'TARGET_OFFLINE', message: 'Ese jugador no está conectado' };
+    }
+    const inviter = await this.prisma.character.findUnique({
+      where: { id: characterId },
+      select: { name: true, characterClass: true },
+    });
+    if (!inviter) {
+      return { ok: false, code: 'NOT_FOUND', message: 'Personaje no encontrado' };
+    }
+    const result = this.party.createInvite({
+      fromCharacterId: characterId,
+      fromName: inviter.name,
+      fromClass: inviter.characterClass,
+      targetCharacterId: body.targetCharacterId,
+    });
+    if (!result.ok) {
+      return result;
+    }
+    // Si `createInvite` acaba de crear el grupo (el que invita todavía no tenía uno),
+    // ese socket nunca se sumó a la sala `party:*` — solo lo hace quien acepta en
+    // `handlePartyAccept`. Sin este join, el líder no recibiría ningún `party-update`
+    // futuro (ni el de la propia aceptación) hasta reconectar.
+    await client.join(this.bridge.partyRoomId(result.partyId));
+    this.bridge.emitToCharacter(
+      body.targetCharacterId,
+      WS_WORLD_EVENTS.PARTY_INVITE_RECEIVED,
+      { fromCharacterId: characterId, fromName: inviter.name } satisfies WsPartyInviteReceivedPayload,
+    );
+    return { ok: true };
+  }
+
+  @SubscribeMessage(WS_WORLD_EVENTS.PARTY_ACCEPT)
+  async handlePartyAccept(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsPartyAcceptClientPayload,
+  ): Promise<WsPartyActionAckPayload> {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    if (!body || !isUuid(body.fromCharacterId)) {
+      return { ok: false, code: 'INVALID_PAYLOAD', message: 'fromCharacterId (UUID) is required' };
+    }
+    const accepter = await this.prisma.character.findUnique({
+      where: { id: characterId },
+      select: { name: true, characterClass: true },
+    });
+    if (!accepter) {
+      return { ok: false, code: 'NOT_FOUND', message: 'Personaje no encontrado' };
+    }
+    const result = this.party.acceptInvite({
+      targetCharacterId: characterId,
+      fromCharacterId: body.fromCharacterId,
+      targetName: accepter.name,
+      targetClass: accepter.characterClass,
+    });
+    if (!result.ok) {
+      return result;
+    }
+    await client.join(this.bridge.partyRoomId(result.partyId));
+    this.broadcastPartyUpdate(result.partyId);
+    return { ok: true };
+  }
+
+  @SubscribeMessage(WS_WORLD_EVENTS.PARTY_DECLINE)
+  handlePartyDecline(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsPartyDeclineClientPayload,
+  ): WsPartyActionAckPayload {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    if (!body || !isUuid(body.fromCharacterId)) {
+      return { ok: false, code: 'INVALID_PAYLOAD', message: 'fromCharacterId (UUID) is required' };
+    }
+    this.party.declineInvite(characterId, body.fromCharacterId);
+    return { ok: true };
+  }
+
+  @SubscribeMessage(WS_WORLD_EVENTS.PARTY_LEAVE)
+  handlePartyLeave(@ConnectedSocket() client: Socket): WsPartyActionAckPayload {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    const result = this.party.leaveParty(characterId);
+    if (!result) {
+      return { ok: false, code: 'NOT_IN_PARTY', message: 'No estás en un grupo' };
+    }
+    this.bridge.leaveCharacterFromRoom(characterId, this.bridge.partyRoomId(result.partyId));
+    client.emit(WS_WORLD_EVENTS.PARTY_UPDATE, null);
+    if (!result.disbanded) {
+      this.broadcastPartyUpdate(result.partyId);
+    } else {
+      // Si quedó un solo miembro, el grupo se disolvió entero: a ese también se le limpia el panel.
+      for (const affectedId of result.affectedCharacterIds) {
+        if (affectedId === characterId) {
+          continue;
+        }
+        this.bridge.leaveCharacterFromRoom(affectedId, this.bridge.partyRoomId(result.partyId));
+        this.bridge.emitToCharacter(affectedId, WS_WORLD_EVENTS.PARTY_UPDATE, null);
+      }
+    }
+    return { ok: true };
+  }
+
+  @SubscribeMessage(WS_WORLD_EVENTS.PARTY_KICK)
+  handlePartyKick(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsPartyKickClientPayload,
+  ): WsPartyActionAckPayload {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    if (!body || !isUuid(body.targetCharacterId)) {
+      return { ok: false, code: 'INVALID_PAYLOAD', message: 'targetCharacterId (UUID) is required' };
+    }
+    const result = this.party.kickMember(characterId, body.targetCharacterId);
+    if (!result.ok) {
+      return result;
+    }
+    this.bridge.leaveCharacterFromRoom(body.targetCharacterId, this.bridge.partyRoomId(result.partyId));
+    this.bridge.emitToCharacter(body.targetCharacterId, WS_WORLD_EVENTS.PARTY_UPDATE, null);
+    if (!result.disbanded) {
+      this.broadcastPartyUpdate(result.partyId);
+    } else {
+      for (const affectedId of result.affectedCharacterIds) {
+        if (affectedId === body.targetCharacterId) {
+          continue;
+        }
+        this.bridge.leaveCharacterFromRoom(affectedId, this.bridge.partyRoomId(result.partyId));
+        this.bridge.emitToCharacter(affectedId, WS_WORLD_EVENTS.PARTY_UPDATE, null);
+      }
+    }
+    return { ok: true };
+  }
+
+  /** Combina el estado puro de `PartyService` con conexión/vitals en RAM (ver `PartyVitalsTickService`). */
+  private buildPartyUpdatePayload(partyId: string) {
+    return this.party.buildUpdatePayload(partyId, (characterId) => {
+      const online = this.presence.isConnected(characterId);
+      const vitals = online ? this.playerCombatRuntime.getRuntimeVitals(characterId) : null;
+      return {
+        online,
+        currentHp: vitals?.currentHp ?? 0,
+        maxHp: vitals?.maxHp ?? 0,
+        currentMp: vitals?.currentMp ?? 0,
+        maxMp: vitals?.maxMp ?? 0,
+      };
+    });
+  }
+
+  private broadcastPartyUpdate(partyId: string): void {
+    this.bridge.broadcastToRoom(
+      this.bridge.partyRoomId(partyId),
+      WS_WORLD_EVENTS.PARTY_UPDATE,
+      this.buildPartyUpdatePayload(partyId),
+    );
   }
 
   /**

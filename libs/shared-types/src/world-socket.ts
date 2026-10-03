@@ -112,6 +112,23 @@ export const WS_WORLD_EVENTS = {
    * Respuesta vía ack Socket.IO; el Warden valida permisos — nunca aplicar stats desde UI sin ACK.
    */
   EXECUTE_GM_COMMAND: 'execute-gm-command',
+  /** Cliente → servidor: invitar a otro personaje (UUID) al grupo. */
+  PARTY_INVITE: 'party-invite',
+  /** Cliente → servidor: aceptar la invitación de grupo pendiente de `fromCharacterId`. */
+  PARTY_ACCEPT: 'party-accept',
+  /** Cliente → servidor: rechazar la invitación de grupo pendiente de `fromCharacterId`. */
+  PARTY_DECLINE: 'party-decline',
+  /** Cliente → servidor: abandonar el grupo actual (si hay). */
+  PARTY_LEAVE: 'party-leave',
+  /** Cliente → servidor (solo líder): expulsar a un miembro del grupo. */
+  PARTY_KICK: 'party-kick',
+  /** Solo al socket destino: invitación de grupo recibida. */
+  PARTY_INVITE_RECEIVED: 'party-invite-received',
+  /**
+   * Sala `party:*` (o directo al socket que acaba de salir/ser expulsado): estado
+   * completo del grupo. `null` = el personaje no tiene grupo.
+   */
+  PARTY_UPDATE: 'party-update',
 } as const;
 
 export type WsMobAiState = 'IDLE' | 'PATROL' | 'CHASE';
@@ -642,4 +659,53 @@ export type WsRequestSynthesisAckPayload =
       items: InventoryItemRowDto[];
       adena: string;
     }
+  | { ok: false; code: string; message: string };
+
+/**
+ * Grupo (Party): sistema puramente social para v1 — ver/trackear vida y maná de
+ * aliados. NO reparte experiencia ni loot todavía (eso queda para una iteración
+ * futura, a propósito, para no tocar el cálculo de recompensas de combate).
+ */
+export type WsPartyMemberSnapshot = {
+  characterId: string;
+  name: string;
+  characterClass: string;
+  isLeader: boolean;
+  /** false si el personaje no tiene socket `/world` conectado en este momento. */
+  online: boolean;
+  currentHp: number;
+  maxHp: number;
+  currentMp: number;
+  maxMp: number;
+};
+
+/** `null` = el personaje no tiene grupo (disband, kick propio, leave). */
+export type WsPartyUpdatePayload = {
+  partyId: string;
+  members: WsPartyMemberSnapshot[];
+} | null;
+
+export type WsPartyInviteClientPayload = {
+  targetCharacterId: string;
+};
+
+export type WsPartyAcceptClientPayload = {
+  fromCharacterId: string;
+};
+
+export type WsPartyDeclineClientPayload = {
+  fromCharacterId: string;
+};
+
+export type WsPartyKickClientPayload = {
+  targetCharacterId: string;
+};
+
+export type WsPartyInviteReceivedPayload = {
+  fromCharacterId: string;
+  fromName: string;
+};
+
+export type WsPartyActionAckPayload =
+  | { ok: true }
   | { ok: false; code: string; message: string };

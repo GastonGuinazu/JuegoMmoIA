@@ -4,6 +4,7 @@ import { CombatModule } from '../combat/combat.module';
 import { GmModule } from '../gm/gm.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { MobModule } from '../mob/mob.module';
+import { PartyModule } from '../party/party.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SynthesisModule } from '../synthesis/synthesis.module';
 import { MobAiTickService } from '../mob/mob-ai-tick.service';
@@ -21,6 +22,7 @@ import { WorldGateway } from './world.gateway';
     InventoryModule,
     SynthesisModule,
     GmModule,
+    PartyModule,
   ],
   providers: [
     WorldGateway,

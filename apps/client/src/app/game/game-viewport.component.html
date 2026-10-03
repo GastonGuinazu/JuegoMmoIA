@@ -83,6 +83,23 @@
             </div>
           </div>
         </div>
+        @if (partyMembers().length > 1) {
+          <app-party-panel
+            [members]="partyMembers()"
+            [selfCharacterId]="characterIdModel.trim()"
+            (leaveParty)="leaveParty()"
+            (kickMember)="kickPartyMember($event)"
+          />
+        }
+        @if (pendingPartyInvite(); as invite) {
+          <div class="overlay-party-invite" role="alertdialog" aria-label="Invitación de grupo">
+            <span>{{ invite.fromName }} te invitó a su grupo.</span>
+            <div class="overlay-party-invite__actions">
+              <button type="button" class="btn primary" (click)="acceptPartyInvite()">Aceptar</button>
+              <button type="button" class="btn" (click)="declinePartyInvite()">Rechazar</button>
+            </div>
+          </div>
+        }
         @if (activeTargetFrame(); as target) {
           <app-target-frame
             [target]="target"
@@ -92,6 +109,7 @@
             [levelPenaltyActive]="targetDropPreviewLevelPenalty()"
             [previewItems]="targetDropPreviewItems()"
             (togglePreview)="onToggleTargetDropPreview()"
+            (inviteToParty)="inviteTargetToParty()"
           />
         }
         @if (playerState.levelUpOverlay()) {
