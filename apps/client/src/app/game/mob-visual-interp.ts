@@ -20,6 +20,16 @@ const DELAY_MS = 70;
 const MAX_EXTRAPOLATE_MS = 180;
 const SNAP_XZ = 8;
 const MAX_SAMPLES = 12;
+/**
+ * Piso del intervalo usado para estimar velocidad al extrapolar (último tramo
+ * `last - prev`). Dos muestras casi simultáneas (p. ej. dos `mob-moved` del mismo
+ * tick de IA, separadas por 0-2ms de jitter de entrega) con posiciones distintas
+ * implican una "velocidad" absurda si se divide por ese intervalo real; de ahí salía
+ * el salto hacia el jugador que se corregía solo en el siguiente paquete. Al no dejar
+ * que el span caiga por debajo de un tick de IA típico, la extrapolación queda acotada
+ * a una velocidad razonable aun si el servidor llega a emitir dos muestras pegadas.
+ */
+const MIN_EXTRAPOLATION_SPAN_MS = 40;
 
 export class MobVisualInterp {
   private readonly buffers = new Map<string, MobInterpSample[]>();
@@ -108,7 +118,7 @@ export class MobVisualInterp {
     if (extra <= 0) {
       return copyPose(last);
     }
-    const span = Math.max(1, last.t - prev.t);
+    const span = Math.max(MIN_EXTRAPOLATION_SPAN_MS, last.t - prev.t);
     const u = extra / span;
     return {
       x: last.x + (last.x - prev.x) * u,

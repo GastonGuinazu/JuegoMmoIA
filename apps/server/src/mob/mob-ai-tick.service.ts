@@ -1150,6 +1150,11 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
           attackerCharacterId: attacker.id,
           zoneGrid,
         });
+        if (changed) {
+          // Mismo motivo que en la adquisición pasiva de aggro más abajo: no encadenar
+          // el primer paso de CHASE en el mismo tick que el `mob-moved` de adquisición.
+          return;
+        }
       }
     }
 
@@ -1231,6 +1236,16 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
           currentHp: next.hp,
           maxHp,
         });
+        /**
+         * No seguir al bloque CHASE en el mismo tick: eso emitiría un segundo `mob-moved`
+         * (con el primer paso de persecución) a milisegundos del de arriba. Dos muestras
+         * casi simultáneas con mismo origen pero distinto destino le dan a la extrapolación
+         * del cliente (`MobVisualInterp.sample`, span ~0-2ms) una "velocidad" absurda: si el
+         * siguiente paquete real tarda aunque sea un poco, el mob se ve saltar hacia el
+         * jugador y volver de golpe. El primer paso de persecución sale recién, normal y
+         * acotado por velocidad, en el próximo tick (50ms después).
+         */
+        return;
       }
     }
 
