@@ -18,10 +18,7 @@ import {
   toIdempotencyFailurePayload,
 } from '../idempotency/idempotency-http.util';
 import type { IdempotencyCachedPayload } from '../idempotency/idempotency.types';
-import {
-  WS_WORLD_EVENTS,
-  type WsPlayerVitalsPayload,
-} from '@aetheris/shared-types';
+import type { WsPlayerVitalsPayload } from '@aetheris/shared-types';
 import { WorldSocketBridgeService } from '../world/world-socket-bridge.service';
 import { PlayerCombatRuntimeService } from '../combat/player-combat-runtime.service';
 import { InventoryEquipRequestDto } from './dto/inventory-equip-request.dto';
@@ -221,10 +218,6 @@ export class InventoryController {
       currentHp: vitals.currentHp,
       maxHp: vitals.maxHp,
     };
-    this.worldBridge.emitToCharacter(
-      characterId,
-      WS_WORLD_EVENTS.PLAYER_VITALS,
-      payload,
-    );
+    this.worldBridge.emitPlayerVitals(payload);
   }
 }

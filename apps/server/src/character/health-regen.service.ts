@@ -6,10 +6,7 @@ import {
 } from '@nestjs/common';
 import { loadCharacterVitalsConfig } from './config/config-loaders';
 import { CharacterService } from './character.service';
-import {
-  WS_WORLD_EVENTS,
-  type WsPlayerVitalsPayload,
-} from '@aetheris/shared-types';
+import type { WsPlayerVitalsPayload } from '@aetheris/shared-types';
 import { MobCombatRegenService } from '../mob/mob-combat-regen.service';
 import { WorldSocketBridgeService } from '../world/world-socket-bridge.service';
 import { WorldPresenceService } from '../world/world-presence.service';
@@ -58,11 +55,7 @@ export class HealthRegenService implements OnModuleInit, OnModuleDestroy {
             currentHp: v.currentHp,
             maxHp: v.maxHp,
           };
-          this.bridge.emitToCharacter(
-            characterId,
-            WS_WORLD_EVENTS.PLAYER_VITALS,
-            payload,
-          );
+          this.bridge.emitPlayerVitals(payload);
         }
       } catch {
         /* personaje borrado / carrera: ignorar tick */

@@ -558,7 +558,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     stats.currentHp = Math.min(stats.maxHp, stats.currentHp + actualHeal);
     stats.hpDirty = true;
     this.presence.markCharacterHpDirty(characterId);
-    this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
+    this.bridge.emitPlayerVitals({
       characterId,
       currentHp: stats.currentHp,
       maxHp: stats.maxHp,
@@ -580,7 +580,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     const room = Math.max(0, stats.maxMp - stats.currentMp);
     const actualRestore = Math.min(Math.max(0, Math.floor(flatRestore)), room);
     stats.currentMp = Math.min(stats.maxMp, stats.currentMp + actualRestore);
-    this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
+    this.bridge.emitPlayerVitals({
       characterId,
       currentHp: stats.currentHp,
       maxHp: stats.maxHp,
@@ -645,6 +645,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     }
     const regen = Math.max(1, Math.floor(stats.maxMp * PlayerCombatRuntimeService.MANA_REGEN_PERCENT));
     stats.currentMp = Math.min(stats.maxMp, stats.currentMp + regen);
+    // Privado nomás (no `emitPlayerVitals`): tick cada 3s por cada jugador con MP < tope, y
+    // el HP nunca cambia acá — difundir "public vitals" a la zona en cada uno sería puro
+    // ruido de red, y la tarjeta de target no muestra MP de todos modos.
     this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
       characterId,
       currentHp: stats.currentHp,
@@ -1068,13 +1071,16 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     this.presence.markCharacterHpDirty(characterId);
     this.mobCombatRegen.recordMobDealtDamage(mobInstanceId);
 
-    this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
-      characterId,
-      currentHp: stats.currentHp,
-      maxHp: stats.maxHp,
-      currentMp: stats.currentMp,
-      maxMp: stats.maxMp,
-    });
+    this.bridge.emitPlayerVitals(
+      {
+        characterId,
+        currentHp: stats.currentHp,
+        maxHp: stats.maxHp,
+        currentMp: stats.currentMp,
+        maxMp: stats.maxMp,
+      },
+      pose.zoneId,
+    );
     this.bridge.broadcastToZone(pose.zoneId, WS_WORLD_EVENTS.MOB_MELEE_RESULT, {
       mobInstanceId,
       targetCharacterId: characterId,
@@ -1348,11 +1354,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
             currentHp: vitals.currentHp,
             maxHp: vitals.maxHp,
           };
-          this.bridge.emitToCharacter(
-            characterId,
-            WS_WORLD_EVENTS.PLAYER_VITALS,
-            vitalsPayload,
-          );
+          this.bridge.emitPlayerVitals(vitalsPayload);
           const levelPayload: WsLevelUpPayload = {
             characterId,
             newLevel: outcome.rewards.level,

@@ -64,6 +64,19 @@ export const WS_WORLD_EVENTS = {
   PLAYER_POSITION_CORRECTED: 'player-position-corrected',
   /** Servidor → socket del personaje: HP / maxHP (post-equip, combate futuro, etc.) */
   PLAYER_VITALS: 'player-vitals',
+  /**
+   * A diferencia de `PLAYER_VITALS` (privado, solo al dueño del personaje), esto es HP/maxHP
+   * (+ nivel) público de OTRO jugador: lo que alimenta la tarjeta de target de cualquiera que
+   * lo tenga seleccionado. El servidor lo manda de dos formas: (1) directo al que pide, como
+   * respuesta a `REQUEST_PLAYER_TARGET_VITALS` (al seleccionar un target, para mostrar la
+   * barra ya mismo sin esperar un golpe); (2) a toda la sala `zone:*` cada vez que cambia el
+   * HP de ese jugador por cualquier motivo (golpe, regen, poción — ver `emitPlayerVitals` en
+   * `WorldSocketBridgeService`), para que la barra de quien lo tiene targeteado se mantenga
+   * al día aunque el cambio no venga de un golpe propio.
+   */
+  PLAYER_TARGET_VITALS: 'player-target-vitals',
+  /** Cliente → servidor: al seleccionar a otro jugador, pedir su HP/maxHP/nivel actual. */
+  REQUEST_PLAYER_TARGET_VITALS: 'request-player-target-vitals',
   /** Servidor -> socket del personaje: refresh atómico de stats derivados + vitals. */
   PLAYER_STATS_UPDATE: 'player-stats-update',
   /** Servidor -> socket: penalización por grado de equipo activo/inactivo. */
@@ -202,6 +215,24 @@ export type WsPlayerVitalsPayload = {
   maxHp: number;
   currentMp?: number;
   maxMp?: number;
+};
+
+/** Ver `WS_WORLD_EVENTS.PLAYER_TARGET_VITALS`. */
+export type WsPlayerTargetVitalsPayload = {
+  characterId: string;
+  currentHp: number;
+  maxHp: number;
+  /**
+   * Solo presente en la respuesta a `REQUEST_PLAYER_TARGET_VITALS` (al seleccionar el
+   * target): los broadcasts de zona por cambios de HP (golpe/regen/poción) no vuelven a
+   * pedir el nivel a DB porque casi nunca cambia — el cliente conserva el último conocido.
+   */
+  level?: number;
+};
+
+/** Ver `WS_WORLD_EVENTS.REQUEST_PLAYER_TARGET_VITALS`. */
+export type WsRequestPlayerTargetVitalsPayload = {
+  targetCharacterId: string;
 };
 
 export type WsPlayerStatsUpdatePayload = {

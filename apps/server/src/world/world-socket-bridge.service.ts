@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { Namespace } from 'socket.io';
 import { normalizeZoneId } from './world-zone.util';
+import {
+  WS_WORLD_EVENTS,
+  type WsPlayerTargetVitalsPayload,
+  type WsPlayerVitalsPayload,
+} from '@aetheris/shared-types';
 
 @Injectable()
 export class WorldSocketBridgeService {
@@ -59,6 +64,40 @@ export class WorldSocketBridgeService {
         socket.emit(event, payload);
       }
     }
+  }
+
+  /**
+   * Único punto por el que debería salir `PLAYER_VITALS`: además de la entrega privada de
+   * siempre (al dueño del personaje), difunde una versión pública y recortada (sin `currentMp`
+   * /`maxMp`) a la sala de zona del personaje como `PLAYER_TARGET_VITALS` — así la barra de
+   * vida de la tarjeta de target se mantiene al día para cualquiera que lo tenga seleccionado,
+   * sin importar la causa del cambio (golpe, regen, poción). `zoneId` es opcional: si el
+   * caller ya lo tiene a mano (p. ej. `combat.service.ts` ya resolvió `outcome.zoneId`) evita
+   * el barrido de sockets para resolverlo.
+   */
+  emitPlayerVitals(payload: WsPlayerVitalsPayload, zoneId?: string | null): void {
+    this.emitToCharacter(payload.characterId, WS_WORLD_EVENTS.PLAYER_VITALS, payload);
+    const resolvedZoneId = zoneId ?? this.findCharacterZoneId(payload.characterId);
+    if (!resolvedZoneId) {
+      return;
+    }
+    this.broadcastToZone(resolvedZoneId, WS_WORLD_EVENTS.PLAYER_TARGET_VITALS, {
+      characterId: payload.characterId,
+      currentHp: payload.currentHp,
+      maxHp: payload.maxHp,
+    } satisfies WsPlayerTargetVitalsPayload);
+  }
+
+  private findCharacterZoneId(characterId: string): string | null {
+    if (!this.server) {
+      return null;
+    }
+    for (const socket of this.server.sockets.values()) {
+      if (socket.data?.characterId === characterId) {
+        return (socket.data?.zoneId as string | undefined) ?? null;
+      }
+    }
+    return null;
   }
 
   /**

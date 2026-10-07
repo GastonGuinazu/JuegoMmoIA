@@ -91,8 +91,6 @@ export interface AttackPlayerCharacterResult {
   zoneId: string | null;
   attackerFlag: KarmaFlag;
   targetFlag: KarmaFlag;
-  attackerWeaponPlusLevel: number;
-  targetWeaponPlusLevel: number;
   pkDropSpawn?: WsWorldDropSpawnPayload;
   skillId?: string;
   skillName?: string;
@@ -677,7 +675,7 @@ export class CombatService {
       select: { name: true },
     });
 
-    this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
+    this.bridge.emitPlayerVitals({
       characterId,
       currentHp: death.currentHp,
       maxHp: death.maxHp,
@@ -827,6 +825,9 @@ export class CombatService {
 
         let death: PvEDeathResolution | null = null;
         let pkDropSpawn: WsWorldDropSpawnPayload | undefined;
+        let killTransition: ReturnType<
+          PenaltyManagerService['applyUnjustifiedKillTransition']
+        > | null = null;
         if (hpAfter > 0) {
           await tx.character.update({
             where: { id: target.id },
@@ -838,7 +839,7 @@ export class CombatService {
         } else {
           death = await this.characterService.applyPvEDeathInTx(tx, target.id);
 
-          const killTransition = this.penaltyManager.applyUnjustifiedKillTransition({
+          killTransition = this.penaltyManager.applyUnjustifiedKillTransition({
             attacker: {
               karmaPoints: attackTransition.karmaPoints,
               karmaTier: attackTransition.karmaTier,
@@ -888,31 +889,21 @@ export class CombatService {
           }
         }
 
-        const [attackerRefresh, targetRefresh, attackerEquipped, targetEquipped] =
-          await Promise.all([
-            tx.character.findUnique({ where: { id: attacker.id } }),
-            tx.character.findUnique({ where: { id: target.id } }),
-            tx.itemInstance.findMany({
-              where: {
-                ownerId: attacker.id,
-                location: ItemInstanceLocation.EQUIPPED,
-              },
-              select: { gearSlot: true, synthesisLevel: true },
-            }),
-            tx.itemInstance.findMany({
-              where: {
-                ownerId: target.id,
-                location: ItemInstanceLocation.EQUIPPED,
-              },
-              select: { gearSlot: true, synthesisLevel: true },
-            }),
-          ]);
-        if (!attackerRefresh || !targetRefresh) {
-          throw new NotFoundException('Combatants not found after PvP update');
-        }
-
-        const attackerFlag = this.penaltyManager.getKarmaFlagFromTier(attackerRefresh.karmaTier);
-        const targetFlag = this.penaltyManager.getKarmaFlagFromTier(targetRefresh.karmaTier);
+        // `attackerFlag`/`targetFlag` salen de lo que ya se escribió arriba, sin refetch: el
+        // karma del atacante es el de `killTransition` si hubo muerte y cambió, si no el de
+        // `attackTransition` (ambos devuelven el valor vigente de la fila aun cuando `changed`
+        // es false); el del target no lo toca este flujo, así que es directo `target.karmaTier`.
+        // Antes esto volvía a pedir `attacker`/`target` + los 2 `itemInstance.findMany` de
+        // equipo DENTRO de la misma transacción SOLO para esto — 4 round-trips más contra la
+        // DB remota (sa-east-1) que no aportaban nada al golpe en sí (ni siquiera entran en
+        // `ATTACK_PLAYER_RESULT`, solo alimentan el glow cosmético de `PLAYER_VISUAL_STATE`) y
+        // sin embargo demoraban el commit — y por lo tanto cuánto tardaba la víctima en ver
+        // bajar su propia vida. El weaponPlusLevel ahora se resuelve recién post-commit (ver
+        // más abajo, fire-and-forget igual que la vitals).
+        const attackerFlag = this.penaltyManager.getKarmaFlagFromTier(
+          killTransition?.changed ? killTransition.karmaTier : attackTransition.karmaTier,
+        );
+        const targetFlag = this.penaltyManager.getKarmaFlagFromTier(target.karmaTier);
 
         return {
           attackerCharacterId: attacker.id,
@@ -924,8 +915,6 @@ export class CombatService {
           zoneId: attacker.currentZoneId,
           attackerFlag,
           targetFlag,
-          attackerWeaponPlusLevel: this.penaltyManager.resolveWeaponPlusLevel(attackerEquipped),
-          targetWeaponPlusLevel: this.penaltyManager.resolveWeaponPlusLevel(targetEquipped),
           pkDropSpawn,
           death,
           targetName: target.name,
@@ -958,16 +947,30 @@ export class CombatService {
       skillName: outcome.skillName,
     });
 
-    this.bridge.broadcastToZone(outcome.zoneId, WS_WORLD_EVENTS.PLAYER_VISUAL_STATE, {
-      characterId: outcome.attackerCharacterId,
-      karmaFlag: outcome.attackerFlag,
-      weaponPlusLevel: outcome.attackerWeaponPlusLevel,
-    });
-    this.bridge.broadcastToZone(outcome.zoneId, WS_WORLD_EVENTS.PLAYER_VISUAL_STATE, {
-      characterId: outcome.targetCharacterId,
-      karmaFlag: outcome.targetFlag,
-      weaponPlusLevel: outcome.targetWeaponPlusLevel,
-    });
+    // Glow de karma/arma (PLAYER_VISUAL_STATE): cosmético, no debe demorar lo de arriba. El
+    // weaponPlusLevel se resuelve recién acá, post-commit, en vez de haber sido parte de la
+    // transacción (ver el comentario de `attackerFlag`/`targetFlag` adentro de ella).
+    void Promise.all([
+      this.resolveCharacterWeaponPlusLevel(outcome.attackerCharacterId),
+      this.resolveCharacterWeaponPlusLevel(outcome.targetCharacterId),
+    ])
+      .then(([attackerWeaponPlusLevel, targetWeaponPlusLevel]) => {
+        this.bridge.broadcastToZone(outcome.zoneId, WS_WORLD_EVENTS.PLAYER_VISUAL_STATE, {
+          characterId: outcome.attackerCharacterId,
+          karmaFlag: outcome.attackerFlag,
+          weaponPlusLevel: attackerWeaponPlusLevel,
+        });
+        this.bridge.broadcastToZone(outcome.zoneId, WS_WORLD_EVENTS.PLAYER_VISUAL_STATE, {
+          characterId: outcome.targetCharacterId,
+          karmaFlag: outcome.targetFlag,
+          weaponPlusLevel: targetWeaponPlusLevel,
+        });
+      })
+      .catch((e) => {
+        this.logger.warn(
+          `[PvP] No se pudo resolver weaponPlusLevel de ${outcome.attackerCharacterId}/${outcome.targetCharacterId}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      });
 
     // Confirmación de `maxHp` real (equipo/stats pueden haberlo cambiado desde el último
     // conocido): el cliente ya reflejó `targetHpAfter` desde `ATTACK_PLAYER_RESULT` de
@@ -976,11 +979,17 @@ export class CombatService {
     void this.statEngine
       .getCombatVitals(outcome.targetCharacterId)
       .then((targetVitals) => {
-        this.bridge.emitToCharacter(outcome.targetCharacterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
-          characterId: outcome.targetCharacterId,
-          currentHp: targetVitals.currentHp,
-          maxHp: targetVitals.maxHp,
-        } satisfies WsPlayerVitalsPayload);
+        // `emitPlayerVitals` ya difunde la versión pública (`PLAYER_TARGET_VITALS`) a la
+        // zona además de la privada al dueño — ver `WorldSocketBridgeService`. Le pasamos
+        // `outcome.zoneId` (ya resuelto) para que no tenga que barrer sockets buscándolo.
+        this.bridge.emitPlayerVitals(
+          {
+            characterId: outcome.targetCharacterId,
+            currentHp: targetVitals.currentHp,
+            maxHp: targetVitals.maxHp,
+          } satisfies WsPlayerVitalsPayload,
+          outcome.zoneId,
+        );
       })
       .catch((e) => {
         this.logger.warn(
@@ -1009,10 +1018,20 @@ export class CombatService {
       zoneId: outcome.zoneId,
       attackerFlag: outcome.attackerFlag,
       targetFlag: outcome.targetFlag,
-      attackerWeaponPlusLevel: outcome.attackerWeaponPlusLevel,
-      targetWeaponPlusLevel: outcome.targetWeaponPlusLevel,
       pkDropSpawn: outcome.pkDropSpawn,
     };
+  }
+
+  /** Post-commit, para el glow cosmético de `PLAYER_VISUAL_STATE` — ver `attackCharacter`. */
+  private async resolveCharacterWeaponPlusLevel(characterId: string): Promise<number> {
+    const equipped = await this.prisma.itemInstance.findMany({
+      where: {
+        ownerId: characterId,
+        location: ItemInstanceLocation.EQUIPPED,
+      },
+      select: { gearSlot: true, synthesisLevel: true },
+    });
+    return this.penaltyManager.resolveWeaponPlusLevel(equipped);
   }
 
   /**
@@ -1149,11 +1168,7 @@ export class CombatService {
       currentHp: outcome.currentHp,
       maxHp: outcome.maxHp,
     };
-    this.bridge.emitToCharacter(
-      characterId,
-      WS_WORLD_EVENTS.PLAYER_VITALS,
-      vitalsPayload,
-    );
+    this.bridge.emitPlayerVitals(vitalsPayload, meta?.currentZoneId);
 
     if (outcome.killed && outcome.death) {
       this.broadcastPlayerDeath(characterId, meta?.name, outcome.death);

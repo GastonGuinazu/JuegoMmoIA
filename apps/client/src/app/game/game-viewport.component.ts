@@ -364,9 +364,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   readonly gmBarVisible = signal(false);
 
   lastDenied = signal<string | null>(null);
-  readonly inventoryPanelOpen = signal(true);
-  readonly characterSheetOpen = signal(true);
-  readonly synthesisPanelOpen = signal(true);
+  readonly inventoryPanelOpen = signal(false);
+  readonly characterSheetOpen = signal(false);
+  readonly synthesisPanelOpen = signal(false);
   readonly partyMembers = signal<WsPartyMemberSnapshot[]>([]);
   readonly pendingPartyInvite = signal<{ fromCharacterId: string; fromName: string } | null>(null);
   private pendingPartyInviteTimer: ReturnType<typeof setTimeout> | null = null;
@@ -481,6 +481,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private activePlayerTargetId: string | null = null;
   /** Último HP conocido de jugadores golpeados (el servidor no publica su HP máximo). */
   private readonly playerTargetHp = new Map<string, number>();
+  /** maxHp público de jugadores golpeados, vía `PLAYER_TARGET_VITALS` — ver esa constante. */
+  private readonly playerTargetMaxHp = new Map<string, number>();
+  /** Nivel público de jugadores ya consultados (llega solo en la respuesta a la request inicial). */
+  private readonly playerTargetLevel = new Map<string, number>();
   private playerAutoAttackTimer: ReturnType<typeof setInterval> | null = null;
   /** Instante del último golpe a jugador sin respuesta; evita acumular cola si el servidor tarda. */
   private playerAttackAwaitingSinceMs: number | null = null;
@@ -977,6 +981,19 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         }
       });
 
+    this.worldSocket.playerTargetVitals$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((p) => {
+        this.playerTargetHp.set(p.characterId, p.currentHp);
+        this.playerTargetMaxHp.set(p.characterId, p.maxHp);
+        // `level` solo viene en la respuesta a `REQUEST_PLAYER_TARGET_VITALS` (al
+        // seleccionar); los broadcasts de zona por cambios de HP no lo mandan — conservar
+        // el último conocido en vez de pisarlo con `undefined`.
+        if (p.level !== undefined) {
+          this.playerTargetLevel.set(p.characterId, p.level);
+        }
+      });
+
     this.worldSocket.attackMobRewards$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((r: WsAttackMobRewardsPayload) => {
@@ -1356,8 +1373,15 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     }
     this.moveTarget.set(groundHit.point.x, groundHit.point.y, groundHit.point.z);
     this.moveIntentDirty = true;
-    /** Regla L2: click derecho es solo movimiento manual; no altera la selección. */
+    /**
+     * Regla L2: click derecho es solo movimiento manual; no altera la selección (podés
+     * volver a pegarle sin re-targetear). Pero SÍ corta el auto-ataque a jugador en curso
+     * (`startPlayerAutoAttack`, timer de 250ms que no se autodetiene solo porque el target
+     * esté lejos — ver `sendPlayerAttack`): sin esto, alejarte de una pelea PvP y volver a
+     * acercarte reactivaba los golpes automáticos sin que vuelvas a apretar la tecla.
+     */
     this.cancelCombatChase();
+    this.stopPlayerAutoAttack();
   }
 
   /**
@@ -1431,6 +1455,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       this.resetDropPreviewState();
       this.cancelCombatChase();
       this.lastDenied.set(null);
+      // HP/maxHP/nivel ya mismo (sin esto, la tarjeta no mostraba barra hasta el primer golpe).
+      this.worldSocket.requestPlayerTargetVitals(otherCharacterId);
       return;
     }
 
@@ -1873,17 +1899,19 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         return null;
       }
       const groupmate = this.isPartyMember(other.characterId);
+      // HP/maxHP/nivel: pedidos al seleccionar (`requestPlayerTargetVitals`) y mantenidos al
+      // día por `PLAYER_TARGET_VITALS` — ver esa constante en world-socket.ts.
+      const currentHp = this.playerTargetHp.get(other.characterId) ?? 0;
+      const maxHp = this.playerTargetMaxHp.get(other.characterId) ?? 0;
       return {
         name: other.name,
-        level: 0,
-        hpPercent: 0,
-        currentHp: this.playerTargetHp.get(other.characterId) ?? 0,
-        maxHp: 0,
+        level: this.playerTargetLevel.get(other.characterId) ?? 0,
+        hpPercent: maxHp > 0 ? Math.max(0, Math.min(100, (100 * currentHp) / maxHp)) : 0,
+        currentHp,
+        maxHp,
         kind: 'player',
         nameColor: KARMA_NAME_COLORS[other.karmaFlag],
-        hint: groupmate
-          ? 'Compañero de grupo (no se puede atacar)'
-          : 'Jugador: 1 ataca, 2/3 habilidades (Esc cancela)',
+        hint: groupmate ? 'Compañero de grupo (no se puede atacar)' : undefined,
         isPartyMember: groupmate,
       };
     }

@@ -52,6 +52,8 @@ import {
   type WsLevelUpPayload,
   type WsPlayerStatsUpdatePayload,
   type WsPlayerVitalsPayload,
+  type WsPlayerTargetVitalsPayload,
+  type WsRequestPlayerTargetVitalsPayload,
   type WsSellItemClientPayload,
   type WsShopTxnAckPayload,
   type WsUnequipItemAckPayload,
@@ -808,9 +810,9 @@ export class WorldGateway
         currentHp: vitals.currentHp,
         maxHp: vitals.maxHp,
       };
-      this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, payload);
-      await this.playerCombatRuntime.refreshDerivedStatsAfterEquipmentChange(characterId);
       const zoneId = normalizeZoneId(client.data.zoneId as string | undefined);
+      this.bridge.emitPlayerVitals(payload, zoneId);
+      await this.playerCombatRuntime.refreshDerivedStatsAfterEquipmentChange(characterId);
       await this.emitCharacterVisualState(characterId, zoneId);
       return {
         ok: true,
@@ -861,9 +863,9 @@ export class WorldGateway
         currentHp: vitals.currentHp,
         maxHp: vitals.maxHp,
       };
-      this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_VITALS, payload);
-      await this.playerCombatRuntime.refreshDerivedStatsAfterEquipmentChange(characterId);
       const zoneId = normalizeZoneId(client.data.zoneId as string | undefined);
+      this.bridge.emitPlayerVitals(payload, zoneId);
+      await this.playerCombatRuntime.refreshDerivedStatsAfterEquipmentChange(characterId);
       await this.emitCharacterVisualState(characterId, zoneId);
       return {
         ok: true,
@@ -1399,11 +1401,7 @@ export class WorldGateway
             currentHp: vitals.currentHp,
             maxHp: vitals.maxHp,
           };
-          this.bridge.emitToCharacter(
-            characterId,
-            WS_WORLD_EVENTS.PLAYER_VITALS,
-            vitalsPayload,
-          );
+          this.bridge.emitPlayerVitals(vitalsPayload, mob.zoneId ?? character.currentZoneId);
           const levelPayload: WsLevelUpPayload = {
             characterId,
             newLevel: result.rewards.level,
@@ -1578,6 +1576,46 @@ export class WorldGateway
     }
   }
 
+  /**
+   * Al seleccionar a otro jugador como target: HP/maxHP/nivel ya mismo, sin esperar a
+   * golpearlo. Respuesta privada solo al que pidió (no `broadcastToZone`) — la tarjeta de
+   * target de cualquier otro que ya lo tenga seleccionado se actualiza sola vía
+   * `emitPlayerVitals` cuando el HP de ese jugador cambie por cualquier motivo.
+   */
+  @SubscribeMessage(WS_WORLD_EVENTS.REQUEST_PLAYER_TARGET_VITALS)
+  async handleRequestPlayerTargetVitals(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsRequestPlayerTargetVitalsPayload,
+  ): Promise<void> {
+    const requesterCharacterId = client.data.characterId as string | undefined;
+    if (!requesterCharacterId) {
+      return;
+    }
+    if (!body || !isUuid(body.targetCharacterId)) {
+      return;
+    }
+    try {
+      const [vitals, target] = await Promise.all([
+        this.statEngine.getCombatVitals(body.targetCharacterId),
+        this.prisma.character.findUnique({
+          where: { id: body.targetCharacterId },
+          select: { level: true },
+        }),
+      ]);
+      if (!target) {
+        return;
+      }
+      this.bridge.emitToCharacter(requesterCharacterId, WS_WORLD_EVENTS.PLAYER_TARGET_VITALS, {
+        characterId: body.targetCharacterId,
+        currentHp: vitals.currentHp,
+        maxHp: vitals.maxHp,
+        level: target.level,
+      } satisfies WsPlayerTargetVitalsPayload);
+    } catch {
+      /* target ya no existe / carrera: ignorar, la tarjeta se queda sin datos */
+    }
+  }
+
   @SubscribeMessage(WS_WORLD_EVENTS.REQUEST_SYNTHESIS_QUOTE)
   async handleRequestSynthesisQuote(
     @ConnectedSocket() client: Socket,
@@ -1672,10 +1710,9 @@ export class WorldGateway
         currentHp: vitals.currentHp,
         maxHp: vitals.maxHp,
       };
-      this.bridge.emitToCharacter(
-        characterId,
-        WS_WORLD_EVENTS.PLAYER_VITALS,
+      this.bridge.emitPlayerVitals(
         vitalsPayload,
+        normalizeZoneId(client.data.zoneId as string | undefined),
       );
 
       return {
@@ -2019,11 +2056,7 @@ export class WorldGateway
       currentHp: vitals.currentHp,
       maxHp: vitals.maxHp,
     };
-    this.bridge.emitToCharacter(
-      characterId,
-      WS_WORLD_EVENTS.PLAYER_VITALS,
-      vitalsPayload,
-    );
+    this.bridge.emitPlayerVitals(vitalsPayload, character.currentZoneId);
 
     if (
       command === 'setlevel' &&

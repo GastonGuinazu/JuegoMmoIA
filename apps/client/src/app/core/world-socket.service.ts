@@ -69,6 +69,8 @@ import {
   type WsChatSendClientPayload,
   type WsChatSendAckPayload,
   type WsChatMessagePayload,
+  type WsPlayerTargetVitalsPayload,
+  type WsRequestPlayerTargetVitalsPayload,
 } from '../../../../../libs/shared-types/src/world-socket';
 
 @Injectable({ providedIn: 'root' })
@@ -88,6 +90,7 @@ export class WorldSocketService implements OnDestroy {
     new Subject<WsPlayerPositionCorrectedPayload>();
   readonly playerVisualState$ = new Subject<WsPlayerVisualStatePayload>();
   readonly playerVitals$ = new Subject<WsPlayerVitalsPayload>();
+  readonly playerTargetVitals$ = new Subject<WsPlayerTargetVitalsPayload>();
   readonly playerStatsUpdate$ = new Subject<WsPlayerStatsUpdatePayload>();
   readonly gradePenaltyStatus$ = new Subject<WsGradePenaltyStatusPayload>();
   readonly attackMobRewards$ = new Subject<WsAttackMobRewardsPayload>();
@@ -161,6 +164,9 @@ export class WorldSocketService implements OnDestroy {
     this.socket.on(WS_WORLD_EVENTS.PLAYER_VITALS, (p: WsPlayerVitalsPayload) => {
       this.playerVitals$.next(p);
     });
+    this.socket.on(WS_WORLD_EVENTS.PLAYER_TARGET_VITALS, (p: WsPlayerTargetVitalsPayload) => {
+      this.playerTargetVitals$.next(p);
+    });
     this.socket.on(WS_WORLD_EVENTS.PLAYER_STATS_UPDATE, (p: WsPlayerStatsUpdatePayload) => {
       this.playerStatsUpdate$.next(p);
     });
@@ -227,6 +233,16 @@ export class WorldSocketService implements OnDestroy {
       return;
     }
     this.socket.emit(WS_WORLD_EVENTS.ATTACK_PLAYER, payload);
+  }
+
+  /** Al seleccionar a otro jugador: pide su HP/maxHP/nivel ya mismo (ver `PLAYER_TARGET_VITALS`). */
+  requestPlayerTargetVitals(targetCharacterId: string): void {
+    if (!this.socket?.connected) {
+      return;
+    }
+    this.socket.emit(WS_WORLD_EVENTS.REQUEST_PLAYER_TARGET_VITALS, {
+      targetCharacterId,
+    } satisfies WsRequestPlayerTargetVitalsPayload);
   }
 
   castSkill(payload: WsCastSkillClientPayload): void {
