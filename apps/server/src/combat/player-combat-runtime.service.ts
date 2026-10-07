@@ -20,7 +20,7 @@ import { WorldSpatialService } from '../world/world-spatial.service';
 import { MobCombatRegenService } from '../mob/mob-combat-regen.service';
 import { CombatService, type RuntimeMobKillCommitPlan } from './combat.service';
 import { PendingWorldDropService } from '../world/pending-world-drop.service';
-import { loadCombatTimingConfig } from './combat-timing.loaders';
+import { computeSwingCooldownMs, loadCombatTimingConfig } from './combat-timing.loaders';
 import { loadSkillsConfig } from './combat-config.loaders';
 import {
   resolveMobMeleeCooldownMs,
@@ -1147,13 +1147,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
       return;
     }
 
-    const timing = loadCombatTimingConfig();
-    const atkSpeed = Math.max(0.65, stats.derivedAtkSpeed);
-    let cooldownMs = timing.baseSwingCooldownMs / atkSpeed;
-    cooldownMs = Math.min(
-      timing.maxCooldownMs,
-      Math.max(timing.minCooldownMs, cooldownMs),
-    );
+    const cooldownMs = computeSwingCooldownMs(stats.derivedAtkSpeed);
     const now = Date.now();
     const last = this.lastSwingAtMs.get(characterId) ?? 0;
     if (now - last < cooldownMs) {

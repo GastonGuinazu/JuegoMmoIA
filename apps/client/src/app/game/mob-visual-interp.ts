@@ -1,8 +1,12 @@
 /**
- * Interpolación de mobs (The Weaver / NetPredictor): el visual se dibuja ~1–2 ticks
- * en el pasado, entre muestras `mob-moved`, en vez de perseguir el último snapshot.
- * Perseguir el auth hace: llegar → frenar → nuevo paquete → salto. Eso se veía
- * como walk a trompicones aunque la animación ya estuviera atada a la velocidad.
+ * Interpolación de entidades remotas (The Weaver / NetPredictor): el visual se dibuja
+ * un poco en el pasado, entre muestras de red (`mob-moved` / `player-moved`), en vez de
+ * perseguir el último snapshot. Perseguir el auth hace: llegar → frenar → nuevo paquete →
+ * salto. Eso se veía como movimiento a trompicones aunque la animación ya estuviera atada
+ * a la velocidad — y es tan válido para mobs (tick de IA cada 50ms) como para otros
+ * jugadores (que emiten su posición cada ~200ms, ver `MOVE_EMIT_MS`): mismo problema,
+ * mismo arreglo, solo cambia cuánto delay hace falta para que casi siempre haya una
+ * muestra real de la que interpolar en vez de tener que extrapolar.
  */
 
 export type MobInterpPose = {
@@ -14,10 +18,10 @@ export type MobInterpPose = {
 
 type MobInterpSample = MobInterpPose & { t: number };
 
-/** Atraso de presentación: cubre un tick de 50 ms y jitter de red/IA. */
-const DELAY_MS = 70;
+/** Atraso de presentación por default (mobs): cubre un tick de 50 ms y jitter de red/IA. */
+const DEFAULT_DELAY_MS = 70;
 /** Si el siguiente snapshot no llega, seguir a velocidad del último tramo. */
-const MAX_EXTRAPOLATE_MS = 180;
+const DEFAULT_MAX_EXTRAPOLATE_MS = 180;
 const SNAP_XZ = 8;
 const MAX_SAMPLES = 12;
 /**
@@ -33,6 +37,18 @@ const MIN_EXTRAPOLATION_SPAN_MS = 40;
 
 export class MobVisualInterp {
   private readonly buffers = new Map<string, MobInterpSample[]>();
+
+  /**
+   * `delayMs`: cuánto se dibuja en el pasado. Con muestras cada ~200ms (otros jugadores)
+   * conviene más que el default de mobs (70ms, muestras cada ~50ms) para que el puntero de
+   * render casi siempre tenga una muestra real de ambos lados y no dependa tanto de
+   * extrapolar. `maxExtrapolateMs` sigue acotando cuánto se sigue a velocidad del último
+   * tramo si el próximo paquete se retrasa más de la cuenta.
+   */
+  constructor(
+    private readonly delayMs: number = DEFAULT_DELAY_MS,
+    private readonly maxExtrapolateMs: number = DEFAULT_MAX_EXTRAPOLATE_MS,
+  ) {}
 
   clear(): void {
     this.buffers.clear();
@@ -92,7 +108,7 @@ export class MobVisualInterp {
     if (!buf || buf.length === 0) {
       return null;
     }
-    const renderAt = nowMs - DELAY_MS;
+    const renderAt = nowMs - this.delayMs;
     while (buf.length > 2 && buf[1]!.t <= renderAt) {
       buf.shift();
     }
@@ -114,7 +130,7 @@ export class MobVisualInterp {
       return copyPose(last);
     }
     const prev = buf[buf.length - 2]!;
-    const extra = Math.min(MAX_EXTRAPOLATE_MS, Math.max(0, renderAt - last.t));
+    const extra = Math.min(this.maxExtrapolateMs, Math.max(0, renderAt - last.t));
     if (extra <= 0) {
       return copyPose(last);
     }

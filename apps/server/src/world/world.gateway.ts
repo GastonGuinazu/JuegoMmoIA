@@ -114,6 +114,7 @@ import { WorldSocketBridgeService } from './world-socket-bridge.service';
 import { GmCommandService } from '../gm/gm-command.service';
 import { PartyService } from '../party/party.service';
 import { findMapPortalById } from '../combat/combat-config.loaders';
+import { computeSwingCooldownMs } from '../combat/combat-timing.loaders';
 import { getWorldZoneDefinition, clampAxisToPlayable } from './config/world-zones.loaders';
 import { resolveRespawnTarget } from './config/world-spawn.loaders';
 import {
@@ -2000,6 +2001,7 @@ export class WorldGateway
         pDef: character.derivedPDef,
         atkSpeed: character.derivedAtkSpeed,
         critRate: character.derivedCritRate,
+        pvpSwingCooldownMs: computeSwingCooldownMs(character.derivedAtkSpeed),
       },
       vitals: {
         currentHp: vitals.currentHp,

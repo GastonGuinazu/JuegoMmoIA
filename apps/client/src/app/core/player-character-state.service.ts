@@ -174,6 +174,26 @@ export class PlayerCharacterStateService {
     );
   }
 
+  /**
+   * HP propio tras recibir un golpe PvP (`attack-player-result` / `skill` contra uno mismo),
+   * leído directo de ese broadcast en vez de esperar el `player-vitals` que el Warden manda
+   * aparte (ese hace un refetch completo a DB para el `maxHp` real — ver combat.service.ts —
+   * y sumaba un viaje de ida y vuelta extra SOLO para que la víctima viera bajar su propia
+   * vida). `maxHp` no cambia por recibir daño, así que reusar el que ya tenemos es seguro;
+   * el `player-vitals` posterior sigue llegando y corrige cualquier divergencia igual.
+   */
+  applyOwnDamageTaken(currentHp: number): void {
+    const cur = this.vitals();
+    if (!cur) {
+      return;
+    }
+    const clamped = Math.max(0, Math.min(cur.maxHp, currentHp));
+    this.vitals.set({ currentHp: clamped, maxHp: cur.maxHp });
+    this.characterSheet.update((sheet) =>
+      sheet ? { ...sheet, vitals: { currentHp: clamped, maxHp: sheet.vitals.maxHp } } : sheet,
+    );
+  }
+
   applyPlayerStatsUpdate(payload: WsPlayerStatsUpdatePayload): void {
     if (payload.characterId !== this.sessionCharacterId()) {
       return;

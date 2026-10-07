@@ -43,7 +43,7 @@ import {
 } from '../mob/mob-config.loaders';
 import { loadCombatDamageConfig, type SkillConfigRow } from './combat-config.loaders';
 import { resolveMobToPlayerMeleeDamage } from './pve-melee-damage.util';
-import { loadCombatTimingConfig } from './combat-timing.loaders';
+import { computeSwingCooldownMs, loadCombatTimingConfig } from './combat-timing.loaders';
 import { PenaltyManagerService, type KarmaFlag } from './penalty-manager.service';
 
 export interface AttackMobOptions {
@@ -168,13 +168,7 @@ export class CombatService {
               });
             }
 
-            const timing = loadCombatTimingConfig();
-            const atkSpeed = Math.max(0.65, character.derivedAtkSpeed);
-            let cooldownMs = timing.baseSwingCooldownMs / atkSpeed;
-            cooldownMs = Math.min(
-              timing.maxCooldownMs,
-              Math.max(timing.minCooldownMs, cooldownMs),
-            );
+            const cooldownMs = computeSwingCooldownMs(character.derivedAtkSpeed);
             if (character.lastAttackServerAt) {
               const elapsed =
                 Date.now() - character.lastAttackServerAt.getTime();
@@ -769,13 +763,7 @@ export class CombatService {
         // cooldown (RAM, validado en `tryCastSkillOnPlayerForCharacter` antes de llegar
         // acá) e independiente del de auto-ataque, igual que en PvE.
         if (!skill) {
-          const timing = loadCombatTimingConfig();
-          const atkSpeed = Math.max(0.65, attacker.derivedAtkSpeed);
-          let cooldownMs = timing.baseSwingCooldownMs / atkSpeed;
-          cooldownMs = Math.min(
-            timing.maxCooldownMs,
-            Math.max(timing.minCooldownMs, cooldownMs),
-          );
+          const cooldownMs = computeSwingCooldownMs(attacker.derivedAtkSpeed);
           if (attacker.lastAttackServerAt) {
             const elapsed = Date.now() - attacker.lastAttackServerAt.getTime();
             if (elapsed < cooldownMs) {
@@ -954,13 +942,11 @@ export class CombatService {
       },
     );
 
-    const targetVitals = await this.statEngine.getCombatVitals(outcome.targetCharacterId);
-    this.bridge.emitToCharacter(outcome.targetCharacterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
-      characterId: outcome.targetCharacterId,
-      currentHp: targetVitals.currentHp,
-      maxHp: targetVitals.maxHp,
-    } satisfies WsPlayerVitalsPayload);
-
+    // Todo lo que sigue hasta `PLAYER_VITALS` ya está resuelto en `outcome` (sin más queries):
+    // sale apenas commitea la transacción, antes de la vitals de abajo (que sí pega a DB de
+    // nuevo solo por el `maxHp`). Antes esto iba último: la víctima tardaba ese viaje de ida
+    // y vuelta extra en ver bajar su propia vida, y el atacante/espectadores el mismo delay
+    // para el swing/daño flotante — ninguno de los dos necesitaba esperarlo.
     this.bridge.broadcastToZone(outcome.zoneId, WS_WORLD_EVENTS.ATTACK_PLAYER_RESULT, {
       attackerCharacterId: outcome.attackerCharacterId,
       targetCharacterId: outcome.targetCharacterId,
@@ -982,6 +968,25 @@ export class CombatService {
       karmaFlag: outcome.targetFlag,
       weaponPlusLevel: outcome.targetWeaponPlusLevel,
     });
+
+    // Confirmación de `maxHp` real (equipo/stats pueden haberlo cambiado desde el último
+    // conocido): el cliente ya reflejó `targetHpAfter` desde `ATTACK_PLAYER_RESULT` de
+    // arriba, así que esto NO se espera — ni la víctima ni el resto de los broadcasts de
+    // abajo (drop de PK, muerte) deben depender de que termine este refetch a DB aparte.
+    void this.statEngine
+      .getCombatVitals(outcome.targetCharacterId)
+      .then((targetVitals) => {
+        this.bridge.emitToCharacter(outcome.targetCharacterId, WS_WORLD_EVENTS.PLAYER_VITALS, {
+          characterId: outcome.targetCharacterId,
+          currentHp: targetVitals.currentHp,
+          maxHp: targetVitals.maxHp,
+        } satisfies WsPlayerVitalsPayload);
+      })
+      .catch((e) => {
+        this.logger.warn(
+          `[PvP] No se pudo refrescar vitals de ${outcome.targetCharacterId}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      });
 
     if (outcome.pkDropSpawn) {
       this.bridge.broadcastToZone(outcome.zoneId, WS_WORLD_EVENTS.WORLD_DROP_SPAWN, outcome.pkDropSpawn);

@@ -212,6 +212,14 @@ export type WsPlayerStatsUpdatePayload = {
     pDef: number;
     atkSpeed: number;
     critRate: number;
+    /**
+     * Enfriamiento real de swing PvP en ms, ya resuelto server-side desde `atkSpeed` +
+     * `combat-timing.json` (clamp incluido). El cliente lo usa para espaciar sus reintentos
+     * de ataque a jugador en vez de adivinar un número fijo — ver `PLAYER_ATTACK_MIN_GAP_FALLBACK_MS`
+     * en game-viewport.component.ts. Nunca recalcular la fórmula en el cliente: si el balance
+     * cambia en el JSON del server, un valor copiado ahí quedaría desactualizado en silencio.
+     */
+    pvpSwingCooldownMs: number;
   };
   vitals: {
     currentHp: number;

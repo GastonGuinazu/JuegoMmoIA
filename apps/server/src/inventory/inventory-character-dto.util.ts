@@ -1,6 +1,7 @@
 import type { Character } from '@prisma/client';
 import type { CharacterSheetDto } from '@aetheris/shared-types';
 import type { StatEngineService } from '../character/stat-engine.service';
+import { computeSwingCooldownMs } from '../combat/combat-timing.loaders';
 
 export function buildCharacterSheetDto(
   c: Character,
@@ -29,6 +30,7 @@ export function buildCharacterSheetDto(
       pDef: c.derivedPDef,
       atkSpeed: c.derivedAtkSpeed,
       critRate: c.derivedCritRate,
+      pvpSwingCooldownMs: computeSwingCooldownMs(c.derivedAtkSpeed),
     },
     vitals,
   };

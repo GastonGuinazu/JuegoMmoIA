@@ -55,6 +55,8 @@ export type CharacterSheetDto = {
     pDef: number;
     atkSpeed: number;
     critRate: number;
+    /** Ver `WsPlayerStatsUpdatePayload.derived.pvpSwingCooldownMs` en world-socket.ts. */
+    pvpSwingCooldownMs: number;
   };
   vitals: {
     currentHp: number;

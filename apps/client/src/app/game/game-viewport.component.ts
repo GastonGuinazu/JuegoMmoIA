@@ -82,6 +82,17 @@ const SHOP_AUTO_CLOSE_DISTANCE_M = 5;
 const MOVE_EMIT_MS = 200;
 
 /**
+ * Delay de interpolación para OTROS jugadores (`otherPlayerInterp`): mayor que el default
+ * de mobs (70ms) porque acá las muestras llegan cada `MOVE_EMIT_MS` (~200ms) en vez de cada
+ * tick de IA (~50ms). Con 70ms, la mayor parte del intervalo entre dos `player-moved` había
+ * que extrapolarla (sin una muestra real todavía del otro lado) en vez de interpolarla, y
+ * aunque la extrapolación compensa bastante, se nota más que directamente tener casi siempre
+ * una muestra real de sobra. 220ms cubre un `MOVE_EMIT_MS` completo más margen de jitter.
+ */
+const OTHER_PLAYER_INTERP_DELAY_MS = 220;
+const OTHER_PLAYER_INTERP_MAX_EXTRAPOLATE_MS = 150;
+
+/**
  * Si es true: no aplicar PLAYER_MOVED del servidor para el propio characterId y no
  * suavizar el cubo hacia authoritative cuando no hay click (evita tirones por eco/reconciliación).
  */
@@ -111,7 +122,15 @@ const CAMERA_COLLISION_MIN_RADIUS = 2.5;
 const BASIC_ATTACK_RANGE_METERS = 1.5;
 /** Reintento del golpe a jugadores mientras siga el objetivo (el servidor aplica el enfriamiento real). */
 const PLAYER_AUTO_ATTACK_INTERVAL_MS = 250;
-const PLAYER_ATTACK_MIN_GAP_MS = 750;
+/**
+ * Fallback antes de que `characterSheet()` traiga `derived.pvpSwingCooldownMs` (recién
+ * conectado). Antes era el único número usado siempre, fijo, sin relación con el enfriamiento
+ * real del servidor (`850ms / atkSpeed`, clamped): con atkSpeed base eso da ~850ms, más que
+ * estos 750ms, así que la mitad de los reintentos llegaban antes de que el cooldown real
+ * terminara — el servidor los rechazaba (ATTACK_ON_COOLDOWN) pero el swing optimista ya se
+ * había animado, y eso se sentía como "le pego pero no pasa nada" / delay en los golpes.
+ */
+const PLAYER_ATTACK_MIN_GAP_FALLBACK_MS = 750;
 /** Holgura visual cliente vs attackRange autoritativo (interpolación). */
 const MOB_MELEE_VISUAL_SLACK_METERS = 0.55;
 const HEALTH_POTION_CATALOG_KEY = 'health_potion_small';
@@ -165,6 +184,7 @@ type PendingCombatAction =
       label: string;
       rangeMeters: number;
       targetId: string;
+      targetKind: 'mob' | 'player';
     }
   | {
       kind: 'skill';
@@ -172,6 +192,7 @@ type PendingCombatAction =
       rangeMeters: number;
       targetId: string;
       skillId: SkillHotkeyId;
+      targetKind: 'mob' | 'player';
     };
 
 function pickUserDataString(object: THREE.Object3D, key: string): string | undefined {
@@ -380,6 +401,14 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private readonly dropMeshes = new Map<string, THREE.Mesh>();
   private readonly otherPlayerMeshes = new Map<string, EntityVisual>();
   private readonly otherPlayerLastPos = new Map<string, THREE.Vector3>();
+  /**
+   * Mismo suavizado que los mobs (`mobInterp`): sin esto, otro jugador se ve "trabado"
+   * en la pantalla de quien lo mira, porque su posición solo se actualiza cuando llega
+   * un `player-moved` (cada ~200ms, ver `MOVE_EMIT_MS`) y el mesh saltaba directo a ese
+   * valor en vez de deslizarse — la propia predicción local lo tapaba para el que se mueve,
+   * pero no para quien lo observa.
+   */
+  private readonly otherPlayerInterp = new MobVisualInterp(OTHER_PLAYER_INTERP_DELAY_MS, OTHER_PLAYER_INTERP_MAX_EXTRAPOLATE_MS);
   private readonly weaponSwingUntilByCharacterId = new Map<string, number>();
   private readonly damageFloatGroup = new THREE.Group();
   private combatFloaters: WorldCombatFloaters | null = null;
@@ -577,6 +606,14 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         this.authoritativePos.set(p.worldPos.x, p.worldPos.y, p.worldPos.z);
         this.authoritativeYaw = isFiniteYaw(p.worldFacingYaw) ? p.worldFacingYaw : this.authoritativeYaw;
         return;
+      }
+      if (isFiniteVec3(p.worldPos) && isFiniteYaw(p.worldFacingYaw)) {
+        this.otherPlayerInterp.push(p.characterId, performance.now(), {
+          x: p.worldPos.x,
+          y: p.worldPos.y,
+          z: p.worldPos.z,
+          yaw: p.worldFacingYaw,
+        });
       }
     });
 
@@ -901,6 +938,12 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((p) => {
         this.playerTargetHp.set(p.targetCharacterId, p.targetHpAfter);
+        // Ver `applyOwnDamageTaken`: si el golpe fue contra uno mismo, reflejarlo en la
+        // propia barra de vida ya mismo, sin esperar el `player-vitals` que el servidor
+        // manda aparte (ese hace un refetch a DB solo para reconfirmar `maxHp`).
+        if (p.targetCharacterId === this.entitySync.selfCharacterId()) {
+          this.playerState.applyOwnDamageTaken(p.targetHpAfter);
+        }
         if (!this.isSelfOptimisticAnimStillFresh(p.attackerCharacterId)) {
           this.triggerWeaponSwing(p.attackerCharacterId);
           this.visuals.playCharacterCombatAnim(
@@ -1505,8 +1548,13 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         this.pushCombatFeedback('No podés atacar a un miembro de tu grupo');
         return;
       }
-      this.sendPlayerAttack(this.activePlayerTargetId);
-      this.startPlayerAutoAttack();
+      this.requestCombatAction({
+        kind: 'basic',
+        label: 'Ataque básico',
+        rangeMeters: BASIC_ATTACK_RANGE_METERS,
+        targetKind: 'player',
+        targetId: this.activePlayerTargetId,
+      });
       return;
     }
     if (!this.activeTargetId) {
@@ -1551,20 +1599,19 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       this.stopPlayerAutoAttack();
       return;
     }
-    // Sin este chequeo, el auto-ataque a jugador (sin "chase" como el de PvE) sigue
-    // animando el swing optimista cada 250ms aunque el objetivo ya esté lejos y el
-    // servidor rechace cada golpe por ATTACK_OUT_OF_RANGE: se ve "pegando al aire"
-    // indefinidamente al alejarse en vez de cortar la animación.
-    // TODO: pendiente — a diferencia del ataque a mobs (`requestCombatAction`, que camina
-    // solo hasta el target si está fuera de rango), atacar a un jugador fuera de rango hoy
-    // simplemente no hace nada (ver también `requestSkillCastOnPlayer`, que sí avisa "Objetivo
-    // fuera de rango" pero tampoco camina). Evaluar si conviene el mismo "chase" automático
-    // de PvE para jugadores, o al menos un aviso visible acá también.
+    // Sin este chequeo, el auto-ataque a jugador sigue animando el swing optimista cada
+    // 250ms aunque el objetivo ya esté lejos y el servidor rechace cada golpe por
+    // ATTACK_OUT_OF_RANGE: se ve "pegando al aire" al alejarse en vez de cortar la
+    // animación. `requestBasicAttack` ya hizo el "chase" inicial hasta acá; esto solo
+    // pausa el auto-ataque YA en curso si el objetivo se vuelve a alejar — no re-persigue
+    // automáticamente a mitad de un auto-ataque, igual que el auto-ataque a mobs.
     if (!this.isPlayerTargetInMeleeRange(targetId)) {
       return;
     }
     const now = performance.now();
-    if (this.playerAttackAwaitingSinceMs !== null && now - this.playerAttackAwaitingSinceMs < PLAYER_ATTACK_MIN_GAP_MS) {
+    const minGapMs =
+      this.playerState.characterSheet()?.derived.pvpSwingCooldownMs ?? PLAYER_ATTACK_MIN_GAP_FALLBACK_MS;
+    if (this.playerAttackAwaitingSinceMs !== null && now - this.playerAttackAwaitingSinceMs < minGapMs) {
       return;
     }
     this.playerAttackAwaitingSinceMs = now;
@@ -1598,7 +1645,29 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   private requestSkillCast(skillId: SkillHotkeyId): void {
     if (!this.activeTargetId && this.activePlayerTargetId) {
-      this.requestSkillCastOnPlayer(skillId, this.activePlayerTargetId);
+      if (this.isPartyMember(this.activePlayerTargetId)) {
+        this.pushCombatFeedback('No podés atacar a un miembro de tu grupo');
+        return;
+      }
+      const def = SKILL_LOCAL_RULES[skillId];
+      const now = performance.now();
+      const cdUntil = this.localSkillCooldownUntil.get(skillId) ?? 0;
+      if (now < cdUntil) {
+        this.pushCombatFeedback('En Cooldown');
+        return;
+      }
+      if (this.localCurrentMp < def.manaCost) {
+        this.pushCombatFeedback('Sin Mana');
+        return;
+      }
+      this.requestCombatAction({
+        kind: 'skill',
+        skillId,
+        label: def.name,
+        rangeMeters: def.rangeMeters,
+        targetKind: 'player',
+        targetId: this.activePlayerTargetId,
+      });
       return;
     }
     if (!this.activeTargetId) {
@@ -1625,8 +1694,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Skill contra jugador: sin "chase" (igual que el ataque básico a jugador) — si está
-   * fuera de rango simplemente no hace nada, en vez de caminar hacia él como con mobs.
+   * Ejecuta la skill contra jugador ya en rango (llegada del chase, o directo si ya
+   * estaba en rango). Re-chequea todo con estado fresco porque puede haber pasado un
+   * rato caminando hasta acá (cooldown/maná/grupo pueden haber cambiado en el camino).
    */
   private requestSkillCastOnPlayer(skillId: SkillHotkeyId, targetCharacterId: string): void {
     if (this.isPartyMember(targetCharacterId)) {
@@ -1644,9 +1714,6 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       this.pushCombatFeedback('Sin Mana');
       return;
     }
-    // TODO: pendiente — solo avisa, no camina hacia el jugador como sí hace PvE
-    // (`requestCombatAction`) cuando el mob está fuera de rango. Evaluar agregar el mismo
-    // "chase" para jugadores o dejarlo así a propósito (PvP sin auto-walk hacia el rival).
     if (!this.isPlayerTargetInMeleeRange(targetCharacterId, def.rangeMeters)) {
       this.pushCombatFeedback('Objetivo fuera de rango');
       return;
@@ -1906,13 +1973,23 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     label: string;
     rangeMeters: number;
     skillId?: SkillHotkeyId;
+    /** `player` + `targetId`: ataque/skill a otro jugador (ver `requestBasicAttack`/`requestSkillCast`). */
+    targetKind?: 'mob' | 'player';
+    targetId?: string;
   }): void {
-    if (!this.activeTargetId) {
+    const targetKind = action.targetKind ?? 'mob';
+    const targetId = action.targetId ?? this.activeTargetId;
+    if (!targetId) {
       this.pushCombatFeedback('Debes seleccionar un objetivo primero');
       return;
     }
-    const mob = this.entitySync.mobs().get(this.activeTargetId);
-    if (!mob?.visible) {
+    if (targetKind === 'mob') {
+      const mob = this.entitySync.mobs().get(targetId);
+      if (!mob?.visible) {
+        this.pushCombatFeedback('El objetivo ya no está disponible');
+        return;
+      }
+    } else if (!this.resolveCharacterVisualXz(targetId)) {
       this.pushCombatFeedback('El objetivo ya no está disponible');
       return;
     }
@@ -1922,16 +1999,18 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
             kind: 'basic',
             label: action.label,
             rangeMeters: action.rangeMeters,
-            targetId: this.activeTargetId,
+            targetId,
+            targetKind,
           }
         : {
             kind: 'skill',
             label: action.label,
             rangeMeters: action.rangeMeters,
-            targetId: this.activeTargetId,
+            targetId,
+            targetKind,
             skillId: action.skillId as SkillHotkeyId,
           };
-    if (this.isTargetInRange(queued.targetId, queued.rangeMeters)) {
+    if (this.isTargetInRange(queued.targetId, queued.rangeMeters, targetKind)) {
       this.cancelCombatChase();
       this.executeCombatAction(queued);
       return;
@@ -1939,10 +2018,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.pendingCombatAction = queued;
     this.chaseFeedback.set('Caminando hacia el objetivo...');
     this.playerState.pushSystemLogLine(`[Combat] Caminando hacia el objetivo para ${queued.label}...`);
-    this.syncMoveTargetToMob(queued.targetId);
+    this.syncMoveTargetToEntity(queued.targetId, targetKind);
   }
 
   private executeCombatAction(action: PendingCombatAction): void {
+    if (action.targetKind === 'player') {
+      if (action.kind === 'basic') {
+        this.executePlayerBasicAttack(action.targetId);
+        return;
+      }
+      // Re-chequea party/cooldown/mana/rango con estado fresco: puede haber pasado un
+      // rato caminando hasta acá.
+      this.requestSkillCastOnPlayer(action.skillId, action.targetId);
+      return;
+    }
     if (action.kind === 'basic') {
       this.playSelfCombatAnimOptimistic('attack');
       this.emitAutoAttackIntent(action.targetId);
@@ -1961,24 +2050,37 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** Ataque básico ya en rango (llegada del chase, o directo si ya estaba en rango). */
+  private executePlayerBasicAttack(targetCharacterId: string): void {
+    this.sendPlayerAttack(targetCharacterId);
+    this.startPlayerAutoAttack();
+  }
+
   private tickCombatActionChase(): void {
     const pending = this.pendingCombatAction;
     if (!pending || !this.worldSocket.socketConnected()) {
       return;
     }
-    const mob = this.entitySync.mobs().get(pending.targetId);
-    if (!mob?.visible) {
-      this.cancelCombatChase();
-      return;
+    if (pending.targetKind === 'player') {
+      if (this.isPartyMember(pending.targetId) || !this.resolveCharacterVisualXz(pending.targetId)) {
+        this.cancelCombatChase();
+        return;
+      }
+    } else {
+      const mob = this.entitySync.mobs().get(pending.targetId);
+      if (!mob?.visible) {
+        this.cancelCombatChase();
+        return;
+      }
     }
-    if (this.isTargetInRange(pending.targetId, pending.rangeMeters)) {
+    if (this.isTargetInRange(pending.targetId, pending.rangeMeters, pending.targetKind)) {
       this.moveTarget = null;
       this.pendingCombatAction = null;
       this.chaseFeedback.set(null);
       this.executeCombatAction(pending);
       return;
     }
-    this.syncMoveTargetToMob(pending.targetId);
+    this.syncMoveTargetToEntity(pending.targetId, pending.targetKind);
   }
 
   private tickAutoAttackIntent(nowMs: number): void {
@@ -2009,8 +2111,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.emitAutoAttackIntent(targetId);
   }
 
-  private syncMoveTargetToMob(mobId: string): void {
-    const mob = this.entitySync.mobs().get(mobId);
+  private syncMoveTargetToEntity(targetId: string, targetKind: 'mob' | 'player'): void {
+    if (targetKind === 'player') {
+      const xz = this.resolveCharacterVisualXz(targetId);
+      if (!xz) {
+        return;
+      }
+      if (!this.moveTarget) {
+        this.moveTarget = new THREE.Vector3();
+      }
+      this.moveTarget.set(xz.x, 0, xz.z);
+      this.moveIntentDirty = true;
+      return;
+    }
+    const mob = this.entitySync.mobs().get(targetId);
     if (!mob?.visible) {
       return;
     }
@@ -2021,7 +2135,14 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.moveIntentDirty = true;
   }
 
-  private isTargetInRange(targetId: string, rangeMeters: number): boolean {
+  private isTargetInRange(
+    targetId: string,
+    rangeMeters: number,
+    targetKind: 'mob' | 'player' = 'mob',
+  ): boolean {
+    if (targetKind === 'player') {
+      return this.isPlayerTargetInMeleeRange(targetId, rangeMeters);
+    }
     const mob = this.entitySync.mobs().get(targetId);
     if (!mob?.visible) {
       return false;
@@ -2429,6 +2550,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         if (this.renderer && this.scene && this.camera) {
           const tSim0 = performance.now();
           this.tickMovement(dt);
+          this.tickOtherPlayerMeshSmoothing();
           this.tickCharacterLocomotionAnim();
           this.visuals.tickAnimations(dt);
           this.tickCombatActionChase();
@@ -3177,19 +3299,28 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     return false;
   }
 
+  /**
+   * Posición XZ más fresca conocida de un personaje: predicción local propia, o el último
+   * `player-moved` recibido de otro jugador. A propósito NO usa `otherPlayerMeshes` (que
+   * desde `otherPlayerInterp` va alrededor de `OTHER_PLAYER_INTERP_DELAY_MS` ≈ 220ms atrás
+   * para que el movimiento se vea suave) — esto alimenta rango de ataque/chase, y decidir
+   * con una posición vieja del objetivo reintroduciría el "pega pero no pasa nada" que ya
+   * se arregló para el cooldown: el cliente creería estar en rango con el objetivo
+   * alejándose y el servidor rechazaría el golpe igual.
+   */
   private resolveCharacterVisualXz(characterId: string): { x: number; z: number } | null {
     if (characterId === this.entitySync.selfCharacterId()) {
       return { x: this.visualPos.x, z: this.visualPos.z };
     }
-    const mesh = this.otherPlayerMeshes.get(characterId);
-    if (mesh) {
-      return { x: mesh.position.x, z: mesh.position.z };
-    }
     const other = this.entitySync.otherPlayers().get(characterId);
-    if (!other) {
+    if (other) {
+      return { x: other.pos.x, z: other.pos.z };
+    }
+    const mesh = this.otherPlayerMeshes.get(characterId);
+    if (!mesh) {
       return null;
     }
-    return { x: other.pos.x, z: other.pos.z };
+    return { x: mesh.position.x, z: mesh.position.z };
   }
 
   private applyMobHitFlash(
@@ -3394,6 +3525,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         this.visuals.disposeVisual(mesh);
         this.otherPlayerMeshes.delete(id);
         this.otherPlayerLastPos.delete(id);
+        this.otherPlayerInterp.delete(id);
       }
     }
     for (const [id, o] of map) {
@@ -3402,13 +3534,47 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         mesh = this.visuals.createOtherPlayerVisual(id);
         this.otherPlayerMeshes.set(id, mesh);
         this.otherPlayersRoot.add(mesh);
+        // Posición/rotación solo se tocan acá, al aparecer: de ahí en más las resuelve
+        // `tickOtherPlayerMeshSmoothing` cada frame desde `otherPlayerInterp`, para que el
+        // movimiento no salte directo a cada `player-moved` (ver comentario del campo).
+        this.otherPlayerInterp.hardSnap(id, performance.now(), {
+          x: o.pos.x,
+          y: o.pos.y,
+          z: o.pos.z,
+          yaw: o.yaw,
+        });
+        mesh.position.set(o.pos.x, o.pos.y + Y_LIFT, o.pos.z);
+        mesh.rotation.y = o.yaw;
       }
-      mesh.position.set(o.pos.x, o.pos.y + Y_LIFT, o.pos.z);
-      mesh.rotation.y = o.yaw;
       this.ensureOtherPlayerNameLabel(mesh);
       this.updateOtherPlayerNameLabel(mesh, o);
       this.applyWeaponVisual(mesh, o.weaponPlusLevel, o.weaponEquipped);
       this.applyWeaponSwing(mesh, id);
+    }
+  }
+
+  /** Suavizado por frame de otros jugadores (ver `otherPlayerInterp`); análogo a `tickMobMeshSmoothing`. */
+  private tickOtherPlayerMeshSmoothing(): void {
+    if (!this.glReady()) {
+      return;
+    }
+    const now = performance.now();
+    for (const [id, mesh] of this.otherPlayerMeshes) {
+      if (!this.otherPlayerInterp.has(id)) {
+        continue;
+      }
+      const pose = this.otherPlayerInterp.sample(id, now);
+      if (
+        !pose ||
+        !Number.isFinite(pose.x) ||
+        !Number.isFinite(pose.y) ||
+        !Number.isFinite(pose.z) ||
+        !Number.isFinite(pose.yaw)
+      ) {
+        continue;
+      }
+      mesh.position.set(pose.x, pose.y + Y_LIFT, pose.z);
+      mesh.rotation.y = pose.yaw;
     }
   }
 
@@ -3498,6 +3664,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.mobHitFlashUntilMs.clear();
     this.weaponSwingUntilByCharacterId.clear();
     this.otherPlayerLastPos.clear();
+    this.otherPlayerInterp.clear();
     this.clearSkillFx();
     this.cameraShake = null;
     for (const mesh of this.mobMeshes.values()) {
