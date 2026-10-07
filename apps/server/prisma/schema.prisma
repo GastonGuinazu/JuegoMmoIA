@@ -102,6 +102,12 @@ model Account {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Nullable: cuentas creadas antes del login (seed/manual) pueden no tener credenciales
+  /// todavía. El login simplemente las rechaza hasta que se les asigne usuario/contraseña.
+  username     String? @unique
+  /// scrypt (`salt:hash` hex) — ver `auth/password.util.ts`. Nunca se expone en DTOs.
+  passwordHash String?
+
   characters Character[]
   wallet     Wallet?
 }

@@ -1,14 +1,26 @@
 <div class="game-shell">
   <header class="hud" aria-label="Conexión al mundo">
-    <label class="field">
-      <span>Servidor</span>
-      <input type="text" [(ngModel)]="serverUrlModel" name="serverUrl" autocomplete="off" />
-    </label>
-    <label class="field">
-      <span>Character ID (UUID)</span>
-      <input type="text" [(ngModel)]="characterIdModel" name="characterId" autocomplete="off" />
-    </label>
-    <button type="button" class="btn primary" (click)="connectWorld()">Conectar</button>
+    @if (!worldSocket.socketConnected()) {
+      <app-login-panel (characterChosen)="onLoginCharacterChosen($event)" />
+      <button
+        type="button"
+        class="btn"
+        (click)="advancedConnectOpen.set(!advancedConnectOpen())"
+      >
+        {{ advancedConnectOpen() ? 'Ocultar modo avanzado' : 'Modo avanzado (ID manual)' }}
+      </button>
+      @if (advancedConnectOpen()) {
+        <label class="field">
+          <span>Servidor</span>
+          <input type="text" [(ngModel)]="serverUrlModel" name="serverUrl" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Character ID (UUID)</span>
+          <input type="text" [(ngModel)]="characterIdModel" name="characterId" autocomplete="off" />
+        </label>
+        <button type="button" class="btn primary" (click)="connectWorld()">Conectar</button>
+      }
+    }
     <button type="button" class="btn" (click)="disconnectWorld()">Desconectar</button>
     <span class="status" [class.on]="worldSocket.socketConnected()">
       {{ worldSocket.socketConnected() ? 'Conectado' : 'Desconectado' }}

@@ -25,6 +25,7 @@ import { NpcShopPanelComponent } from '../ui/progress/npc-shop-panel.component';
 import { SynthesisComponent } from '../ui/progress/synthesis.component';
 import { PartyPanelComponent } from '../ui/progress/party-panel.component';
 import { ChatPanelComponent } from '../ui/progress/chat-panel.component';
+import { LoginPanelComponent } from '../ui/login/login-panel.component';
 import {
   TargetFrameComponent,
   type TargetFrameViewModel,
@@ -341,6 +342,7 @@ function isFiniteYaw(y: unknown): y is number {
     SynthesisComponent,
     PartyPanelComponent,
     ChatPanelComponent,
+    LoginPanelComponent,
   ],
   templateUrl: './game-viewport.component.html',
   styleUrl: './game-viewport.component.scss',
@@ -358,6 +360,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   serverUrlModel = localStorage.getItem(STORAGE_SERVER) ?? environment.worldSocketUrl;
   characterIdModel = localStorage.getItem(STORAGE_CHARACTER) ?? '';
+  /** Campo de ID manual (debug/GM): oculto por default, el login es el flujo normal. */
+  readonly advancedConnectOpen = signal(false);
   /** Línea tipo chat para comandos GM locales (personaje con `isAdmin` en DB). */
   gmCommandLine = '';
   /** Solo visible si `playerState.isSessionAdmin()` y el jugador pulsa `Y`. */
@@ -1095,6 +1099,12 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       canvas.removeEventListener('pointercancel', this.onCanvasPointerCancelBound);
       canvas.removeEventListener('wheel', this.onCanvasWheelBound);
     }
+  }
+
+  /** El login eligió personaje (uno solo en la cuenta, o lo seleccionó de la lista): conectar directo. */
+  onLoginCharacterChosen(characterId: string): void {
+    this.characterIdModel = characterId;
+    this.connectWorld();
   }
 
   connectWorld(): void {

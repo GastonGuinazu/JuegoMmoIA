@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { CombatModule } from './combat/combat.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -18,6 +19,7 @@ import { WorldSocketModule } from './world/world-socket.module';
     InventoryModule,
     CombatModule,
     WorldSocketModule,
+    AuthModule,
   ],
 })
 export class AppModule {}
