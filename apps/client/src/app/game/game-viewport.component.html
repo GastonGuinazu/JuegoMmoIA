@@ -84,14 +84,16 @@
           </div>
         }
         <app-system-log-panel />
-        @if (chatOpen()) {
+        @if (chatOpen() || chatPeeking()) {
           <app-chat-panel
             [globalMessages]="globalChatMessages()"
             [partyMessages]="partyChatMessages()"
             [hasParty]="partyMembers().length > 1"
             [selfCharacterId]="characterIdModel.trim()"
+            [readOnlyPeek]="!chatOpen() && chatPeeking()"
             (send)="sendChatMessage($event)"
             (closeRequested)="closeChat()"
+            (requestOpen)="openChat()"
           />
         }
         <div class="overlay-vitals">

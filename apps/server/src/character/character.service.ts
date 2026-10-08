@@ -17,6 +17,7 @@ import { loadCharacterClassesConfig, loadCharacterVitalsConfig } from './config/
 import { loadExperienceCurveConfig } from './config/experience.loaders';
 import type { EquippedRow } from './stat-engine.service';
 import { StatEngineService } from './stat-engine.service';
+import { StarterKitService } from '../items/starter-kit.service';
 
 /**
  * Un personaje está muerto cuando su HP autoritativo llegó a 0. Es el único predicado de
@@ -61,6 +62,7 @@ export class CharacterService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly statEngine: StatEngineService,
+    private readonly starterKit: StarterKitService,
   ) {}
 
   /**
@@ -98,6 +100,8 @@ export class CharacterService {
       });
       await this.statEngine.recalculateAndPersistCharacter(created.id);
       await this.initializeCurrentHpIfUnset(created.id);
+      // Sin esto, un personaje recién creado no tiene nada equipable y no puede pelear.
+      await this.starterKit.grantIfMissing(created.id);
       const ready = await this.prisma.character.findUnique({
         where: { id: created.id },
       });

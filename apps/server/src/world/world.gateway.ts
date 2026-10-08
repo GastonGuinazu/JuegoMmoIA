@@ -115,6 +115,7 @@ import { NpcShopService } from './npc-shop.service';
 import { WorldSocketBridgeService } from './world-socket-bridge.service';
 import { GmCommandService } from '../gm/gm-command.service';
 import { PartyService } from '../party/party.service';
+import { StarterKitService } from '../items/starter-kit.service';
 import { findMapPortalById } from '../combat/combat-config.loaders';
 import { computeSwingCooldownMs } from '../combat/combat-timing.loaders';
 import { getWorldZoneDefinition, clampAxisToPlayable } from './config/world-zones.loaders';
@@ -177,6 +178,7 @@ export class WorldGateway
     private readonly synthesisService: SynthesisService,
     private readonly gmCommandService: GmCommandService,
     private readonly party: PartyService,
+    private readonly starterKit: StarterKitService,
   ) {}
 
   afterInit(): void {
@@ -1951,18 +1953,24 @@ export class WorldGateway
   }
 
   @SubscribeMessage(WS_WORLD_EVENTS.CHAT_SEND)
-  handleChatSend(
+  async handleChatSend(
     @ConnectedSocket() client: Socket,
     @MessageBody() body: WsChatSendClientPayload,
-  ): WsChatSendAckPayload {
+  ): Promise<WsChatSendAckPayload> {
     const characterId = client.data.characterId as string | undefined;
     if (!characterId) {
       return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
     }
+    const rawText = typeof body?.text === 'string' ? body.text.trim() : '';
+    // Comando (ej. "/kit"): nunca se difunde como mensaje de chat, la validación de canal
+    // de abajo no aplica. Se resuelve antes de tocar el rate-limit de chat normal.
+    if (rawText.startsWith('/')) {
+      return this.handleChatCommand(characterId, rawText);
+    }
     if (!body || (body.channel !== 'global' && body.channel !== 'party')) {
       return { ok: false, code: 'INVALID_PAYLOAD', message: 'channel must be "global" or "party"' };
     }
-    const text = typeof body.text === 'string' ? body.text.trim() : '';
+    const text = rawText;
     if (!text) {
       return { ok: false, code: 'EMPTY_MESSAGE', message: 'El mensaje está vacío' };
     }
@@ -1999,6 +2007,36 @@ export class WorldGateway
       this.bridge.broadcastToRoom(this.bridge.partyRoomId(partyId!), WS_WORLD_EVENTS.CHAT_MESSAGE, payload);
     }
     return { ok: true };
+  }
+
+  /**
+   * Comandos de chat accesibles a cualquier jugador (sin `isAdmin`, a diferencia de
+   * `execute-gm-command`). El feedback vuelve solo al que lo tipeó vía el ack — nunca se
+   * difunde como `CHAT_MESSAGE`.
+   */
+  private async handleChatCommand(
+    characterId: string,
+    rawText: string,
+  ): Promise<WsChatSendAckPayload> {
+    const [command] = rawText.slice(1).trim().split(/\s+/);
+    switch (command?.toLowerCase()) {
+      case 'kit': {
+        const result = await this.starterKit.grantIfMissing(characterId);
+        if (result.granted.length === 0) {
+          return { ok: true, message: '[/kit] Ya tenés el kit inicial.' };
+        }
+        return {
+          ok: true,
+          message: `[/kit] Te di: ${result.granted.join(', ')} (revisá tu inventario).`,
+        };
+      }
+      default:
+        return {
+          ok: false,
+          code: 'UNKNOWN_COMMAND',
+          message: `Comando desconocido: /${command ?? ''}`,
+        };
+    }
   }
 
   /**

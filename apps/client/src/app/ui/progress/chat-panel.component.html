@@ -1,4 +1,9 @@
-<div class="overlay-chat" role="group" aria-label="Chat">
+<div
+  class="overlay-chat"
+  role="group"
+  aria-label="Chat"
+  [class.overlay-chat--peek]="readOnlyPeek()"
+>
   <div class="chat-panel__tabs">
     <button
       type="button"
@@ -28,20 +33,26 @@
       </p>
     }
   </div>
-  <div class="chat-panel__input-row">
-    <input
-      #chatInput
-      type="text"
-      class="chat-panel__input"
-      [(ngModel)]="draft"
-      name="chatDraft"
-      [maxlength]="maxLength"
-      [placeholder]="activeChannel === 'party' ? 'Mensaje al grupo...' : 'Mensaje global...'"
-      autocomplete="off"
-      (keydown.enter)="submit()"
-      (keydown.tab)="onInputTabKeydown($event)"
-      (keydown.escape)="onInputEscapeKeydown()"
-    />
-    <button type="button" class="chat-panel__send-btn" (click)="submit()">Enviar</button>
-  </div>
+  @if (readOnlyPeek()) {
+    <button type="button" class="chat-panel__peek-hint" (click)="requestOpen.emit()">
+      Enter o clic para responder
+    </button>
+  } @else {
+    <div class="chat-panel__input-row">
+      <input
+        #chatInput
+        type="text"
+        class="chat-panel__input"
+        [(ngModel)]="draft"
+        name="chatDraft"
+        [maxlength]="maxLength"
+        [placeholder]="activeChannel === 'party' ? 'Mensaje al grupo...' : 'Mensaje global...'"
+        autocomplete="off"
+        (keydown.enter)="submit()"
+        (keydown.tab)="onInputTabKeydown($event)"
+        (keydown.escape)="onInputEscapeKeydown()"
+      />
+      <button type="button" class="chat-panel__send-btn" (click)="submit()">Enviar</button>
+    </div>
+  }
 </div>

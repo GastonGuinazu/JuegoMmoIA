@@ -98,3 +98,19 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+/** Mensaje entrante con el chat cerrado: panel visible solo, sin poder escribir todavía. */
+.overlay-chat--peek .chat-panel__list {
+  border-color: rgba(255, 224, 130, 0.45);
+}
+
+.chat-panel__peek-hint {
+  border: 1px dashed rgba(255, 224, 130, 0.45);
+  background: rgba(11, 13, 19, 0.85);
+  color: #ffe082;
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+  text-align: center;
+}

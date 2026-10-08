@@ -3,6 +3,7 @@ import { CharacterModule } from '../character/character.module';
 import { CombatModule } from '../combat/combat.module';
 import { GmModule } from '../gm/gm.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { ItemsModule } from '../items/items.module';
 import { MobModule } from '../mob/mob.module';
 import { PartyModule } from '../party/party.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -23,6 +24,7 @@ import { WorldGateway } from './world.gateway';
     SynthesisModule,
     GmModule,
     PartyModule,
+    ItemsModule,
   ],
   providers: [
     WorldGateway,

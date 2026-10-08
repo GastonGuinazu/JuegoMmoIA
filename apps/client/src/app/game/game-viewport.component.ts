@@ -311,6 +311,8 @@ const WEAPON_SWING_MS = 180;
 const SELF_OPTIMISTIC_ANIM_SUPPRESS_MS = 400;
 /** Historial de chat en memoria por canal; nada de persistencia (ver `ChatPanelComponent`). */
 const CHAT_HISTORY_MAX = 150;
+/** Cuánto queda visible el panel en modo lectura tras un mensaje con el chat cerrado. */
+const CHAT_PEEK_DURATION_MS = 6000;
 
 function isFiniteVec3(p: { x: unknown; y: unknown; z: unknown }): boolean {
   return (
@@ -377,6 +379,13 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   readonly globalChatMessages = signal<WsChatMessagePayload[]>([]);
   readonly partyChatMessages = signal<WsChatMessagePayload[]>([]);
   readonly chatOpen = signal(false);
+  /**
+   * Panel visible en modo lectura (sin input) porque llegó un mensaje con el chat cerrado —
+   * ver el `chatMessage$` subscribe más abajo. Antes esos mensajes quedaban guardados pero
+   * invisibles hasta que el jugador abría el chat por su cuenta.
+   */
+  readonly chatPeeking = signal(false);
+  private chatPeekHideTimer: ReturnType<typeof setTimeout> | null = null;
   @ViewChild(ChatPanelComponent) private chatPanelRef?: ChatPanelComponent;
 
   private scene!: THREE.Scene;
@@ -924,16 +933,17 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         }, 30_000);
       });
 
-    // TODO: pendiente — con el chat cerrado (antes de tocar Enter) un mensaje entrante no
-    // se ve en absoluto, aunque sí queda guardado acá. Sería mejor mostrar el panel en modo
-    // "solo lectura" (sin poder escribir hasta Enter) cuando llega algo con el chat cerrado,
-    // en vez de que quede invisible hasta que el jugador lo abra por su cuenta.
     this.worldSocket.chatMessage$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
       const target = p.channel === 'party' ? this.partyChatMessages : this.globalChatMessages;
       target.update((prev) => {
         const next = [...prev, p];
         return next.length > CHAT_HISTORY_MAX ? next.slice(next.length - CHAT_HISTORY_MAX) : next;
       });
+      // Mensaje propio (eco del broadcast tras `sendChatMessage`): no hace falta "peekear"
+      // algo que el jugador mismo acaba de escribir con el panel ya abierto.
+      if (!this.chatOpen() && p.characterId !== this.entitySync.selfCharacterId()) {
+        this.peekChat();
+      }
     });
 
     this.worldSocket.playerVisualState$
@@ -1142,6 +1152,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.globalChatMessages.set([]);
     this.partyChatMessages.set([]);
     this.chatOpen.set(false);
+    this.clearChatPeek();
     this.worldSocket.disconnect();
     this.worldSocket.connect(url, cid);
   }
@@ -1203,6 +1214,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.globalChatMessages.set([]);
     this.partyChatMessages.set([]);
     this.chatOpen.set(false);
+    this.clearChatPeek();
   }
 
   private onCanvasPointerDown(ev: PointerEvent): void {
@@ -1858,6 +1870,12 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.worldSocket.emitChatSendWithAck(msg, (ack) => {
       if (!ack.ok) {
         this.pushCombatFeedback(`[Chat] ${ack.message}`);
+        return;
+      }
+      // Confirmación de un comando (ej. "/kit"): nunca llega como CHAT_MESSAGE normal, así
+      // que el único feedback de que pasó algo es este `message` en el ack.
+      if (ack.message) {
+        this.playerState.pushSystemLogLine(ack.message);
       }
     });
   }
@@ -1869,6 +1887,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
    */
   openChat(): void {
     this.chatOpen.set(true);
+    this.clearChatPeek();
     // El panel recién se monta con este `set` (está detrás de un `@if`); esperar al próximo
     // ciclo de detección de cambios para que `chatPanelRef` exista antes de enfocar.
     setTimeout(() => this.chatPanelRef?.focusInput(), 0);
@@ -1876,6 +1895,31 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   closeChat(): void {
     this.chatOpen.set(false);
+    this.clearChatPeek();
+  }
+
+  /**
+   * Mensaje entrante con el chat cerrado: panel visible unos segundos en modo lectura (sin
+   * input, ver `chatOpen() || chatPeeking()` en el template) para que no quede invisible
+   * hasta que el jugador lo abra por su cuenta. Cada mensaje nuevo reinicia el timer.
+   */
+  private peekChat(): void {
+    this.chatPeeking.set(true);
+    if (this.chatPeekHideTimer !== null) {
+      clearTimeout(this.chatPeekHideTimer);
+    }
+    this.chatPeekHideTimer = setTimeout(() => {
+      this.chatPeeking.set(false);
+      this.chatPeekHideTimer = null;
+    }, CHAT_PEEK_DURATION_MS);
+  }
+
+  private clearChatPeek(): void {
+    this.chatPeeking.set(false);
+    if (this.chatPeekHideTimer !== null) {
+      clearTimeout(this.chatPeekHideTimer);
+      this.chatPeekHideTimer = null;
+    }
   }
 
   isSelfPartyLeader(): boolean {

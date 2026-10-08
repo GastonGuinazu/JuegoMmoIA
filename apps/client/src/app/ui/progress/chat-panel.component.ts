@@ -19,10 +19,14 @@ export class ChatPanelComponent {
   readonly partyMessages = input<WsChatMessagePayload[]>([]);
   readonly hasParty = input(false);
   readonly selfCharacterId = input.required<string>();
+  /** El padre lo prende cuando llega un mensaje con el chat cerrado (ver `peekChat`). */
+  readonly readOnlyPeek = input(false);
 
   readonly send = output<{ channel: ChatChannel; text: string }>();
   /** Esc dentro del input: el padre decide qué hacer (cerrar el panel). */
   readonly closeRequested = output<void>();
+  /** Click en el panel mientras está en modo lectura: el padre lo pasa a abierto/interactivo. */
+  readonly requestOpen = output<void>();
 
   activeChannel: ChatChannel = 'global';
   draft = '';

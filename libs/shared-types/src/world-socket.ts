@@ -777,5 +777,6 @@ export type WsChatMessagePayload = {
 };
 
 export type WsChatSendAckPayload =
-  | { ok: true }
+  /** `message`: feedback de un comando (`/kit`) — el cliente lo muestra, no es un chat real. */
+  | { ok: true; message?: string }
   | { ok: false; code: string; message: string };
