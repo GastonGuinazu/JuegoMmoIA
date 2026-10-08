@@ -870,13 +870,17 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
    * Skill activa contra OTRO JUGADOR. El daño/rango/zona/muerte/karma/drop de PK ya están
    * resueltos y probados en `combat.attackCharacter` (PvP básico) — acá sólo se valida lo
    * que es propio de la skill (cooldown y maná, en RAM, igual que en PvE) y se le pasa el
-   * multiplicador de daño. Si `attackCharacter` rechaza (rango, zona, muerto, cooldown PvP),
-   * se devuelve el maná/cooldown ya reservados: el intento no llegó a pegar.
+   * multiplicador de daño. Si `attackCharacter` rechaza al objetivo PRIMARIO (rango, zona,
+   * muerto, cooldown PvP), se devuelve el maná/cooldown ya reservados: el intento no llegó
+   * a pegar. Si la skill es AoE (`skill.isAoe`), además golpea a otros jugadores dentro de
+   * `skill.aoeRadius` del objetivo primario — mismo criterio que el equivalente PvE contra
+   * mobs (radio alrededor del objetivo, no del atacante), excepto compañeros de grupo.
    */
   async tryCastSkillOnPlayerForCharacter(
     characterId: string,
     skillId: string,
     targetCharacterId: string,
+    isPartyMemberOfCaster: (otherCharacterId: string) => boolean,
   ): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
     const skills = loadSkillsConfig().skills;
     const skill = skills.find((row) => row.id === skillId);
@@ -904,13 +908,73 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
 
     try {
       await this.combat.attackCharacter(characterId, targetCharacterId, { skill });
-      return { ok: true };
     } catch (e) {
       stats.currentMp = Math.min(stats.maxMp, stats.currentMp + skill.manaCost);
       lastBySkill.set(skillId, lastCast);
       this.emitCasterVitals(characterId, stats);
       throw e;
     }
+
+    // Splash de AoE: el objetivo primario ya pegó de verdad (transacción propia, ya
+    // committeada) — un splash que falla (objetivo murió/se fue de zona justo entonces)
+    // no debe revertir ni el maná ni el golpe primario, a diferencia del catch de arriba.
+    const aoeRadius = skill.isAoe ? skill.aoeRadius ?? 0 : 0;
+    if (aoeRadius > 0) {
+      const center = this.charPose.get(targetCharacterId);
+      if (center) {
+        const splashTargets = this.findAoePlayerTargets({
+          center,
+          zoneId: center.zoneId,
+          primaryTargetId: targetCharacterId,
+          casterCharacterId: characterId,
+          radiusMeters: aoeRadius,
+          isPartyMemberOfCaster,
+        });
+        for (const splashId of splashTargets) {
+          try {
+            await this.combat.attackCharacter(characterId, splashId, { skill, skipRangeCheck: true });
+          } catch (e) {
+            this.logger.warn(
+              `[PvP AoE] Golpe splash de ${skillId} (${characterId} → ${splashId}) falló: ${e instanceof Error ? e.message : String(e)}`,
+            );
+          }
+        }
+      }
+    }
+
+    return { ok: true };
+  }
+
+  /** Ver `tryCastSkillOnPlayerForCharacter`: jugadores conectados dentro del radio del objetivo primario. */
+  private findAoePlayerTargets(params: {
+    center: { x: number; y: number; z: number };
+    zoneId: string;
+    primaryTargetId: string;
+    casterCharacterId: string;
+    radiusMeters: number;
+    isPartyMemberOfCaster: (characterId: string) => boolean;
+  }): string[] {
+    const targets: string[] = [];
+    for (const [otherCharacterId, pose] of this.charPose) {
+      if (otherCharacterId === params.primaryTargetId || otherCharacterId === params.casterCharacterId) {
+        continue;
+      }
+      if (!zonesMatch(pose.zoneId, params.zoneId)) {
+        continue;
+      }
+      const otherStats = this.charStats.get(otherCharacterId);
+      if (!otherStats || otherStats.currentHp <= 0) {
+        continue;
+      }
+      if (params.isPartyMemberOfCaster(otherCharacterId)) {
+        continue;
+      }
+      if (!this.spatial.isWithinRadiusXZ(params.center, pose, params.radiusMeters)) {
+        continue;
+      }
+      targets.push(otherCharacterId);
+    }
+    return targets;
   }
 
   private emitCasterVitals(characterId: string, stats: CharCombatStats): void {

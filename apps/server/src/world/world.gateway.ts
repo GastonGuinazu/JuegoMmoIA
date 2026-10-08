@@ -1474,6 +1474,7 @@ export class WorldGateway
           characterId,
           body.skillId,
           body.targetId,
+          (otherCharacterId) => this.isSamePartyAttack(characterId, otherCharacterId),
         );
         if (!cast.ok) {
           this.emitDenied(client, { code: cast.code, message: cast.message });

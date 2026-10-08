@@ -719,10 +719,20 @@ export class CombatService {
   async attackCharacter(
     attackerCharacterId: string,
     targetCharacterId: string,
-    options?: { rng?: () => number; skill?: SkillConfigRow },
+    options?: {
+      rng?: () => number;
+      skill?: SkillConfigRow;
+      /**
+       * Splash de una skill AoE (`tryCastSkillOnPlayerForCharacter`): el objetivo secundario
+       * se valida por radio alrededor del objetivo PRIMARIO (ya en rango del atacante), no
+       * por su propia distancia al atacante — igual que el equivalente PvE contra mobs.
+       */
+      skipRangeCheck?: boolean;
+    },
   ): Promise<AttackPlayerCharacterResult> {
     const rand = options?.rng ?? Math.random;
     const skill = options?.skill;
+    const skipRangeCheck = options?.skipRangeCheck ?? false;
     const outcome = await this.prisma.$transaction(
       async (tx) => {
         // Bloqueo de ambas filas en orden fijo (por id) ANTES de leer o escribir. Sin esto, dos
@@ -773,11 +783,13 @@ export class CombatService {
           }
         }
 
-        const inRange = this.worldSpatial.isWithinMeleeAttackRange(
-          { x: attacker.worldPosX, y: attacker.worldPosY, z: attacker.worldPosZ },
-          { x: target.worldPosX, y: target.worldPosY, z: target.worldPosZ },
-          skill?.rangeMeters ?? 1.8,
-        );
+        const inRange =
+          skipRangeCheck ||
+          this.worldSpatial.isWithinMeleeAttackRange(
+            { x: attacker.worldPosX, y: attacker.worldPosY, z: attacker.worldPosZ },
+            { x: target.worldPosX, y: target.worldPosY, z: target.worldPosZ },
+            skill?.rangeMeters ?? 1.8,
+          );
         if (!inRange) {
           throw new BadRequestException({
             code: 'ATTACK_OUT_OF_RANGE',
