@@ -150,6 +150,11 @@ const SUN_DIR = SUN_OFFSET.clone().normalize();
 const SUN_GLOW_DISTANCE = 220;
 const SUN_GLOW_SCALE = 16;
 
+/** Flote + giro de la gema de un drop en el piso (ver `tickDropAnimations`). */
+const DROP_BOB_AMPLITUDE = 0.07;
+const DROP_BOB_SPEED = 1.6;
+const DROP_SPIN_SPEED = 0.8;
+
 /** Reconciliación: por debajo de esto, confiamos en predicción local (plano XZ). */
 const SERVER_SYNC_THRESHOLD_XZ = 1.5;
 /** Duración del suavizado cuando el servidor corrige posición con error ≥ umbral. */
@@ -527,7 +532,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private readonly npcMeshes = new Map<string, THREE.Object3D>();
   /** NPC cuya caja está abierta (clic de tienda); se cierra al cerrar el panel. */
   private merchantBoxNpcId: string | null = null;
-  private readonly dropMeshes = new Map<string, THREE.Mesh>();
+  private readonly dropMeshes = new Map<string, THREE.Group>();
+  /** itemInstanceId del drop bajo el mouse; controla qué tooltip CSS2D se muestra. */
+  private hoveredDropId: string | null = null;
   private readonly otherPlayerMeshes = new Map<string, EntityVisual>();
   private readonly otherPlayerLastPos = new Map<string, THREE.Vector3>();
   /**
@@ -1360,6 +1367,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   private onCanvasPointerMove(ev: PointerEvent): void {
     if (!this.leftPointerDown) {
+      this.updateDropHover(ev);
       return;
     }
     const totalDx = ev.clientX - this.leftPointerDownClient.x;
@@ -1382,6 +1390,43 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       CAMERA_POLAR_MAX,
     );
     ev.preventDefault();
+  }
+
+  /** Raycast liviano contra los drops (no interfiere con el picking de clic/combate). */
+  private updateDropHover(ev: PointerEvent): void {
+    if (!this.renderer || !this.camera) {
+      return;
+    }
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointerNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointerNdc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointerNdc, this.camera);
+    const hits = this.raycaster.intersectObjects(this.dropsRoot.children, true);
+    const hit = hits.find(
+      (h) => typeof (h.object as THREE.Mesh).userData['worldDropItemInstanceId'] === 'string',
+    );
+    const hoveredId = hit
+      ? ((hit.object as THREE.Mesh).userData['worldDropItemInstanceId'] as string)
+      : null;
+    if (hoveredId === this.hoveredDropId) {
+      return;
+    }
+    if (this.hoveredDropId) {
+      this.setDropLabelVisible(this.hoveredDropId, false);
+    }
+    this.hoveredDropId = hoveredId;
+    if (hoveredId) {
+      this.setDropLabelVisible(hoveredId, true);
+    }
+  }
+
+  private setDropLabelVisible(itemInstanceId: string, visible: boolean): void {
+    const node = this.dropMeshes.get(itemInstanceId)?.userData['dropLabelNode'] as
+      | HTMLDivElement
+      | undefined;
+    if (node) {
+      node.style.display = visible ? 'block' : 'none';
+    }
   }
 
   private onCanvasPointerUp(ev: PointerEvent): void {
@@ -2882,6 +2927,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
           this.tickCombatActionChase();
           this.tickAutoAttackIntent(performance.now());
           this.tickMobMeshSmoothing(dt);
+          this.tickDropAnimations(timestamp);
           this.tickSkillVfx(timestamp, dt);
           this.combatFloaters?.tick(timestamp);
           this.tickCorrectionLerp();
@@ -3074,6 +3120,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Interpolación hacia posición/yaw autoritativos del mob (MOB_MOVED / snapshot). */
+  /** Flota + gira despacio cada gema de drop; puramente cosmético, no toca `d.pos`. */
+  private tickDropAnimations(timestamp: number): void {
+    const t = timestamp * 0.001;
+    for (const group of this.dropMeshes.values()) {
+      const gem = group.userData['dropGemMesh'] as THREE.Object3D | undefined;
+      if (!gem) {
+        continue;
+      }
+      const phase = (group.userData['dropBobPhase'] as number) ?? 0;
+      gem.position.y = Math.sin(t * DROP_BOB_SPEED + phase) * DROP_BOB_AMPLITUDE;
+      gem.rotation.y = t * DROP_SPIN_SPEED + phase;
+    }
+  }
+
   private tickMobMeshSmoothing(dt: number): void {
     if (!this.glReady()) {
       return;
@@ -3465,15 +3525,19 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     for (const id of this.dropMeshes.keys()) {
       if (!dropMap.has(id)) {
         const mesh = this.dropMeshes.get(id)!;
+        if (id === this.hoveredDropId) {
+          this.hoveredDropId = null;
+        }
+        this.stripMeshCss2dChildren(mesh);
         this.dropsRoot.remove(mesh);
-        this.visuals.disposeVisual(mesh);
+        this.visuals.disposeDropVisual(mesh);
         this.dropMeshes.delete(id);
       }
     }
     for (const [id, d] of dropMap) {
       let mesh = this.dropMeshes.get(id);
       if (!mesh) {
-        mesh = this.visuals.createDropVisual(id);
+        mesh = this.visuals.createDropVisual(d);
         this.dropMeshes.set(id, mesh);
         this.dropsRoot.add(mesh);
       }
@@ -4028,9 +4092,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       this.visuals.disposeVisual(mesh);
     }
     this.npcMeshes.clear();
+    this.hoveredDropId = null;
     for (const mesh of this.dropMeshes.values()) {
+      this.stripMeshCss2dChildren(mesh);
       this.dropsRoot.remove(mesh);
-      this.visuals.disposeVisual(mesh);
+      this.visuals.disposeDropVisual(mesh);
     }
     this.dropMeshes.clear();
     for (const mesh of this.otherPlayerMeshes.values()) {

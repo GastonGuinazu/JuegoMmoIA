@@ -11,6 +11,7 @@ import { SynthesisModule } from '../synthesis/synthesis.module';
 import { MobAiTickService } from '../mob/mob-ai-tick.service';
 import { MobRespawnService } from './mob-respawn.service';
 import { NpcShopService } from './npc-shop.service';
+import { WorldDropDespawnService } from './world-drop-despawn.service';
 import { WorldDropService } from './world-drop.service';
 import { WorldGateway } from './world.gateway';
 
@@ -31,6 +32,7 @@ import { WorldGateway } from './world.gateway';
     MobRespawnService,
     MobAiTickService,
     WorldDropService,
+    WorldDropDespawnService,
     NpcShopService,
   ],
 })

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import * as THREE from 'three';
+import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import type { MapBoxConfigRow, MapPortalConfigRow } from './world-map-loader.service';
@@ -64,6 +65,21 @@ function getMobAggroRingMaterial(): THREE.MeshBasicMaterial {
 }
 
 export const DROP_Y_LIFT = DROP_BOX / 2 + 0.06;
+
+/** Gema del drop (reemplaza el cubo plano original) + anillo de piso que bloom hace brillar. */
+const DROP_GEM_RADIUS = 0.22;
+const DROP_RING_INNER = 0.3;
+const DROP_RING_OUTER = 0.42;
+
+let dropGemGeometry: THREE.OctahedronGeometry | undefined;
+function getDropGemGeometry(): THREE.OctahedronGeometry {
+  return (dropGemGeometry ??= new THREE.OctahedronGeometry(DROP_GEM_RADIUS, 0));
+}
+
+let dropRingGeometry: THREE.RingGeometry | undefined;
+function getDropRingGeometry(): THREE.RingGeometry {
+  return (dropRingGeometry ??= new THREE.RingGeometry(DROP_RING_INNER, DROP_RING_OUTER, 24));
+}
 
 const OBSTACLE_COLOR = 0x9aa3ad;
 const OBSTACLE_EMISSIVE = 0x2a2e35;
@@ -430,18 +446,67 @@ export class EntityVisualFactoryService {
     return group;
   }
 
-  createDropVisual(itemInstanceId: string): THREE.Mesh {
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(DROP_BOX, DROP_BOX, DROP_BOX),
-      new THREE.MeshLambertMaterial({
-        color: DROP_COLOR,
-        emissive: 0x443300,
-        emissiveIntensity: 0.15,
+  /**
+   * Gema + anillo de piso (reemplaza el cubo amarillo plano) con tooltip CSS2D del nombre del
+   * ítem, oculto por default y mostrado al pasar el mouse por encima (`GameViewportComponent`
+   * controla el raycast de hover; acá sólo se arma el DOM que ese hover prende/apaga).
+   */
+  createDropVisual(d: WorldDropEntityState): THREE.Group {
+    const tint = this.resolveDropTint(d.grade);
+    const group = new THREE.Group();
+    group.name = 'worldDrop';
+    group.userData['kind'] = 'drop';
+    group.userData['worldDropItemInstanceId'] = d.itemInstanceId;
+
+    const gem = new THREE.Mesh(
+      getDropGemGeometry(),
+      new THREE.MeshStandardMaterial({
+        color: tint.color,
+        emissive: tint.emissive,
+        emissiveIntensity: tint.emissiveIntensity,
+        roughness: 0.2,
+        metalness: 0.25,
       }),
     );
-    mesh.userData['kind'] = 'drop';
-    mesh.userData['worldDropItemInstanceId'] = itemInstanceId;
-    return mesh;
+    gem.name = 'dropGem';
+    gem.castShadow = true;
+    gem.userData['kind'] = 'drop';
+    gem.userData['worldDropItemInstanceId'] = d.itemInstanceId;
+    group.add(gem);
+    group.userData['bodyMesh'] = gem;
+    group.userData['dropGemMesh'] = gem;
+    /** Fase random para que no todas las gemas floten/giren en sincro perfecto. */
+    group.userData['dropBobPhase'] = Math.random() * Math.PI * 2;
+
+    const ring = new THREE.Mesh(
+      getDropRingGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: tint.color,
+        transparent: true,
+        opacity: 0.55,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    ring.name = 'dropRing';
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = -DROP_Y_LIFT + 0.015;
+    ring.raycast = () => {};
+    group.add(ring);
+    group.userData['dropRingMesh'] = ring;
+
+    const labelNode = document.createElement('div');
+    labelNode.className = 'aetheris-drop-tooltip';
+    labelNode.textContent = d.quantity > 1 ? `${d.itemName} x${d.quantity}` : d.itemName;
+    labelNode.style.display = 'none';
+    labelNode.style.color = `#${tint.color.toString(16).padStart(6, '0')}`;
+    const label = new CSS2DObject(labelNode);
+    label.position.set(0, DROP_GEM_RADIUS + 0.34, 0);
+    group.add(label);
+    group.userData['dropLabelNode'] = labelNode;
+
+    return group;
   }
 
   createObstacleVisual(row: MapBoxConfigRow): THREE.Group {
@@ -827,6 +892,10 @@ export class EntityVisualFactoryService {
       mat.emissive.setHex(tint.emissive);
       mat.emissiveIntensity = tint.emissiveIntensity;
     }
+    const dropRing = mesh.userData['dropRingMesh'] as THREE.Mesh | undefined;
+    if (dropRing) {
+      (dropRing.material as THREE.MeshBasicMaterial).color.setHex(tint.color);
+    }
   }
 
   private resolveTintableMaterials(visual: EntityVisual): TintableMaterial[] {
@@ -862,6 +931,19 @@ export class EntityVisualFactoryService {
     const single = Array.isArray(material) ? material[0] : material;
     const candidate = single as unknown as TintableMaterial | undefined;
     return candidate?.color && candidate?.emissive ? candidate : undefined;
+  }
+
+  /**
+   * Libera un visual de drop sin tocar `disposeVisual`: la gema y el anillo comparten
+   * geometría cacheada a nivel de módulo (`getDropGemGeometry`/`getDropRingGeometry`) entre
+   * TODOS los drops, así que `disposeVisual` la destruiría para todos. Sólo el material es
+   * propio de cada instancia (se tiñe por grado), así que sólo eso hay que liberar acá.
+   */
+  disposeDropVisual(mesh: THREE.Object3D): void {
+    const gem = mesh.userData['dropGemMesh'] as THREE.Mesh | undefined;
+    (gem?.material as THREE.Material | undefined)?.dispose();
+    const ring = mesh.userData['dropRingMesh'] as THREE.Mesh | undefined;
+    (ring?.material as THREE.Material | undefined)?.dispose();
   }
 
   resolveDropTint(grade: WorldDropEntityState['grade']): VisualTint {
