@@ -14,6 +14,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import * as THREE from 'three';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { NpcShopUiService } from '../core/npc-shop-ui.service';
 import { PlayerCharacterStateService } from '../core/player-character-state.service';
 import { WorldSocketService } from '../core/world-socket.service';
@@ -99,6 +104,51 @@ const OTHER_PLAYER_INTERP_MAX_EXTRAPOLATE_MS = 150;
  */
 const DIAG_MOVEMENT_ISOLATE_CLIENT = true;
 const ISO_OFFSET = new THREE.Vector3(13, 11, 13);
+
+/** Offset fijo del sol respecto del punto que sigue la cámara (`cameraLookAt`); igual que `ISO_OFFSET`
+ * pero más alto, para que las sombras caigan con un ángulo agradable sin quedar casi verticales. */
+const SUN_OFFSET = new THREE.Vector3(24, 42, 16);
+/** Media-extensión del frustum de sombra alrededor del jugador. Cubre el radio máximo de zoom
+ * (`CAMERA_ZOOM_MAX_RADIUS` = 40) con margen; más grande = sombra más "pixelada" a igual resolución. */
+const SUN_SHADOW_HALF_EXTENT = 32;
+const SUN_SHADOW_MAP_SIZE = 1024;
+/** Color del horizonte del cielo degradado; se reusa como color de niebla para que el fog
+ * se funda con el fondo en vez de notarse como una "pared" de color distinto. */
+const SKY_HORIZON_COLOR = 0x3a4a5e;
+const SKY_ZENITH_COLOR = 0x0e1526;
+const FOG_NEAR = 42;
+const FOG_FAR = 130;
+
+/**
+ * Micro-deco client-side (no persiste en el servidor, no bloquea movimiento): llena los huecos
+ * de piso desnudo entre los props autorados en `map-objects-Zone_*.json`. No duplica ese trabajo
+ * de diseño, sólo rellena los espacios vacíos que deja; por eso respeta un radio libre alrededor
+ * del spawn y una distancia mínima a cada prop real para no clipear con lo ya ambientado a mano.
+ */
+const SCATTER_TEMPLATE_KEYS = ['bush_b', 'plant', 'rock_b', 'stump', 'bush'] as const;
+const SCATTER_CLEAR_RADIUS_M = 9;
+const SCATTER_MIN_DIST_FROM_PROP_M = 2.4;
+const SCATTER_MIN_DIST_BETWEEN_M = 1.6;
+const SCATTER_CELL_AREA_M2 = 11;
+const SCATTER_MAX_COUNT = 220;
+const SCATTER_BASE_SCALE = 0.85;
+const SCATTER_SCALE_JITTER = 0.18;
+
+/** Bloom sutil: sólo lo additive-blended (sprites de skill FX, el resplandor solar) supera el
+ * threshold y brilla; el terreno/props con luz normal quedan debajo y no se ven afectados. */
+const BLOOM_STRENGTH = 0.55;
+const BLOOM_RADIUS = 0.35;
+const BLOOM_THRESHOLD = 0.82;
+
+/**
+ * "Sol" visible en el cielo: sprite aditivo ubicado muy lejos en la dirección de `SUN_OFFSET`,
+ * así que se mueve con la cámara como el resto del fondo (fog:false, no se apaga con la niebla).
+ * No es un god-ray volumétrico real; es un resplandor 2D que el culling/depth test de los
+ * árboles y muros ya tapa de forma natural al pasar detrás, y que bloom hace brillar.
+ */
+const SUN_DIR = SUN_OFFSET.clone().normalize();
+const SUN_GLOW_DISTANCE = 220;
+const SUN_GLOW_SCALE = 16;
 
 /** Reconciliación: por debajo de esto, confiamos en predicción local (plano XZ). */
 const SERVER_SYNC_THRESHOLD_XZ = 1.5;
@@ -329,6 +379,67 @@ function isFiniteYaw(y: unknown): y is number {
   return typeof y === 'number' && Number.isFinite(y);
 }
 
+/**
+ * Fondo de cielo: degradé vertical pintado en un canvas chico y usado como `scene.background`.
+ * No es un skybox real (no gira con la cámara), pero la cámara isométrica tiene polar acotado
+ * (`CAMERA_POLAR_MIN/MAX`) y el horizonte casi no cambia, así que se nota como cielo sin el costo
+ * de una geometría extra ni un draw call de más.
+ */
+function createSkyGradientTexture(): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, `#${SKY_ZENITH_COLOR.toString(16).padStart(6, '0')}`);
+  gradient.addColorStop(1, `#${SKY_HORIZON_COLOR.toString(16).padStart(6, '0')}`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** Degradé radial cálido para el sprite del sol: opaco al centro, transparente en el borde. */
+function createSunGlowTexture(): THREE.Texture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const r = size / 2;
+  const gradient = ctx.createRadialGradient(r, r, 0, r, r, r);
+  gradient.addColorStop(0, 'rgba(255,246,222,1)');
+  gradient.addColorStop(0.35, 'rgba(255,221,163,0.55)');
+  gradient.addColorStop(1, 'rgba(255,221,163,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** Hash determinístico de string a semilla (FNV-1a). Mismo zoneId -> mismo scatter siempre. */
+function hashStringToSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** PRNG determinístico (mulberry32): mismo seed -> misma secuencia, sin depender de Math.random. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 @Component({
   selector: 'app-game-viewport',
   standalone: true,
@@ -391,6 +502,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
   private renderer!: THREE.WebGLRenderer;
+  private composer!: EffectComposer;
+  private bloomPass!: UnrealBloomPass;
+  private sunGlowSprite!: THREE.Sprite;
+  private readonly sunGlowPos = new THREE.Vector3();
   private css2d!: CSS2DRenderer;
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointerNdc = new THREE.Vector2();
@@ -398,6 +513,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
   private groundMesh!: THREE.Mesh;
   private groundGrid: THREE.GridHelper | null = null;
+  private sunLight!: THREE.DirectionalLight;
   private playerMesh: EntityVisual | null = null;
   private readonly mobMeshes = new Map<string, EntityVisual>();
   /** Suavizado Weaver: posición visual hacia la autoritativa (mismo enfoque que el jugador). */
@@ -434,9 +550,13 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private otherPlayersRoot!: THREE.Group;
   private obstacleRoot!: THREE.Group;
   private portalRoot!: THREE.Group;
+  private scatterRoot!: THREE.Group;
   private readonly obstacleMeshes = new Map<string, THREE.Object3D>();
   private readonly portalMeshes = new Map<string, THREE.Object3D>();
   private readonly obstacleRects = new Map<string, ObstacleRectXZ>();
+  /** Micro-deco no colisionable generada client-side; ver `regenerateDecorativeScatter`. */
+  private readonly scatterMeshes: THREE.Object3D[] = [];
+  private scatterZoneId: string | null = null;
   private portalTravelFadeArmed = false;
   readonly zoneTransitionFadeOn = signal(false);
 
@@ -2263,7 +2383,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     const h = host.clientHeight || 480;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1e24);
+    this.scene.background = createSkyGradientTexture();
+    /* Niebla con el color del horizonte del cielo: los objetos se funden en el fondo en vez
+     * de hacer "pop" al entrar en el frustum de culling. */
+    this.scene.fog = new THREE.Fog(SKY_HORIZON_COLOR, FOG_NEAR, FOG_FAR);
 
     this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 500);
     this.camera.position.copy(ISO_OFFSET);
@@ -2275,9 +2398,32 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
     const sun = new THREE.DirectionalLight(0xffffff, 1.1);
-    sun.position.set(24, 42, 16);
+    sun.position.copy(SUN_OFFSET);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(SUN_SHADOW_MAP_SIZE, SUN_SHADOW_MAP_SIZE);
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = SUN_OFFSET.length() + SUN_SHADOW_HALF_EXTENT * 2;
+    sun.shadow.camera.left = -SUN_SHADOW_HALF_EXTENT;
+    sun.shadow.camera.right = SUN_SHADOW_HALF_EXTENT;
+    sun.shadow.camera.top = SUN_SHADOW_HALF_EXTENT;
+    sun.shadow.camera.bottom = -SUN_SHADOW_HALF_EXTENT;
+    sun.shadow.bias = -0.0015;
+    this.sunLight = sun;
     this.scene.add(sun);
+    this.scene.add(sun.target);
     this.scene.add(new THREE.HemisphereLight(0xc5d4f0, 0x3d3a36, 0.5));
+
+    const sunGlowMaterial = new THREE.SpriteMaterial({
+      map: createSunGlowTexture(),
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      fog: false,
+      toneMapped: false,
+    });
+    this.sunGlowSprite = new THREE.Sprite(sunGlowMaterial);
+    this.sunGlowSprite.scale.setScalar(SUN_GLOW_SCALE);
+    this.scene.add(this.sunGlowSprite);
 
     this.groundMesh = this.visuals.createGroundVisual();
     this.scene.add(this.groundMesh);
@@ -2292,18 +2438,24 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.otherPlayersRoot = new THREE.Group();
     this.obstacleRoot = new THREE.Group();
     this.portalRoot = new THREE.Group();
+    this.scatterRoot = new THREE.Group();
     this.scene.add(this.mobRoot);
     this.scene.add(this.npcRoot);
     this.scene.add(this.dropsRoot);
     this.scene.add(this.otherPlayersRoot);
     this.scene.add(this.obstacleRoot);
     this.scene.add(this.portalRoot);
+    this.scene.add(this.scatterRoot);
     this.scene.add(this.damageFloatGroup);
     this.combatFloaters = new WorldCombatFloaters(this.damageFloatGroup);
     this.scene.add(this.skillFxRoot);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Tope 1.5: en pantallas HiDPI, 2x renderiza 4x píxeles con poca ganancia visible.
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setSize(w, h);
@@ -2319,6 +2471,19 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       passive: false,
     });
     host.appendChild(this.renderer.domElement);
+
+    /*
+     * Post-proceso: RenderPass dibuja la escena normal, UnrealBloomPass hace brillar sólo lo
+     * additive-blended (FX de skill, resplandor solar) y SMAAPass + OutputPass cierran la
+     * cadena (antialiasing + tone mapping/color space; con EffectComposer el MSAA del
+     * renderer no aplica al render-to-texture, por eso se reemplaza por SMAA).
+     */
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
+    this.composer.addPass(this.bloomPass);
+    this.composer.addPass(new SMAAPass());
+    this.composer.addPass(new OutputPass());
 
     this.css2d = new CSS2DRenderer();
     this.css2d.setSize(w, h);
@@ -2420,6 +2585,85 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
 
     this.obstacleRoot.visible = true;
     this.portalRoot.visible = true;
+    this.regenerateDecorativeScatter(zn, groundSize, activeBoxes);
+  }
+
+  /**
+   * Deco puramente visual: sin colisión (`blocksMovement: false`), no persiste en el servidor.
+   * Rellena con bush/plant/rock chicos los huecos de piso desnudo entre los props autorados en
+   * `map-objects-Zone_*.json`, sin pisar ese trabajo de diseño (respeta un radio libre alrededor
+   * del spawn y una distancia mínima a cada prop real/otra deco para no clipear). Determinístico
+   * por zona (semilla = hash del zoneId): mismo resultado siempre, no "salta" entre refrescos.
+   */
+  private regenerateDecorativeScatter(
+    zn: string,
+    groundSize: number,
+    existingBoxes: readonly MapBoxConfigRow[],
+  ): void {
+    if (this.scatterZoneId === zn) {
+      return;
+    }
+    for (const mesh of this.scatterMeshes) {
+      this.scatterRoot.remove(mesh);
+      this.visuals.disposeVisual(mesh);
+    }
+    this.scatterMeshes.length = 0;
+    this.scatterZoneId = zn;
+
+    const half = groundSize / 2;
+    const openAreaM2 = Math.max(
+      0,
+      groundSize * groundSize - Math.PI * SCATTER_CLEAR_RADIUS_M * SCATTER_CLEAR_RADIUS_M,
+    );
+    const targetCount = Math.min(SCATTER_MAX_COUNT, Math.round(openAreaM2 / SCATTER_CELL_AREA_M2));
+    const rand = mulberry32(hashStringToSeed(zn));
+    const placedXZ: { x: number; z: number }[] = existingBoxes.map((b) => ({
+      x: b.position.x,
+      z: b.position.z,
+    }));
+    const existingCount = placedXZ.length;
+
+    let placed = 0;
+    let attempts = 0;
+    const maxAttempts = targetCount * 15;
+    while (placed < targetCount && attempts < maxAttempts) {
+      attempts++;
+      const x = (rand() * 2 - 1) * half;
+      const z = (rand() * 2 - 1) * half;
+      if (x * x + z * z < SCATTER_CLEAR_RADIUS_M * SCATTER_CLEAR_RADIUS_M) {
+        continue;
+      }
+      let tooClose = false;
+      for (let i = 0; i < placedXZ.length; i++) {
+        const p = placedXZ[i]!;
+        const minDist = i < existingCount ? SCATTER_MIN_DIST_FROM_PROP_M : SCATTER_MIN_DIST_BETWEEN_M;
+        const dx = p.x - x;
+        const dz = p.z - z;
+        if (dx * dx + dz * dz < minDist * minDist) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (tooClose) {
+        continue;
+      }
+      const key = SCATTER_TEMPLATE_KEYS[Math.floor(rand() * SCATTER_TEMPLATE_KEYS.length)]!;
+      const scale = SCATTER_BASE_SCALE + (rand() * 2 - 1) * SCATTER_SCALE_JITTER;
+      const row: MapBoxConfigRow = {
+        id: `scatter-${zn}-${placed}`,
+        position: { x, y: scale / 2, z },
+        scale: { x: scale, y: scale, z: scale },
+        yaw: rand() * Math.PI * 2,
+        propTemplateKey: key,
+        blocksMovement: false,
+      };
+      const mesh = this.visuals.createObstacleVisual(row);
+      mesh.position.set(x, scale / 2, z);
+      this.scatterRoot.add(mesh);
+      this.scatterMeshes.push(mesh);
+      placedXZ.push({ x, z });
+      placed++;
+    }
   }
 
   private mapPropLayoutChanged(
@@ -2643,6 +2887,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
           this.tickCorrectionLerp();
           this.blendVisualTowardAuthoritative(dt);
           this.tickCamera();
+          this.updateSunFollow();
           this.recoverCameraIfBroken();
           this.updatePlayerMeshFromVisual();
           this.tickOtherPlayerWeaponSwing();
@@ -2651,7 +2896,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
           }
           this.tickShopDistanceAutoClose();
           const tGl0 = performance.now();
-          this.renderer.render(this.scene, this.camera);
+          this.composer.render();
           const tCss0 = performance.now();
           this.css2d.render(this.scene, this.camera);
           const tEnd = performance.now();
@@ -2982,6 +3227,28 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.camera.lookAt(this.cameraLookAt);
   }
 
+  /**
+   * El sol está fijo en coordenadas de mundo pero el jugador recorre pisos de hasta 256m:
+   * sin esto, el frustum de sombra (acotado a `SUN_SHADOW_HALF_EXTENT` para no perder resolución)
+   * solo cubriría el área cercana al spawn. Lo reubicamos cada frame centrado en `cameraLookAt`
+   * (el mismo punto que ya sigue la cámara), manteniendo el offset/ángulo original.
+   */
+  private updateSunFollow(): void {
+    if (!this.sunLight || !isFiniteVec3(this.cameraLookAt)) {
+      return;
+    }
+    this.sunLight.position.set(
+      this.cameraLookAt.x + SUN_OFFSET.x,
+      this.cameraLookAt.y + SUN_OFFSET.y,
+      this.cameraLookAt.z + SUN_OFFSET.z,
+    );
+    this.sunLight.target.position.copy(this.cameraLookAt);
+    this.sunGlowPos
+      .copy(this.cameraLookAt)
+      .addScaledVector(SUN_DIR, SUN_GLOW_DISTANCE);
+    this.sunGlowSprite.position.copy(this.sunGlowPos);
+  }
+
   private applyCameraShake(): void {
     if (!this.cameraShake) {
       return;
@@ -3163,6 +3430,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
+    this.composer.setSize(w, h);
     this.css2d.setSize(w, h);
   }
 

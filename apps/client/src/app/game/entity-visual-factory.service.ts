@@ -82,10 +82,20 @@ const GROUND_SIZE_MAX = 256;
 const GROUND_COLOR = 0x1c241e;
 const GROUND_ROUGHNESS = 0.92;
 const GROUND_METALNESS = 0.04;
+/**
+ * Normal map procedural (no es foto, es ruido generado) para romper el tiling visible del
+ * albedo: repite cada ~1.4m en vez de los 4m del albedo, una frecuencia no múltiplo de la del
+ * albedo a propósito, para que el micro-relieve no quede alineado con el patrón grande y lo
+ * "tape" en vez de reforzarlo.
+ */
+const GROUND_DETAIL_NORMAL_METERS_PER_TILE = 1.4;
+const GROUND_DETAIL_NORMAL_TEX_SIZE = 256;
+const GROUND_NORMAL_STRENGTH = 0.4;
 /** ~2 u por celda del GridHelper. */
 const GROUND_GRID_CELL_METERS = 2;
 const GROUND_GRID_CENTER_COLOR = 0x6d8a74;
 const GROUND_GRID_LINE_COLOR = 0x3a4c40;
+const GROUND_GRID_OPACITY = 0.3;
 /** Un pelo sobre Y=0 para no pelear z-buffer con el plano. */
 const GROUND_GRID_Y = 0.02;
 /** Pasto / nieve de zona. Angular sirve `public/` en la raíz. */
@@ -103,6 +113,67 @@ function resolveGroundSizeMeters(raw: unknown): number {
 
 function albedoRepeatForSize(sizeMeters: number): number {
   return Math.max(8, Math.round(sizeMeters / GROUND_ALBEDO_METERS_PER_TILE));
+}
+
+function normalRepeatForSize(sizeMeters: number): number {
+  return Math.max(8, Math.round(sizeMeters / GROUND_DETAIL_NORMAL_METERS_PER_TILE));
+}
+
+let groundDetailNormalMap: THREE.DataTexture | undefined;
+
+/**
+ * Normal map tileable generado por código (suma de senos con período = tamaño de textura, así
+ * da exactamente igual en el borde izquierdo/derecho y arriba/abajo: cero costuras al repetir).
+ * Cacheado a nivel de módulo: una sola textura compartida por todos los materiales de piso.
+ */
+function getGroundDetailNormalMap(): THREE.DataTexture {
+  if (groundDetailNormalMap) {
+    return groundDetailNormalMap;
+  }
+  const size = GROUND_DETAIL_NORMAL_TEX_SIZE;
+  const twoPi = Math.PI * 2;
+  const octaves = [
+    { fx: 3, fy: 2, amp: 1, phaseX: 0.6, phaseY: 2.1 },
+    { fx: 5, fy: 7, amp: 0.5, phaseX: 3.4, phaseY: 1.2 },
+    { fx: 11, fy: 9, amp: 0.28, phaseX: 5.1, phaseY: 0.4 },
+    { fx: 17, fy: 13, amp: 0.16, phaseX: 1.9, phaseY: 4.6 },
+  ];
+  const height = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let h = 0;
+      for (const o of octaves) {
+        h +=
+          o.amp *
+          Math.sin((x / size) * twoPi * o.fx + o.phaseX) *
+          Math.sin((y / size) * twoPi * o.fy + o.phaseY);
+      }
+      height[y * size + x] = h;
+    }
+  }
+  const data = new Uint8ClampedArray(size * size * 4);
+  const strength = 2.2;
+  const normal = new THREE.Vector3();
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const hL = height[y * size + ((x - 1 + size) % size)]!;
+      const hR = height[y * size + ((x + 1) % size)]!;
+      const hD = height[((y - 1 + size) % size) * size + x]!;
+      const hU = height[((y + 1) % size) * size + x]!;
+      normal.set(-(hR - hL) * strength, -(hU - hD) * strength, 1).normalize();
+      const i = (y * size + x) * 4;
+      data[i] = Math.round((normal.x * 0.5 + 0.5) * 255);
+      data[i + 1] = Math.round((normal.y * 0.5 + 0.5) * 255);
+      data[i + 2] = Math.round((normal.z * 0.5 + 0.5) * 255);
+      data[i + 3] = 255;
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.needsUpdate = true;
+  groundDetailNormalMap = texture;
+  return texture;
 }
 
 /**
@@ -558,6 +629,10 @@ export class EntityVisualFactoryService {
   /**
    * Grid de testeo superpuesto al plano. Sin él un color sólido no da sensación de velocidad.
    * No participa del picking (el click-to-move sigue usando sólo el plano).
+   *
+   * Atenuada (`opacity`): ahora que el piso tiene textura + sombras, líneas 100% opacas se leían
+   * como overlay de debug ("nivel de test") en vez de parte del terreno. `depthWrite = false`
+   * evita artefactos de blending al quedar semitransparente sobre el suelo.
    */
   createGroundGrid(sizeMeters = GROUND_SIZE_DEFAULT): THREE.GridHelper {
     const size = resolveGroundSizeMeters(sizeMeters);
@@ -572,6 +647,10 @@ export class EntityVisualFactoryService {
     grid.userData['groundSizeMeters'] = size;
     grid.position.y = GROUND_GRID_Y;
     grid.raycast = () => {};
+    const material = grid.material as THREE.LineBasicMaterial;
+    material.transparent = true;
+    material.opacity = GROUND_GRID_OPACITY;
+    material.depthWrite = false;
     return grid;
   }
 
@@ -616,11 +695,18 @@ export class EntityVisualFactoryService {
    * Material del suelo. Con albedo el color es blanco; sin mapa queda el verde de fallback.
    */
   createGroundMaterial(albedoMap: THREE.Texture | null = null): THREE.MeshStandardMaterial {
+    const normalMap = getGroundDetailNormalMap();
+    normalMap.repeat.set(
+      normalRepeatForSize(GROUND_SIZE_DEFAULT),
+      normalRepeatForSize(GROUND_SIZE_DEFAULT),
+    );
     return new THREE.MeshStandardMaterial({
       color: albedoMap ? 0xffffff : GROUND_COLOR,
       map: albedoMap,
       roughness: GROUND_ROUGHNESS,
       metalness: GROUND_METALNESS,
+      normalMap,
+      normalScale: new THREE.Vector2(GROUND_NORMAL_STRENGTH, GROUND_NORMAL_STRENGTH),
     });
   }
 
@@ -663,12 +749,15 @@ export class EntityVisualFactoryService {
     if (!material || Array.isArray(material) || !('isMeshStandardMaterial' in material)) {
       return;
     }
-    const map = (material as THREE.MeshStandardMaterial).map;
-    if (!map) {
-      return;
+    const standard = material as THREE.MeshStandardMaterial;
+    if (standard.map) {
+      const rep = albedoRepeatForSize(sizeMeters);
+      standard.map.repeat.set(rep, rep);
     }
-    const rep = albedoRepeatForSize(sizeMeters);
-    map.repeat.set(rep, rep);
+    if (standard.normalMap) {
+      const normalRep = normalRepeatForSize(sizeMeters);
+      standard.normalMap.repeat.set(normalRep, normalRep);
+    }
   }
 
   applyGroundAlbedoMap(mesh: THREE.Mesh, texture: THREE.Texture | null): void {
@@ -1284,6 +1373,7 @@ export class EntityVisualFactoryService {
       material,
     );
     body.position.y = bodyCenterY;
+    body.castShadow = true;
     group.add(body);
 
     const headRadius = BOX * 0.22;
@@ -1537,6 +1627,7 @@ export class EntityVisualFactoryService {
             return;
           }
           mesh.userData['sharedGltfAsset'] = true;
+          mesh.castShadow = true;
           if (isWeldedWeapon) {
             mesh.userData['lizardBakedWeapon'] = true;
             mesh.visible = true;
@@ -1962,6 +2053,7 @@ export class EntityVisualFactoryService {
           mesh.userData['kind'] = 'mob';
           mesh.userData['mobInstanceId'] = host.userData['mobInstanceId'];
           mesh.frustumCulled = false;
+          mesh.castShadow = true;
           tintMeshes.push(mesh);
         });
 
