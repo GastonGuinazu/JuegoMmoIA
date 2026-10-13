@@ -1067,6 +1067,10 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
           /* siguiente mob */
         }
       }
+    } catch {
+      /* Red de seguridad: algo antes del loop (ej. corte de DB) no debe tumbar el proceso
+       * entero — este tick corre cada 50ms vía `void this.tick()` en setInterval, así que
+       * una promesa rechazada sin atrapar acá mataba el server completo. */
     } finally {
       this.tickInFlight = false;
     }
