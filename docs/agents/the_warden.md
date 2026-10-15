@@ -289,4 +289,4 @@ Cuando una víctima con tier Rojo muere:
 ### Verificación
 
 - Compilación limpia de servidor (`nest build`) y cliente (`ng build --configuration production`) tras el cambio.
-- **Pendiente de test en vivo:** no se pudo ejercitar la reconexión contra la base real porque la `DATABASE_URL` de `apps/server/.env` (Supabase) devuelve `ENOTFOUND (tenant/user ... not found)`; requiere que se regeneren las credenciales del pooler antes de validar el flujo end-to-end.
+- El bloqueo original (`DATABASE_URL` de `apps/server/.env` devolviendo `ENOTFOUND (tenant/user ... not found)`) ya no reproduce: el servidor levanta y consulta Prisma contra la base real sin error (confirmado al arrancar `start:dev`, con sync de catálogo de items y templates de mobs). Queda pendiente ejercitar específicamente el flujo de reconexión (reconectar un personaje ya logueado y verificar que `currentZoneId` se resuelve como se espera) para cerrar esta verificación end-to-end.

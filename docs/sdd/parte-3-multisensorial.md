@@ -217,7 +217,7 @@ flowchart LR
 | **Inventario** | `I`, arrastrar, equipar. | Guardas de integridad del paperdoll. | Cambio del modelo y del arma. |
 | **Portales** | Clic derecho al portal. | Distancia y nivel mínimo. | Fade de transición o mensaje de rechazo. |
 | **Síntesis** | Panel `O`. | Probabilidad y pity solo en servidor. | Resultado confirmado, brillo del ítem. |
-| **Karma / PK** | Clic izquierdo sobre otro jugador lo selecciona (marco con su nombre en el color de su karma); la tecla `1` inicia el ataque automático y `Esc` lo cancela. Las habilidades `2–4` solo funcionan contra mobs (PvP con habilidades está pendiente). | Misma zona, alcance de unos 7 m (2,5 de alcance base + 0,85 + 1,8 + 2 de holgura por latencia), enfriamiento del golpe y reglas de karma. | Marco de objetivo, animación de golpe, número de daño, HP conocido tras el golpe y color del nombre. |
+| **Karma / PK** | Clic izquierdo sobre otro jugador lo selecciona (marco con su nombre en el color de su karma); la tecla `1` inicia el ataque automático y `Esc` lo cancela. Las habilidades `2–4` también funcionan contra jugadores (con chase a rango y splash de área incluido, excluyendo compañeros de grupo). | Misma zona, alcance de unos 7 m (2,5 de alcance base + 0,85 + 1,8 + 2 de holgura por latencia), enfriamiento del golpe y reglas de karma. | Marco de objetivo, animación de golpe, número de daño, HP conocido tras el golpe y color del nombre. |
 
 #### 6.6.3 Reglas de oro de la agencia
 

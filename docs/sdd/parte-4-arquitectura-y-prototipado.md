@@ -198,7 +198,7 @@ Ejemplo: la síntesis define, por nivel, el porcentaje base de éxito, el máxim
 |---|---|
 | **Pruebas** | El servidor no tiene tests. El cliente tiene un único `spec` (`app.component.spec.ts`). Riesgo alto para un sistema con dinero virtual. |
 | **Subasta y mazmorras** | Modelos en la base y manuales de diseño listos; **sin lógica implementada**. |
-| **Karma, síntesis UI y GM** | Código presente pero sin integrar al historial (hito A10). |
+| **Karma, síntesis UI y GM** | Implementado e integrado (hito A10, 2026-09-25). |
 | **Sonido** | Solo un tintineo sintético. |
 | **Despliegue** | No hay configuración de despliegue en el repositorio **[COMPLETAR]** dónde se aloja la demo. |
 | **Autenticación** | **No hay login.** El socket se identifica solo con el `characterId` (un UUID) en el handshake, y el servidor busca ese personaje. Sirve para el prototipo y las pruebas locales; en un despliegue público, quien conozca un UUID podría manejar ese personaje. Es la prioridad de seguridad antes de abrir la demo. |
@@ -227,7 +227,7 @@ flowchart LR
     A6 --> A7[A7 Mobs GLTF]
     A7 --> A8[A8 Props]
     A8 --> A9[A9 Mercader]
-    A9 --> A10[A10 Cierre<br/>pendiente]
+    A9 --> A10[A10 Cierre]
 ```
 
 ### 8.2 Línea de tiempo (historial de git)
@@ -244,7 +244,7 @@ flowchart LR
 | 2026-09-13 | **A7** | Catálogo visual GLTF de mobs. |
 | 2026-09-18 | **A8** | Props de entorno (Nature + Ruins) y albedos de zona. |
 | 2026-09-23 | **A9** | NPC mercader (trader + cofre) y catálogo visual. |
-| pendiente | **A10** | Síntesis UI, karma, GM y mazmorras (stub). |
+| 2026-09-25 | **A10** | Síntesis 2×1 con UI, karma/penalizaciones y comandos GM. Mazmorras diarias no entraron en esta oleada (sin stub). |
 
 Son ~5 semanas de desarrollo. El plan advierte que el árbol de trabajo va por delante del historial: cada avance publica **solo** los archivos de su oleada, para poder mostrar el proceso paso a paso.
 
@@ -280,12 +280,13 @@ Son ~5 semanas de desarrollo. El plan advierte que el árbol de trabajo va por d
 
 | Funciona (demostrable) | En curso o pendiente |
 |---|---|
-| Mundo multijugador en tiempo real con salas por zona. | Síntesis (UI), karma y GM (A10). |
-| Combate autoritativo: auto-ataque, skills, daño flotante, muerte y reaparición. | Mazmorras diarias (solo diseño). |
-| Inventario, paperdoll, Adena, tienda NPC y botín en el suelo. | Subasta y Aether-Shards (solo diseño). |
-| Dos zonas con portales, requisito de nivel y jefe. | Sonido y música. |
-| Mobs con IA (patrulla y persecución) y respawn persistente. | Tests automáticos. |
-| Modelos GLTF de personaje, mobs, props y mercader. | Despliegue público. |
+| Mundo multijugador en tiempo real con salas por zona. | Mazmorras diarias (solo diseño). |
+| Combate autoritativo: auto-ataque, skills (PvE y PvP), daño flotante, muerte y reaparición. | Subasta y Aether-Shards (solo diseño: modelos en el schema de Prisma, sin lógica de servidor). |
+| Inventario, paperdoll, Adena, tienda NPC y botín en el suelo. | Sonido y música (solo un tintineo sintético al comprar). |
+| Dos zonas con portales, requisito de nivel y jefe. | Tests automáticos (ninguno real, salvo el boilerplate default de Angular CLI). |
+| Mobs con IA (patrulla y persecución) y respawn persistente. | Despliegue público. |
+| Modelos GLTF de personaje, mobs, props y mercader. | |
+| Síntesis 2×1 con UI, karma/penalizaciones y comandos GM (A10). | |
 
 ### 8.6 Trailer *(pendiente)*
 
@@ -299,11 +300,10 @@ El apartado 8 exige un trailer "a manera de publicidad del futuro". **No está h
 
 ### 8.7 Próximos pasos
 
-1. Cerrar A10 (síntesis UI, karma, GM) y documentar el estado final.
-2. Implementar audio mínimo (impacto, muerte, subida de nivel, portal) para el trailer.
-3. Escribir tests del servidor en las operaciones con dinero (síntesis, tienda, subasta).
-4. Definir el despliegue de la demo para la presentación final.
-5. Playtest con 5 a 8 personas para validar las personas y la curva de emoción de las Partes 1 y 2.
+1. Implementar audio mínimo (impacto, muerte, subida de nivel, portal) para el trailer.
+2. Escribir tests del servidor en las operaciones con dinero (síntesis, tienda, subasta).
+3. Definir el despliegue de la demo para la presentación final.
+4. Playtest con 5 a 8 personas para validar las personas y la curva de emoción de las Partes 1 y 2.
 
 ---
 
