@@ -247,6 +247,7 @@ model Character {
   auctionListings AuctionListing[] @relation("SellerListings")
   auctionBidsWon  AuctionListing[] @relation("AuctionHighBidder")
   dungeonQuotas   DungeonQuota[]
+  dungeonSession  DungeonSession?
   auctionBids     AuctionBid[]
 
   @@unique([accountId, name])
@@ -453,7 +454,7 @@ model AuctionBid {
   @@index([bidderId])
 }
 
-// --- DungeonQuota (NexusManager: tiempo diario, p. ej. 60 min) ---
+// --- DungeonQuota (NexusManager: 1 ticket de entrada por día, no acumulable) ---
 
 model DungeonQuota {
   id          String @id @default(uuid()) @db.Uuid
@@ -462,7 +463,8 @@ model DungeonQuota {
 
   quotaDate DateTime @db.Date
 
-  remainingSeconds Int @default(3600)
+  /// `null` = ticket de ese día todavía disponible. Una vez seteado, no se puede volver a entrar hasta el día siguiente.
+  ticketConsumedAt DateTime?
 
   lastChamberType DungeonChamberType?
 
@@ -470,4 +472,17 @@ model DungeonQuota {
 
   @@unique([characterId, quotaDate])
   @@index([quotaDate])
+}
+
+/// Corrida activa de mazmorra (NexusManager): una fila = una sesión en curso. `characterId` como PK
+/// garantiza una sola sesión activa por personaje. Se persiste (no vive solo en RAM, a diferencia de
+/// `Party`) porque el cronómetro de 10 min debe sobrevivir a una desconexión o a un reinicio del server.
+model DungeonSession {
+  characterId String    @id @db.Uuid
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  chamberType DungeonChamberType
+
+  startedAt DateTime @default(now())
+  expiresAt DateTime
 }

@@ -64,6 +64,11 @@
         @if (characterSheetOpen()) {
           <app-character-sheet-panel class="overlay-sheet" />
         }
+        @if (dungeonUi.isInDungeon()) {
+          <div class="overlay-dungeon-timer">
+            <app-dungeon-timer-hud />
+          </div>
+        }
         @if (inventoryPanelOpen()) {
           <app-inventory-panel [characterId]="characterIdModel.trim()" />
         }
@@ -171,11 +176,12 @@
           </div>
         </div>
         <app-npc-shop-panel />
+        <app-dungeon-room-menu-panel />
       </div>
     }
   </div>
   <p class="hint">
-    Clic derecho: moverse al suelo. Clic izquierdo: seleccionar objetivo, recoger ítem o abrir tienda de mercader.
+    Clic derecho: moverse al suelo. Clic izquierdo: seleccionar objetivo, recoger ítem, abrir tienda de mercader o hablar con el guía de la mazmorra.
     Teclado:
     <code>Tab</code>/<code>I</code> inventario, <code>P</code> ficha de personaje, <code>O</code> síntesis, <code>1</code> auto-ataque,
     <code>2</code> Power Strike, <code>3</code> Rageful Blow, <code>4</code> skill rápida.

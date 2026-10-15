@@ -1,0 +1,6 @@
+@if (dungeonUi.activeChamber(); as chamber) {
+  <div class="dungeon-timer">
+    <span class="dungeon-timer__chamber">{{ chamber.chamberDisplayName }}</span>
+    <span class="dungeon-timer__clock">{{ formatMmSs(secondsRemaining()) }}</span>
+  </div>
+}

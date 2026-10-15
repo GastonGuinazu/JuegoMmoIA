@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CharacterModule } from '../character/character.module';
 import { CombatModule } from '../combat/combat.module';
+import { DungeonModule } from '../dungeon/dungeon.module';
 import { GmModule } from '../gm/gm.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { ItemsModule } from '../items/items.module';
@@ -26,6 +27,7 @@ import { WorldGateway } from './world.gateway';
     GmModule,
     PartyModule,
     ItemsModule,
+    DungeonModule,
   ],
   providers: [
     WorldGateway,

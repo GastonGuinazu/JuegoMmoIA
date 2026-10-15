@@ -127,4 +127,20 @@ export class WorldSocketBridgeService {
       }
     }
   }
+
+  /**
+   * Fuera de un handler de `WorldGateway` (p. ej. una expulsión server-initiated: timeout de
+   * mazmorra o kill PvP) no hay `client.data.zoneId = x` a mano porque no es el socket de la
+   * request actual. Mismo barrido que `join/leaveCharacterToRoom`.
+   */
+  setCharacterZoneId(characterId: string, zoneId: string): void {
+    if (!this.server) {
+      return;
+    }
+    for (const socket of this.server.sockets.values()) {
+      if (socket.data?.characterId === characterId) {
+        socket.data.zoneId = zoneId;
+      }
+    }
+  }
 }

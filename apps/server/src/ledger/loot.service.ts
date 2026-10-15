@@ -120,10 +120,15 @@ export class LedgerLootService {
       dropTable: unknown;
       rng?: () => number;
       worldDrop?: MobWorldDropContext;
+      /** Cámara de mazmorra (Oro/Drop/Exp): 1 fuera de mazmorra. */
+      adenaMultiplier?: number;
+      dropChanceMultiplier?: number;
     },
   ): Promise<MobLootResult> {
     const rng = params.rng ?? Math.random;
     const table = asDropTable(params.dropTable);
+    const adenaMultiplier = params.adenaMultiplier ?? 1;
+    const dropChanceMultiplier = params.dropChanceMultiplier ?? 1;
     let adenaTotal = 0n;
     const itemInstanceIds: string[] = [];
     const worldDropSpawns: WsWorldDropSpawnPayload[] = [];
@@ -132,6 +137,9 @@ export class LedgerLootService {
       if (rng() <= roll.chance) {
         adenaTotal += BigInt(rollInclusive(rng, roll.min, roll.max));
       }
+    }
+    if (adenaMultiplier !== 1) {
+      adenaTotal = BigInt(Math.round(Number(adenaTotal) * adenaMultiplier));
     }
 
     if (adenaTotal > 0n) {
@@ -145,7 +153,8 @@ export class LedgerLootService {
     const entries = table.items ?? [];
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i]!;
-      if (rng() > entry.chance) {
+      const effectiveChance = Math.min(1, entry.chance * dropChanceMultiplier);
+      if (rng() > effectiveChance) {
         continue;
       }
       const qty = rollInclusive(rng, entry.minQty, entry.maxQty);
@@ -243,9 +252,14 @@ export class LedgerLootService {
     rng: () => number;
     worldDrop: MobWorldDropContext;
     templatesByCatalog: ReadonlyMap<string, ItemTemplateDropRoll>;
+    /** Cámara de mazmorra (Oro/Drop/Exp): 1 fuera de mazmorra. */
+    adenaMultiplier?: number;
+    dropChanceMultiplier?: number;
   }): RuntimeMobKillLootPlan {
     const rng = params.rng;
     const table = asDropTable(params.dropTable);
+    const adenaMultiplier = params.adenaMultiplier ?? 1;
+    const dropChanceMultiplier = params.dropChanceMultiplier ?? 1;
     let adenaTotal = 0n;
     const worldDrops: PlannedWorldDropRow[] = [];
 
@@ -254,11 +268,15 @@ export class LedgerLootService {
         adenaTotal += BigInt(rollInclusive(rng, roll.min, roll.max));
       }
     }
+    if (adenaMultiplier !== 1) {
+      adenaTotal = BigInt(Math.round(Number(adenaTotal) * adenaMultiplier));
+    }
 
     const entries = table.items ?? [];
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i]!;
-      if (rng() > entry.chance) {
+      const effectiveChance = Math.min(1, entry.chance * dropChanceMultiplier);
+      if (rng() > effectiveChance) {
         continue;
       }
       const qty = rollInclusive(rng, entry.minQty, entry.maxQty);

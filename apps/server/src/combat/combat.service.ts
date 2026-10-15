@@ -45,6 +45,11 @@ import { loadCombatDamageConfig, type SkillConfigRow } from './combat-config.loa
 import { resolveMobToPlayerMeleeDamage } from './pve-melee-damage.util';
 import { computeSwingCooldownMs, loadCombatTimingConfig } from './combat-timing.loaders';
 import { PenaltyManagerService, type KarmaFlag } from './penalty-manager.service';
+import {
+  isDungeonZoneId,
+  resolveDungeonRewardMultipliers,
+} from '../dungeon/daily-dungeons.loaders';
+import { DungeonSessionTickService } from '../dungeon/dungeon-session-tick.service';
 
 export interface AttackMobOptions {
   rng?: () => number;
@@ -124,6 +129,7 @@ export class CombatService {
     private readonly penaltyManager: PenaltyManagerService,
     private readonly bridge: WorldSocketBridgeService,
     private readonly mobCombatRegen: MobCombatRegenService,
+    private readonly dungeonSessionTick: DungeonSessionTickService,
   ) {}
 
   /**
@@ -274,6 +280,7 @@ export class CombatService {
               ownerLevel,
               mobLevel,
             );
+            const dungeonReward = resolveDungeonRewardMultipliers(mob.zoneId);
             const { adenaGranted, itemInstanceIds, worldDropSpawns } =
               await this.ledgerLoot.applyMobDropTable(tx, {
                 accountId: character.accountId,
@@ -286,9 +293,13 @@ export class CombatService {
                   reservedForCharacterId: dropOwnerId,
                   reserveDurationMs: 10_000,
                 },
+                adenaMultiplier: dungeonReward.adenaMultiplier,
+                dropChanceMultiplier: dungeonReward.dropChanceMultiplier,
               });
 
-            const expAmount = levelPenaltyActive ? 0 : mob.template.expReward;
+            const expAmount = levelPenaltyActive
+              ? 0
+              : Math.round(mob.template.expReward * dungeonReward.expMultiplier);
             const { character: afterExp, levelsGained } =
               await this.characterService.addExperience(
                 characterId,
@@ -430,6 +441,7 @@ export class CombatService {
       ownerLevel,
       mobLevel,
     );
+    const dungeonReward = resolveDungeonRewardMultipliers(mobZoneId);
     const loot = levelPenaltyActive
       ? ({ adenaGranted: 0n, worldDrops: [] } satisfies RuntimeMobKillLootPlan)
       : this.ledgerLoot.buildRuntimeMobKillLootPlan({
@@ -442,9 +454,13 @@ export class CombatService {
             reserveDurationMs: 10_000,
           },
           templatesByCatalog: map,
+          adenaMultiplier: dungeonReward.adenaMultiplier,
+          dropChanceMultiplier: dungeonReward.dropChanceMultiplier,
         });
 
-    const expAmount = levelPenaltyActive ? 0 : mobExpReward;
+    const expAmount = levelPenaltyActive
+      ? 0
+      : Math.round(mobExpReward * dungeonReward.expMultiplier);
     const projected = this.characterService.projectExperienceGain(
       { level: character.level, experience: character.experience },
       expAmount,
@@ -569,6 +585,7 @@ export class CombatService {
             ownerLevel,
             mobLevel,
           );
+          const dungeonReward = resolveDungeonRewardMultipliers(mob.zoneId);
           const applied = await this.ledgerLoot.applyMobDropTable(tx, {
             accountId: character.accountId,
             characterId,
@@ -580,11 +597,15 @@ export class CombatService {
               reservedForCharacterId: dropOwnerId,
               reserveDurationMs: 10_000,
             },
+            adenaMultiplier: dungeonReward.adenaMultiplier,
+            dropChanceMultiplier: dungeonReward.dropChanceMultiplier,
           });
           adenaGranted = applied.adenaGranted;
           itemInstanceIds = applied.itemInstanceIds;
           worldDropSpawns = applied.worldDropSpawns;
-          expAmount = levelPenaltyActive ? 0 : mob.template.expReward;
+          expAmount = levelPenaltyActive
+            ? 0
+            : Math.round(mob.template.expReward * dungeonReward.expMultiplier);
         }
         const { character: afterExp, levelsGained } =
           await this.characterService.addExperience(
@@ -811,10 +832,21 @@ export class CombatService {
           damage = Math.max(1, Math.floor(damage * skill.damageMultiplier));
         }
 
-        const attackTransition = this.penaltyManager.applyUnjustifiedAttackTransition({
-          attacker,
-          victimTier: target.karmaTier,
-        });
+        // Mazmorra diaria: PvP ahí no toca karma (blueprint 06, "PvP competitivo") — en vez de
+        // eso, el kill expulsa de inmediato (ver post-commit más abajo, `dungeonSessionTick`).
+        const dungeonCompetitive = isDungeonZoneId(target.currentZoneId);
+
+        const attackTransition = dungeonCompetitive
+          ? {
+              changed: false,
+              karmaPoints: attacker.karmaPoints,
+              karmaTier: attacker.karmaTier,
+              unjustifiedKillCount: attacker.unjustifiedKillCount,
+            }
+          : this.penaltyManager.applyUnjustifiedAttackTransition({
+              attacker,
+              victimTier: target.karmaTier,
+            });
         if (attackTransition.changed) {
           await tx.character.update({
             where: { id: attacker.id },
@@ -851,14 +883,21 @@ export class CombatService {
         } else {
           death = await this.characterService.applyPvEDeathInTx(tx, target.id);
 
-          killTransition = this.penaltyManager.applyUnjustifiedKillTransition({
-            attacker: {
-              karmaPoints: attackTransition.karmaPoints,
-              karmaTier: attackTransition.karmaTier,
-              unjustifiedKillCount: attackTransition.unjustifiedKillCount,
-            },
-            victimTier: target.karmaTier,
-          });
+          killTransition = dungeonCompetitive
+            ? {
+                changed: false,
+                karmaPoints: attackTransition.karmaPoints,
+                karmaTier: attackTransition.karmaTier,
+                unjustifiedKillCount: attackTransition.unjustifiedKillCount,
+              }
+            : this.penaltyManager.applyUnjustifiedKillTransition({
+                attacker: {
+                  karmaPoints: attackTransition.karmaPoints,
+                  karmaTier: attackTransition.karmaTier,
+                  unjustifiedKillCount: attackTransition.unjustifiedKillCount,
+                },
+                victimTier: target.karmaTier,
+              });
           if (killTransition.changed) {
             await tx.character.update({
               where: { id: attacker.id },
@@ -870,7 +909,7 @@ export class CombatService {
             });
           }
 
-          if (this.penaltyManager.canTriggerRedDrop(target.karmaTier)) {
+          if (!dungeonCompetitive && this.penaltyManager.canTriggerRedDrop(target.karmaTier)) {
             const equipped = await tx.itemInstance.findMany({
               where: {
                 ownerId: target.id,
@@ -1018,6 +1057,19 @@ export class CombatService {
         outcome.targetName,
         outcome.death,
       );
+      // Orden importa: `broadcastPlayerDeath` arriba todavía encuentra al socket de la
+      // víctima en la room de la mazmorra (se la garantiza su propio PLAYER_DEATH); recién
+      // acá la expulsión lo saca de esa room. Blueprint 06: PvP en mazmorra expulsa de
+      // inmediato en vez de dejarlo esperar el flujo normal de REQUEST_RESPAWN.
+      if (isDungeonZoneId(outcome.zoneId)) {
+        void this.dungeonSessionTick
+          .expelCharacter(outcome.targetCharacterId, 'PVP_KILLED')
+          .catch((e) => {
+            this.logger.warn(
+              `[Dungeon] No se pudo expulsar a ${outcome.targetCharacterId} tras kill PvP: ${e instanceof Error ? e.message : String(e)}`,
+            );
+          });
+      }
     }
 
     return {

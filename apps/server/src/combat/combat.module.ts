@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CharacterModule } from '../character/character.module';
+import { DungeonModule } from '../dungeon/dungeon.module';
 import { LedgerModule } from '../ledger/ledger.module';
 import { MobModule } from '../mob/mob.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -16,6 +17,7 @@ import { PlayerCombatTickService } from './player-combat-tick.service';
     CharacterModule,
     MobModule,
     LedgerModule,
+    DungeonModule,
   ],
   providers: [
     CombatService,

@@ -93,6 +93,30 @@
       "radius": 8,
       "templateKey": "silver_dragonkin",
       "maxEntities": 1
+    },
+    {
+      "id": "dungeon_gold_skeletons",
+      "zoneId": "Dungeon_Gold",
+      "center": { "x": 0, "y": 0, "z": -12 },
+      "radius": 8,
+      "templateKey": "skeleton",
+      "maxEntities": 4
+    },
+    {
+      "id": "dungeon_experience_goblins",
+      "zoneId": "Dungeon_Experience",
+      "center": { "x": 0, "y": 0, "z": -12 },
+      "radius": 8,
+      "templateKey": "goblin2",
+      "maxEntities": 4
+    },
+    {
+      "id": "dungeon_drop_spiders",
+      "zoneId": "Dungeon_Drop",
+      "center": { "x": 0, "y": 0, "z": -12 },
+      "radius": 8,
+      "templateKey": "spider2",
+      "maxEntities": 4
     }
   ],
   "mobs": [

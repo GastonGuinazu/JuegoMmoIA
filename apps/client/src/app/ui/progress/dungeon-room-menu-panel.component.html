@@ -1,0 +1,34 @@
+@if (ui.openNpcMenu()) {
+  <div class="dungeon-menu-layer" (click)="close()">
+    <div class="dungeon-menu-panel" role="dialog" [attr.aria-label]="speakerLabel()" (click)="$event.stopPropagation()">
+      <header class="dungeon-menu-head">
+        <span class="dungeon-menu-speaker">{{ speakerLabel() }}</span>
+        <button type="button" class="btn-icon-x" (click)="close()" aria-label="Cerrar" title="Cerrar">✕</button>
+      </header>
+
+      <p class="dungeon-menu-line">¿Qué querés hacer?</p>
+
+      @if (errorText(); as err) {
+        <p class="dungeon-menu-error" role="alert">{{ err }}</p>
+      }
+
+      <div class="dungeon-menu-actions">
+        @if (isNexus()) {
+          <button type="button" class="btn-dungeon-option" [disabled]="pending()" (click)="enterDungeon()">
+            Entrar a la mazmorra
+          </button>
+        } @else {
+          <button type="button" class="btn-dungeon-option" [disabled]="pending()" (click)="changeRoom()">
+            Cambiar de sala
+          </button>
+          <button type="button" class="btn-dungeon-option btn-dungeon-exit" [disabled]="pending()" (click)="exitDungeon()">
+            Salir de la mazmorra
+          </button>
+        }
+        <button type="button" class="btn-dungeon-option btn-dungeon-shop" [disabled]="pending()" (click)="buyPotions()">
+          Comprar pociones
+        </button>
+      </div>
+    </div>
+  </div>
+}

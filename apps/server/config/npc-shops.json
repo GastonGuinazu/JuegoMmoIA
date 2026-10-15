@@ -8,6 +8,20 @@
         { "catalogKey": "mana_potion_small", "buyPriceAdena": 150 },
         { "catalogKey": "iron_shield", "buyPriceAdena": 5000 }
       ]
+    },
+    {
+      "npcTemplateKey": "dungeon_nexus_guide",
+      "offers": [
+        { "catalogKey": "health_potion_small", "buyPriceAdena": 150 },
+        { "catalogKey": "mana_potion_small", "buyPriceAdena": 150 }
+      ]
+    },
+    {
+      "npcTemplateKey": "dungeon_room_guide",
+      "offers": [
+        { "catalogKey": "health_potion_small", "buyPriceAdena": 150 },
+        { "catalogKey": "mana_potion_small", "buyPriceAdena": 150 }
+      ]
     }
   ]
 }

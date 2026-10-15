@@ -25,6 +25,42 @@
         "worldPos": { "x": -8, "y": 0, "z": -8 },
         "worldFacingYaw": 0
       }
+    },
+    {
+      "zoneId": "Dungeon_Gold",
+      "displayName": "Cámara del Oro",
+      "minCharacterLevel": 1,
+      "mapObjectsFile": "map-objects-Dungeon_Gold.json",
+      "groundAlbedo": "ground_grass_0.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Dungeon_Experience",
+      "displayName": "Cámara de Experiencia",
+      "minCharacterLevel": 1,
+      "mapObjectsFile": "map-objects-Dungeon_Experience.json",
+      "groundAlbedo": "ground_grass_0.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Dungeon_Drop",
+      "displayName": "Cámara del Botín",
+      "minCharacterLevel": 1,
+      "mapObjectsFile": "map-objects-Dungeon_Drop.json",
+      "groundAlbedo": "ground_grass_0.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
     }
   ]
 }

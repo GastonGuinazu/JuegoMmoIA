@@ -146,6 +146,12 @@ export const WS_WORLD_EVENTS = {
   CHAT_SEND: 'chat-send',
   /** Broadcast: a todo el namespace si es `global`, a la sala `party:*` si es `party`. */
   CHAT_MESSAGE: 'chat-message',
+  /** Cliente → servidor: hablar con el NPC guía de la mazmorra en Zone_0 (ack, consume ticket). */
+  DUNGEON_ENTER_REQUEST: 'dungeon-enter-request',
+  /** Cliente → servidor: hablar con el NPC de sala dentro de la mazmorra (ack, no consume ticket). */
+  DUNGEON_ROOM_ACTION: 'dungeon-room-action',
+  /** Servidor → socket del personaje: expulsión forzada de la mazmorra (timeout o muerte PvP). */
+  DUNGEON_EXPELLED: 'dungeon-expelled',
 } as const;
 
 export type WsMobAiState = 'IDLE' | 'PATROL' | 'CHASE';
@@ -780,3 +786,32 @@ export type WsChatSendAckPayload =
   /** `message`: feedback de un comando (`/kit`) — el cliente lo muestra, no es un chat real. */
   | { ok: true; message?: string }
   | { ok: false; code: string; message: string };
+
+export type WsDungeonChamberType = 'GOLD' | 'EXPERIENCE' | 'DROP';
+
+export type WsDungeonEnterRequestClientPayload = {
+  npcInstanceId: string;
+};
+
+/** Cliente → servidor, NPC de sala: `next_room` cambia de cámara sin tocar el ticket/cronómetro. */
+export type WsDungeonRoomActionClientPayload = {
+  npcInstanceId: string;
+  action: 'next_room' | 'exit';
+};
+
+export type WsDungeonSessionAckPayload =
+  | {
+      ok: true;
+      exited: false;
+      zoneId: string;
+      chamberType: WsDungeonChamberType;
+      chamberDisplayName: string;
+      expiresAtEpochMs: number;
+    }
+  | { ok: true; exited: true; zoneId: string }
+  | { ok: false; code: string; message: string };
+
+export type WsDungeonExpelledPayload = {
+  reason: 'TIME_UP' | 'PVP_KILLED';
+  zoneId: string;
+};

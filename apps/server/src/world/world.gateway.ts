@@ -83,6 +83,9 @@ import {
   type WsChatSendAckPayload,
   type WsChatMessagePayload,
   CHAT_MESSAGE_MAX_LENGTH,
+  type WsDungeonEnterRequestClientPayload,
+  type WsDungeonRoomActionClientPayload,
+  type WsDungeonSessionAckPayload,
 } from '@aetheris/shared-types';
 import type { CharacterRespawnResolution } from '../character/character.service';
 import { CharacterService, isDeadHp } from '../character/character.service';
@@ -116,6 +119,7 @@ import { WorldSocketBridgeService } from './world-socket-bridge.service';
 import { GmCommandService } from '../gm/gm-command.service';
 import { PartyService } from '../party/party.service';
 import { StarterKitService } from '../items/starter-kit.service';
+import { DungeonService } from '../dungeon/dungeon.service';
 import { findMapPortalById } from '../combat/combat-config.loaders';
 import { computeSwingCooldownMs } from '../combat/combat-timing.loaders';
 import { getWorldZoneDefinition, clampAxisToPlayable } from './config/world-zones.loaders';
@@ -179,6 +183,7 @@ export class WorldGateway
     private readonly gmCommandService: GmCommandService,
     private readonly party: PartyService,
     private readonly starterKit: StarterKitService,
+    private readonly dungeonService: DungeonService,
   ) {}
 
   afterInit(): void {
@@ -2323,6 +2328,155 @@ export class WorldGateway
     };
     void client.to(newRoom).emit(WS_WORLD_EVENTS.PLAYER_MOVED, arrive);
     await this.emitCharacterVisualState(characterId, newZoneId);
+  }
+
+  /**
+   * Misma coreografía socket que el final de `handlePortalTravel` (leave/join de sala,
+   * snapshot, `PLAYER_MOVED` de llegada) pero reutilizable: la actualización de
+   * `Character.currentZoneId`/posición ya la hizo `DungeonService` en su propia transacción,
+   * así que esto solo sincroniza el socket y lo que ve el resto de la zona.
+   */
+  private async finishDungeonZoneSwitch(
+    client: Socket,
+    characterId: string,
+    prevZoneId: string | null,
+    newZoneId: string,
+  ): Promise<void> {
+    await this.playerCombatRuntime.setCombatTarget(
+      characterId,
+      normalizeZoneId(prevZoneId),
+      null,
+    );
+    void this.mobService.clearAggroTargetingCharacter(characterId);
+    await this.playerCombatRuntime.seedCharacterCombatState(characterId);
+
+    const oldRoom = this.bridge.zoneRoomId(prevZoneId);
+    const newRoom = this.bridge.zoneRoomId(newZoneId);
+    await client.leave(oldRoom);
+    await client.join(newRoom);
+    client.data.zoneId = newZoneId;
+
+    const left: WsPlayerLeftZonePayload = { characterId };
+    void this.server.to(oldRoom).emit(WS_WORLD_EVENTS.PLAYER_LEFT_ZONE, left);
+
+    const built = await this.buildZoneSnapshotPayload(characterId, newZoneId);
+    if (!built) {
+      return;
+    }
+    client.emit(WS_WORLD_EVENTS.ZONE_SNAPSHOT, built.snapshot);
+
+    const arriveVisual = await this.resolveCharacterVisualState(characterId);
+    const arrive: WsPlayerMovedPayload = {
+      characterId,
+      worldPos: {
+        x: built.row.worldPosX,
+        y: built.row.worldPosY,
+        z: built.row.worldPosZ,
+      },
+      worldFacingYaw: built.row.worldFacingYaw,
+      displayName: built.row.name,
+      karmaFlag: arriveVisual?.karmaFlag,
+      weaponPlusLevel: arriveVisual?.weaponPlusLevel,
+      weaponEquipped: arriveVisual?.weaponEquipped,
+    };
+    void client.to(newRoom).emit(WS_WORLD_EVENTS.PLAYER_MOVED, arrive);
+    await this.emitCharacterVisualState(characterId, newZoneId);
+  }
+
+  /** Cliente → servidor: hablar con el NPC guía en Zone_0. Consume el ticket diario si hay. */
+  @SubscribeMessage(WS_WORLD_EVENTS.DUNGEON_ENTER_REQUEST)
+  async handleDungeonEnterRequest(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsDungeonEnterRequestClientPayload,
+  ): Promise<WsDungeonSessionAckPayload> {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    if (!body || typeof body.npcInstanceId !== 'string' || !isUuid(body.npcInstanceId)) {
+      return { ok: false, code: 'INVALID_PAYLOAD', message: 'npcInstanceId (UUID) is required' };
+    }
+    if (await this.isCharacterDead(characterId)) {
+      return {
+        ok: false,
+        code: 'CHARACTER_DEAD',
+        message: 'Estás muerto: pedí respawn antes de entrar a la mazmorra',
+      };
+    }
+    const outcome = await this.dungeonService.requestEntry(characterId, body.npcInstanceId);
+    if (!outcome.ok) {
+      return outcome;
+    }
+    await this.finishDungeonZoneSwitch(
+      client,
+      characterId,
+      outcome.previousZoneId,
+      outcome.zoneId,
+    );
+    return {
+      ok: true,
+      exited: false,
+      zoneId: outcome.zoneId,
+      chamberType: outcome.chamberType,
+      chamberDisplayName: outcome.chamberDisplayName,
+      expiresAtEpochMs: outcome.expiresAtEpochMs,
+    };
+  }
+
+  /** Cliente → servidor: hablar con el NPC de sala. `next_room` no cobra ticket; `exit` termina la corrida. */
+  @SubscribeMessage(WS_WORLD_EVENTS.DUNGEON_ROOM_ACTION)
+  async handleDungeonRoomAction(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsDungeonRoomActionClientPayload,
+  ): Promise<WsDungeonSessionAckPayload> {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    if (
+      !body ||
+      typeof body.npcInstanceId !== 'string' ||
+      !isUuid(body.npcInstanceId) ||
+      (body.action !== 'next_room' && body.action !== 'exit')
+    ) {
+      return {
+        ok: false,
+        code: 'INVALID_PAYLOAD',
+        message: 'npcInstanceId (UUID) y action son requeridos',
+      };
+    }
+    if (await this.isCharacterDead(characterId)) {
+      return {
+        ok: false,
+        code: 'CHARACTER_DEAD',
+        message: 'Estás muerto: pedí respawn antes de seguir en la mazmorra',
+      };
+    }
+    const outcome = await this.dungeonService.requestRoomAction(
+      characterId,
+      body.npcInstanceId,
+      body.action,
+    );
+    if (!outcome.ok) {
+      return outcome;
+    }
+    await this.finishDungeonZoneSwitch(
+      client,
+      characterId,
+      outcome.previousZoneId,
+      outcome.zoneId,
+    );
+    if (outcome.exited) {
+      return { ok: true, exited: true, zoneId: outcome.zoneId };
+    }
+    return {
+      ok: true,
+      exited: false,
+      zoneId: outcome.zoneId,
+      chamberType: outcome.chamberType,
+      chamberDisplayName: outcome.chamberDisplayName,
+      expiresAtEpochMs: outcome.expiresAtEpochMs,
+    };
   }
 
   /**

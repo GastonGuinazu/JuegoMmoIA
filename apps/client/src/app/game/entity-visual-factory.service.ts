@@ -439,11 +439,55 @@ export class EntityVisualFactoryService {
       lantern.castShadow = false;
       group.add(lantern);
     }
+    if (npcTemplateKey === 'dungeon_nexus_guide' || npcTemplateKey === 'dungeon_room_guide') {
+      this.attachTorchRing(group);
+    }
     const def = resolveNpcVisualDef(npcTemplateKey);
     if (def) {
       this.attachGltfNpcModel(group, def);
     }
     return group;
+  }
+
+  /**
+   * 3 antorchas en círculo (sin modelo propio: poste + llama emisiva + luz puntual), para que
+   * el NPC guía de mazmorra se note a distancia en salas vacías sin arte todavía.
+   */
+  private attachTorchRing(host: THREE.Group): void {
+    const torchCount = 3;
+    const radius = 1.3;
+    const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.9 });
+    const flameMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffb020,
+      emissive: 0xff7a00,
+      emissiveIntensity: 2.2,
+      roughness: 0.4,
+    });
+    for (let i = 0; i < torchCount; i++) {
+      const angle = (i / torchCount) * Math.PI * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+
+      const torch = new THREE.Group();
+      torch.name = 'dungeonTorch';
+      torch.position.set(x, 0, z);
+
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.9, 6), poleMaterial);
+      pole.position.y = 0.45;
+      torch.add(pole);
+
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.26, 8), flameMaterial);
+      flame.name = 'dungeonTorchFlame';
+      flame.position.y = 1.03;
+      torch.add(flame);
+
+      const flameLight = new THREE.PointLight(0xff8c2a, 1.4, 6, 2);
+      flameLight.position.y = 1.05;
+      flameLight.castShadow = false;
+      torch.add(flameLight);
+
+      host.add(torch);
+    }
   }
 
   /**

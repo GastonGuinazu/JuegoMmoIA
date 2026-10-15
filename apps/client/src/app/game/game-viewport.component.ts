@@ -20,6 +20,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { NpcShopUiService } from '../core/npc-shop-ui.service';
+import { DungeonUiService } from '../core/dungeon-ui.service';
 import { PlayerCharacterStateService } from '../core/player-character-state.service';
 import { WorldSocketService } from '../core/world-socket.service';
 import { CharacterSheetPanelComponent } from '../ui/progress/character-sheet-panel.component';
@@ -37,6 +38,8 @@ import {
   type TargetDropPreviewItemViewModel,
 } from '../ui/progress/target-frame.component';
 import { XpBarComponent } from '../ui/progress/xp-bar.component';
+import { DungeonTimerHudComponent } from '../ui/progress/dungeon-timer-hud.component';
+import { DungeonRoomMenuPanelComponent } from '../ui/progress/dungeon-room-menu-panel.component';
 import {
   WorldEntitySyncService,
   type MobEntityState,
@@ -461,6 +464,8 @@ function mulberry32(seed: number): () => number {
     PartyPanelComponent,
     ChatPanelComponent,
     LoginPanelComponent,
+    DungeonTimerHudComponent,
+    DungeonRoomMenuPanelComponent,
   ],
   templateUrl: './game-viewport.component.html',
   styleUrl: './game-viewport.component.scss',
@@ -471,6 +476,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   readonly worldSocket = inject(WorldSocketService);
   readonly playerState = inject(PlayerCharacterStateService);
   private readonly npcShopUi = inject(NpcShopUiService);
+  readonly dungeonUi = inject(DungeonUiService);
   private readonly entitySync = inject(WorldEntitySyncService);
   private readonly mapLoader = inject(WorldMapLoaderService);
   private readonly visuals = inject(EntityVisualFactoryService);
@@ -1073,6 +1079,22 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    this.worldSocket.dungeonExpelled$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((p) => {
+        this.dungeonUi.clear();
+        this.dungeonUi.closeRoomMenu();
+        const reasonText =
+          p.reason === 'PVP_KILLED'
+            ? 'Te expulsaron de la mazmorra: te mataron en PvP.'
+            : 'Se acabó el tiempo: te expulsaron de la mazmorra.';
+        this.playerState.pushSystemLogLine(`[Mazmorra] ${reasonText}`);
+        // Expulsión server-initiated (timeout o kill PvP): no es nuestro propio request, así
+        // que no hay `ZONE_SNAPSHOT` de por medio. Reconectar reusa el mismo bootstrap que ya
+        // resuelve la zona real desde la DB (igual que cualquier reconexión).
+        this.connectWorld();
+      });
+
     this.worldSocket.playerVisualState$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((p) => {
@@ -1653,7 +1675,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       this.clearSelectedTarget({ alsoStopAutoAttack: true });
       const npcInstanceId = pickUserDataString(npcPick.object, 'npcInstanceId') as string;
       const npc = this.entitySync.npcs().get(npcInstanceId);
-      if (npc?.npcRole === 'MERCHANT') {
+      if (npc?.npcTemplateKey === 'dungeon_nexus_guide') {
+        this.dungeonUi.openNexusMenu(npcInstanceId);
+      } else if (npc?.npcTemplateKey === 'dungeon_room_guide') {
+        this.dungeonUi.openRoomMenu(npcInstanceId);
+      } else if (npc?.npcRole === 'MERCHANT') {
         this.merchantBoxNpcId = npcInstanceId;
         this.visuals.playNpcShopOpen(this.npcMeshes.get(npcInstanceId));
         this.openMerchantStore(npcInstanceId, npc.displayName);

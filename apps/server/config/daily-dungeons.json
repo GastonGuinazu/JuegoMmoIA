@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "_comment": "NexusManager: 1 ticket de entrada por personaje por día (no acumulable). ticketExpirySeconds es el cronómetro único de la corrida completa, no por sala. Los multiplicadores se aplican sobre expReward/dropTable del mob al matarlo dentro de la zona de la cámara.",
+  "ticketExpirySeconds": 600,
+  "chambers": {
+    "GOLD": {
+      "zoneId": "Dungeon_Gold",
+      "displayName": "Cámara del Oro",
+      "adenaMultiplier": 2.0,
+      "expMultiplier": 0.5,
+      "dropChanceMultiplier": 1.0
+    },
+    "EXPERIENCE": {
+      "zoneId": "Dungeon_Experience",
+      "displayName": "Cámara de Experiencia",
+      "adenaMultiplier": 0.5,
+      "expMultiplier": 2.0,
+      "dropChanceMultiplier": 0.5
+    },
+    "DROP": {
+      "zoneId": "Dungeon_Drop",
+      "displayName": "Cámara del Botín",
+      "adenaMultiplier": 0.75,
+      "expMultiplier": 0.75,
+      "dropChanceMultiplier": 2.0
+    }
+  }
+}

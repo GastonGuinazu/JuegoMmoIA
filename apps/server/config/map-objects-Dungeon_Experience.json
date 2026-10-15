@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "_comment": "Cámara de Experiencia: sala plana sin obstáculos (primitivas, sin arte todavía). El NPC guía de sala se siembra en runtime vía DungeonNpcService, no acá.",
+  "objects": []
+}

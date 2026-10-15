@@ -71,6 +71,10 @@ import {
   type WsChatMessagePayload,
   type WsPlayerTargetVitalsPayload,
   type WsRequestPlayerTargetVitalsPayload,
+  type WsDungeonEnterRequestClientPayload,
+  type WsDungeonRoomActionClientPayload,
+  type WsDungeonSessionAckPayload,
+  type WsDungeonExpelledPayload,
 } from '../../../../../libs/shared-types/src/world-socket';
 
 @Injectable({ providedIn: 'root' })
@@ -107,6 +111,7 @@ export class WorldSocketService implements OnDestroy {
   readonly partyUpdate$ = new Subject<WsPartyUpdatePayload>();
   readonly partyInviteReceived$ = new Subject<WsPartyInviteReceivedPayload>();
   readonly chatMessage$ = new Subject<WsChatMessagePayload>();
+  readonly dungeonExpelled$ = new Subject<WsDungeonExpelledPayload>();
 
   private socket: Socket | null = null;
 
@@ -214,6 +219,9 @@ export class WorldSocketService implements OnDestroy {
     });
     this.socket.on(WS_WORLD_EVENTS.CHAT_MESSAGE, (p: WsChatMessagePayload) => {
       this.chatMessage$.next(p);
+    });
+    this.socket.on(WS_WORLD_EVENTS.DUNGEON_EXPELLED, (p: WsDungeonExpelledPayload) => {
+      this.dungeonExpelled$.next(p);
     });
 
     this.socketConnected.set(this.socket.connected);
@@ -430,6 +438,60 @@ export class WorldSocketService implements OnDestroy {
     cb: (result: WsNpcInteractAckPayload) => void,
   ): void {
     this.emitOpenMerchantStoreWithAck(payload, cb);
+  }
+
+  emitDungeonEnterRequestWithAck(
+    payload: WsDungeonEnterRequestClientPayload,
+    cb: (result: WsDungeonSessionAckPayload) => void,
+  ): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(WS_WORLD_EVENTS.DUNGEON_ENTER_REQUEST, payload, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({
+            ok: false,
+            code: 'SOCKET_TIMEOUT',
+            message: err.message || 'Dungeon enter request timed out',
+          });
+          return;
+        }
+        if (res && typeof res === 'object' && 'ok' in res) {
+          cb(res as WsDungeonSessionAckPayload);
+          return;
+        }
+        cb({ ok: false, code: 'INVALID_ACK', message: 'Malformed server response' });
+      });
+  }
+
+  emitDungeonRoomActionWithAck(
+    payload: WsDungeonRoomActionClientPayload,
+    cb: (result: WsDungeonSessionAckPayload) => void,
+  ): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(WS_WORLD_EVENTS.DUNGEON_ROOM_ACTION, payload, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({
+            ok: false,
+            code: 'SOCKET_TIMEOUT',
+            message: err.message || 'Dungeon room action timed out',
+          });
+          return;
+        }
+        if (res && typeof res === 'object' && 'ok' in res) {
+          cb(res as WsDungeonSessionAckPayload);
+          return;
+        }
+        cb({ ok: false, code: 'INVALID_ACK', message: 'Malformed server response' });
+      });
   }
 
   emitBuyItemWithAck(

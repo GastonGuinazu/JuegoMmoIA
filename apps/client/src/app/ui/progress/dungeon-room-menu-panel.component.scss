@@ -1,0 +1,118 @@
+/**
+ * A diferencia de `npc-shop-panel` (modal centrado con backdrop oscuro), esto es un diálogo
+ * tipo "conversación": pegado al borde derecho, a media altura, sin tapar el centro de la
+ * pantalla. `.dungeon-menu-layer` solo existe para cerrar al clickear afuera (sin backdrop
+ * visible) y no bloquea el resto del juego visualmente.
+ */
+.dungeon-menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.dungeon-menu-panel {
+  position: absolute;
+  top: 50%;
+  right: 1.25rem;
+  transform: translateY(-50%);
+  width: min(300px, calc(100vw - 2.5rem));
+  pointer-events: auto;
+  background: #1e232b;
+  border: 1px solid #5c6bc0;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  color: #e8eaed;
+  padding: 0.9rem;
+}
+
+.dungeon-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.dungeon-menu-speaker {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffd54f;
+}
+
+.btn-icon-x {
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #5c6bc0;
+  background: #303f9f;
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    background: #3949ab;
+  }
+}
+
+.dungeon-menu-line {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #c4c8d4;
+}
+
+.dungeon-menu-error {
+  margin: 0 0 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(198, 40, 40, 0.25);
+  border: 1px solid rgba(239, 83, 80, 0.5);
+  color: #ffcdd2;
+  font-size: 0.8rem;
+}
+
+.dungeon-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-dungeon-option {
+  padding: 0.55rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid #5c6bc0;
+  background: #303f9f;
+  color: #fff;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #3949ab;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.btn-dungeon-exit {
+  border-color: #c62828;
+  background: #8b0000;
+
+  &:hover:not(:disabled) {
+    background: #a30000;
+  }
+}
+
+.btn-dungeon-shop {
+  border-color: #ffb300;
+  background: #6d4c00;
+
+  &:hover:not(:disabled) {
+    background: #845e00;
+  }
+}

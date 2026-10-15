@@ -1,0 +1,27 @@
+.dungeon-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.5rem;
+  background: rgba(12, 10, 16, 0.94);
+  border: 1px solid rgba(255, 213, 79, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.dungeon-timer__chamber {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #ffd54f;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.dungeon-timer__clock {
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #eceff1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}

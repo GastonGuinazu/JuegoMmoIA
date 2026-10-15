@@ -36,6 +36,19 @@ export const NPC_VISUAL_BY_TEMPLATE: Readonly<Record<string, NpcVisualDef>> = {
       openClip: /opening/i,
     },
   },
+  /** Mismo modelo que el mercader (sin cofre): reusar en vez de sumar otro asset solo para esto. */
+  dungeon_nexus_guide: {
+    url: '/models/npcs/trader/scene.gltf',
+    targetHeight: 2.2,
+    yawOffset: 0,
+    idleClip: /mixamo/i,
+  },
+  dungeon_room_guide: {
+    url: '/models/npcs/trader/scene.gltf',
+    targetHeight: 2.2,
+    yawOffset: 0,
+    idleClip: /mixamo/i,
+  },
 };
 
 export function resolveNpcVisualDef(npcTemplateKey: string | null | undefined): NpcVisualDef | null {
