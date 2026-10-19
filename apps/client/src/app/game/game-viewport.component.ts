@@ -115,6 +115,16 @@ const SUN_OFFSET = new THREE.Vector3(24, 42, 16);
  * (`CAMERA_ZOOM_MAX_RADIUS` = 40) con margen; más grande = sombra más "pixelada" a igual resolución. */
 const SUN_SHADOW_HALF_EXTENT = 32;
 const SUN_SHADOW_MAP_SIZE = 1024;
+/**
+ * `shadowMap.autoUpdate` reconstruye el shadow map completo (depth pass de TODO caster —
+ * cada jugador, mob y NPC con `castShadow`) en cada frame si se deja en su default `true`.
+ * Con pocos jugadores conectados ya es el costo de GPU dominante y escala con cada personaje
+ * que se suma a la zona (medido: ~+6ms de "gl" por un segundo jugador conectado). Lo throtteamos
+ * a mano con `shadowMap.needsUpdate` a esta cadencia en vez de recalcularlo en cada frame; el sol
+ * sigue al jugador (`updateSunFollow`) así que no puede quedar completamente estático, pero no
+ * hace falta más que esto para que no se note "pegado" al moverse.
+ */
+const SHADOW_UPDATE_INTERVAL_MS = 1000 / 20;
 /** Color del horizonte del cielo degradado; se reusa como color de niebla para que el fog
  * se funda con el fondo en vez de notarse como una "pared" de color distinto. */
 const SKY_HORIZON_COLOR = 0x3a4a5e;
@@ -518,6 +528,8 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private sunGlowSprite!: THREE.Sprite;
   private readonly sunGlowPos = new THREE.Vector3();
   private css2d!: CSS2DRenderer;
+  /** Último `timestamp` de rAF en el que se forzó un refresh del shadow map (ver `SHADOW_UPDATE_INTERVAL_MS`). */
+  private lastShadowUpdateMs = -Infinity;
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointerNdc = new THREE.Vector2();
   private readonly simTimer = new THREE.Timer();
@@ -2527,6 +2539,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Ver `SHADOW_UPDATE_INTERVAL_MS`: el refresh del shadow map se dispara a mano, no por frame.
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
     // Tope 1.5: en pantallas HiDPI, 2x renderiza 4x píxeles con poca ganancia visible.
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setSize(w, h);
@@ -2967,6 +2982,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
             this.maybeEmitMoveSample();
           }
           this.tickShopDistanceAutoClose();
+          if (timestamp - this.lastShadowUpdateMs >= SHADOW_UPDATE_INTERVAL_MS) {
+            this.lastShadowUpdateMs = timestamp;
+            this.renderer.shadowMap.needsUpdate = true;
+          }
           const tGl0 = performance.now();
           this.composer.render();
           const tCss0 = performance.now();
