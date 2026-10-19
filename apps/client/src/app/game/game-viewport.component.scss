@@ -177,9 +177,13 @@
 }
 
 .overlay-dungeon-timer {
+  /* Centrado arriba: `.overlay-sheet` (ficha, tecla P) ya ocupa top-right con el mismo
+     top/right, y se tapaban entre sí mientras la mazmorra está activa (siempre que
+     `dungeonUi.isInDungeon()`, o sea toda la corrida, no un instante puntual). */
   position: absolute;
   top: 0.65rem;
-  right: 0.65rem;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 8;
   pointer-events: none;
 }
