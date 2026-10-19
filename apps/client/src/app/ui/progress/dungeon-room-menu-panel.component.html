@@ -21,6 +21,19 @@
           <button type="button" class="btn-dungeon-option" [disabled]="pending()" (click)="changeRoom()">
             Cambiar de sala
           </button>
+          @if (partyTargets().length > 0) {
+            <span class="dungeon-menu-group-label">Grupo</span>
+            @for (target of partyTargets(); track target.characterId) {
+              <button
+                type="button"
+                class="btn-dungeon-option btn-dungeon-party"
+                [disabled]="pending()"
+                (click)="goToPartyMember(target.characterId)"
+              >
+                Ir a la sala de {{ target.name }} ({{ target.chamberDisplayName }})
+              </button>
+            }
+          }
           <button type="button" class="btn-dungeon-option btn-dungeon-exit" [disabled]="pending()" (click)="exitDungeon()">
             Salir de la mazmorra
           </button>

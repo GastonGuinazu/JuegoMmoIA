@@ -116,7 +116,7 @@ Murray, en *Hamlet en la holocubierta* (1997), define tres placeres estéticos d
 | Comprar, equipar o vender | El paperdoll cambia. | Participativa |
 | Arriesgar una síntesis | Puede subir el nivel del ítem o fallar. Tiene pity. | Procedimental |
 | Ser Blanco o convertirse en Rojo | Cambia el color del nombre y las consecuencias. | Participativa |
-| Elegir cámara de mazmorra (oro / EXP / drop) | Define el tipo de recompensa. *Diseñado, no implementado.* | Procedimental |
+| Elegir cámara de mazmorra (oro / EXP / drop) y hallar el tier de nivel propio (bajo/medio/alto) saltando salas | Define el tipo de recompensa y, por tier, el bioma, los mobs y si el castigo de mob gris deja algo para llevarse. Implementado (9 cámaras: 3 tipos x 3 tiers). | Procedimental |
 
 **Principio de agencia con integridad:** el cliente envía una intención; el servidor valida. La agencia es real porque el resultado no se puede falsear. Cuando se rechaza una acción, el mensaje es explícito (`LEVEL_TOO_LOW`, `CHARACTER_DEAD`), para que el jugador entienda la causa.
 

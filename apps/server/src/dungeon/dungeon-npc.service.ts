@@ -40,7 +40,10 @@ export class DungeonNpcService implements OnModuleInit {
   private async seedRoomGuides(): Promise<void> {
     const chambers = loadDailyDungeonsConfig().chambers;
     for (const chamberType of Object.keys(chambers) as (keyof typeof chambers)[]) {
-      const zoneId = chambers[chamberType].zoneId;
+      const zoneId = chambers[chamberType]?.zoneId;
+      if (!zoneId) {
+        continue;
+      }
       const existing = await this.prisma.npcInstance.findFirst({
         where: { npcTemplateKey: ROOM_NPC_TEMPLATE_KEY, zoneId },
       });

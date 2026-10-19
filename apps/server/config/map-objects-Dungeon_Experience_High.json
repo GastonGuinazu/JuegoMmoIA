@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "_comment": "Cámara de Experiencia - Alto Nivel (30-40). Misma estética mixta (hielo + ruinas) que Dungeon_Gold_High.",
+  "objects": [
+    {
+      "id": "exp-high-torch-a",
+      "zoneId": "Dungeon_Experience_High",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": -6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1.1, "y": 1.1, "z": 1.1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "exp-high-torch-b",
+      "zoneId": "Dungeon_Experience_High",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": 6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1.1, "y": 1.1, "z": 1.1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "exp-high-monolith-west",
+      "zoneId": "Dungeon_Experience_High",
+      "kind": "box",
+      "propTemplateKey": "column_square",
+      "position": { "x": -16, "y": 2.3, "z": 3 },
+      "scale": { "x": 1.5, "y": 4.6, "z": 1.5 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "exp-high-pillar-east",
+      "zoneId": "Dungeon_Experience_High",
+      "kind": "box",
+      "propTemplateKey": "column_round",
+      "position": { "x": 16, "y": 1.4, "z": 3 },
+      "scale": { "x": 1.3, "y": 3.2, "z": 1.3 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "exp-high-ruin-overgrown",
+      "zoneId": "Dungeon_Experience_High",
+      "kind": "box",
+      "propTemplateKey": "wall_overgrown",
+      "yaw": -0.35,
+      "position": { "x": 13, "y": 1.2, "z": -19 },
+      "scale": { "x": 3.2, "y": 2.4, "z": 1 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "exp-high-pine-snow",
+      "zoneId": "Dungeon_Experience_High",
+      "kind": "box",
+      "propTemplateKey": "pine_snow",
+      "position": { "x": -13, "y": 0, "z": -19 },
+      "scale": { "x": 1.4, "y": 1.4, "z": 1.4 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "exp-high-arch",
+      "zoneId": "Dungeon_Experience_High",
+      "kind": "box",
+      "propTemplateKey": "arch_round",
+      "position": { "x": 0, "y": 2.4, "z": -22 },
+      "scale": { "x": 1.6, "y": 2.4, "z": 1 },
+      "collisionPaddingMeters": 0.1
+    }
+  ]
+}

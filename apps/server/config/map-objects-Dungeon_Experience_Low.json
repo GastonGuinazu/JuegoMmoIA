@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "_comment": "Cámara de Experiencia - Bajo Nivel (10-20). Estética Zone_0 (pradera/ruinas). Mismo criterio de despeje que Dungeon_Gold_Low: decoración fuera del círculo de spawn (0,-12 r8) y del corredor de entrada.",
+  "objects": [
+    {
+      "id": "exp-low-torch-a",
+      "zoneId": "Dungeon_Experience_Low",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": -6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "exp-low-torch-b",
+      "zoneId": "Dungeon_Experience_Low",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": 6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "exp-low-pillar-east",
+      "zoneId": "Dungeon_Experience_Low",
+      "kind": "box",
+      "propTemplateKey": "column_round",
+      "position": { "x": 15, "y": 1.4, "z": 2 },
+      "scale": { "x": 1.1, "y": 2.8, "z": 1.1 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "exp-low-ruin-west",
+      "zoneId": "Dungeon_Experience_Low",
+      "kind": "box",
+      "propTemplateKey": "wall_half",
+      "yaw": -0.3,
+      "position": { "x": -15, "y": 0.9, "z": 3 },
+      "scale": { "x": 2.8, "y": 1.8, "z": 0.9 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "exp-low-stump",
+      "zoneId": "Dungeon_Experience_Low",
+      "kind": "box",
+      "propTemplateKey": "stump",
+      "position": { "x": -11, "y": 0.4, "z": -19 },
+      "scale": { "x": 1.2, "y": 1.2, "z": 1.2 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "exp-low-plant",
+      "zoneId": "Dungeon_Experience_Low",
+      "kind": "box",
+      "propTemplateKey": "plant",
+      "position": { "x": 11, "y": 0.3, "z": -19 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    }
+  ]
+}

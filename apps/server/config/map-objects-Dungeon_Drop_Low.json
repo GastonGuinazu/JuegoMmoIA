@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "_comment": "Cámara del Botín - Bajo Nivel (10-20). Estética Zone_0 (pradera/ruinas). El spawn de esta cámara tiene dos spots (araña + araña2, ver config/mobs.json) repartidos a ambos lados del centro (0,-12); la decoración deja despejado el eje central.",
+  "objects": [
+    {
+      "id": "drop-low-torch-a",
+      "zoneId": "Dungeon_Drop_Low",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": -6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "drop-low-torch-b",
+      "zoneId": "Dungeon_Drop_Low",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": 6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "drop-low-chest",
+      "zoneId": "Dungeon_Drop_Low",
+      "kind": "box",
+      "propTemplateKey": "chest",
+      "position": { "x": 0, "y": 0.4, "z": -21 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.08
+    },
+    {
+      "id": "drop-low-pillar-west",
+      "zoneId": "Dungeon_Drop_Low",
+      "kind": "box",
+      "propTemplateKey": "column_round",
+      "position": { "x": -15, "y": 1.4, "z": 2 },
+      "scale": { "x": 1.1, "y": 2.8, "z": 1.1 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "drop-low-pillar-east",
+      "zoneId": "Dungeon_Drop_Low",
+      "kind": "box",
+      "propTemplateKey": "column_round",
+      "position": { "x": 15, "y": 1.4, "z": 2 },
+      "scale": { "x": 1.1, "y": 2.8, "z": 1.1 },
+      "collisionPaddingMeters": 0.1
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "_comment": "Cámara del Oro - Bajo Nivel (10-20). Estética Zone_0 (pradera/ruinas): mismo set de props que el mapa 1, sala de 48m. Spawn de mobs centrado en (0,-12) r8; decoración fuera de ese círculo y del corredor de entrada (x≈0, z 0..14).",
+  "objects": [
+    {
+      "id": "gold-low-torch-a",
+      "zoneId": "Dungeon_Gold_Low",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": -6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "gold-low-torch-b",
+      "zoneId": "Dungeon_Gold_Low",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": 6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "gold-low-pillar-west",
+      "zoneId": "Dungeon_Gold_Low",
+      "kind": "box",
+      "propTemplateKey": "column_round",
+      "position": { "x": -15, "y": 1.4, "z": 2 },
+      "scale": { "x": 1.1, "y": 2.8, "z": 1.1 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "gold-low-ruin-east",
+      "zoneId": "Dungeon_Gold_Low",
+      "kind": "box",
+      "propTemplateKey": "wall_broken",
+      "yaw": 0.3,
+      "position": { "x": 15, "y": 1.1, "z": 3 },
+      "scale": { "x": 3.2, "y": 2.2, "z": 0.9 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "gold-low-crate",
+      "zoneId": "Dungeon_Gold_Low",
+      "kind": "box",
+      "propTemplateKey": "crate",
+      "yaw": 0.4,
+      "position": { "x": -11, "y": 0.55, "z": -19 },
+      "scale": { "x": 1.4, "y": 1.1, "z": 1.4 },
+      "collisionPaddingMeters": 0.08
+    },
+    {
+      "id": "gold-low-bush",
+      "zoneId": "Dungeon_Gold_Low",
+      "kind": "box",
+      "propTemplateKey": "bush",
+      "position": { "x": 11, "y": 0.4, "z": -19 },
+      "scale": { "x": 1.2, "y": 1.2, "z": 1.2 },
+      "collisionPaddingMeters": 0.05
+    }
+  ]
+}

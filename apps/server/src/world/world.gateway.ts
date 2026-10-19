@@ -86,6 +86,9 @@ import {
   type WsDungeonEnterRequestClientPayload,
   type WsDungeonRoomActionClientPayload,
   type WsDungeonSessionAckPayload,
+  type WsDungeonChamberType,
+  type WsDungeonPartyTargetsRequestClientPayload,
+  type WsDungeonPartyTargetsAckPayload,
 } from '@aetheris/shared-types';
 import type { CharacterRespawnResolution } from '../character/character.service';
 import { CharacterService, isDeadHp } from '../character/character.service';
@@ -2417,7 +2420,7 @@ export class WorldGateway
       ok: true,
       exited: false,
       zoneId: outcome.zoneId,
-      chamberType: outcome.chamberType,
+      chamberType: outcome.chamberType as WsDungeonChamberType,
       chamberDisplayName: outcome.chamberDisplayName,
       expiresAtEpochMs: outcome.expiresAtEpochMs,
     };
@@ -2437,7 +2440,7 @@ export class WorldGateway
       !body ||
       typeof body.npcInstanceId !== 'string' ||
       !isUuid(body.npcInstanceId) ||
-      (body.action !== 'next_room' && body.action !== 'exit')
+      (body.action !== 'next_room' && body.action !== 'exit' && body.action !== 'join_party_member')
     ) {
       return {
         ok: false,
@@ -2452,10 +2455,29 @@ export class WorldGateway
         message: 'Estás muerto: pedí respawn antes de seguir en la mazmorra',
       };
     }
+    if (body.action === 'join_party_member') {
+      if (!isUuid(body.targetCharacterId)) {
+        return {
+          ok: false,
+          code: 'INVALID_PAYLOAD',
+          message: 'targetCharacterId (UUID) es requerido',
+        };
+      }
+      const myPartyId = this.party.getPartyIdForCharacter(characterId);
+      const targetPartyId = this.party.getPartyIdForCharacter(body.targetCharacterId);
+      if (!myPartyId || myPartyId !== targetPartyId) {
+        return {
+          ok: false,
+          code: 'NOT_PARTY_MEMBER',
+          message: 'Ese personaje no está en tu grupo',
+        };
+      }
+    }
     const outcome = await this.dungeonService.requestRoomAction(
       characterId,
       body.npcInstanceId,
       body.action,
+      body.action === 'join_party_member' ? body.targetCharacterId : undefined,
     );
     if (!outcome.ok) {
       return outcome;
@@ -2473,10 +2495,38 @@ export class WorldGateway
       ok: true,
       exited: false,
       zoneId: outcome.zoneId,
-      chamberType: outcome.chamberType,
+      chamberType: outcome.chamberType as WsDungeonChamberType,
       chamberDisplayName: outcome.chamberDisplayName,
       expiresAtEpochMs: outcome.expiresAtEpochMs,
     };
+  }
+
+  /**
+   * Cliente → servidor: al abrir el diálogo del guía de sala, qué compañeros de grupo están en
+   * la mazmorra en una cámara distinta de la propia (para el botón "ir a la sala de fulano").
+   * Sin grupo o sin compañeros dentro de la mazmorra devuelve `targets: []`, no un error.
+   */
+  @SubscribeMessage(WS_WORLD_EVENTS.DUNGEON_PARTY_TARGETS_REQUEST)
+  async handleDungeonPartyTargetsRequest(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: WsDungeonPartyTargetsRequestClientPayload,
+  ): Promise<WsDungeonPartyTargetsAckPayload> {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_BOUND', message: 'Socket is not bound to a character' };
+    }
+    if (!body || typeof body.npcInstanceId !== 'string' || !isUuid(body.npcInstanceId)) {
+      return { ok: false, code: 'INVALID_PAYLOAD', message: 'npcInstanceId (UUID) is required' };
+    }
+    const partyId = this.party.getPartyIdForCharacter(characterId);
+    if (!partyId) {
+      return { ok: true, targets: [] };
+    }
+    const memberIds = (this.party.getParty(partyId)?.members ?? [])
+      .map((m) => m.characterId)
+      .filter((id) => id !== characterId);
+    const targets = await this.dungeonService.listPartyDungeonTargets(characterId, memberIds);
+    return { ok: true, targets };
   }
 
   /**

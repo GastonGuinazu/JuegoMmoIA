@@ -27,10 +27,10 @@
       }
     },
     {
-      "zoneId": "Dungeon_Gold",
-      "displayName": "Cámara del Oro",
+      "zoneId": "Dungeon_Gold_Low",
+      "displayName": "Cámara del Oro - Bajo Nivel",
       "minCharacterLevel": 1,
-      "mapObjectsFile": "map-objects-Dungeon_Gold.json",
+      "mapObjectsFile": "map-objects-Dungeon_Gold_Low.json",
       "groundAlbedo": "ground_grass_0.jpg",
       "groundSizeMeters": 48,
       "entrySpawn": {
@@ -39,10 +39,34 @@
       }
     },
     {
-      "zoneId": "Dungeon_Experience",
-      "displayName": "Cámara de Experiencia",
+      "zoneId": "Dungeon_Gold_Medium",
+      "displayName": "Cámara del Oro - Nivel Medio",
+      "minCharacterLevel": 10,
+      "mapObjectsFile": "map-objects-Dungeon_Gold_Medium.json",
+      "groundAlbedo": "ground_snow_1.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Dungeon_Gold_High",
+      "displayName": "Cámara del Oro - Alto Nivel",
+      "minCharacterLevel": 20,
+      "mapObjectsFile": "map-objects-Dungeon_Gold_High.json",
+      "groundAlbedo": "ground_snow_1.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Dungeon_Experience_Low",
+      "displayName": "Cámara de Experiencia - Bajo Nivel",
       "minCharacterLevel": 1,
-      "mapObjectsFile": "map-objects-Dungeon_Experience.json",
+      "mapObjectsFile": "map-objects-Dungeon_Experience_Low.json",
       "groundAlbedo": "ground_grass_0.jpg",
       "groundSizeMeters": 48,
       "entrySpawn": {
@@ -51,11 +75,59 @@
       }
     },
     {
-      "zoneId": "Dungeon_Drop",
-      "displayName": "Cámara del Botín",
+      "zoneId": "Dungeon_Experience_Medium",
+      "displayName": "Cámara de Experiencia - Nivel Medio",
+      "minCharacterLevel": 10,
+      "mapObjectsFile": "map-objects-Dungeon_Experience_Medium.json",
+      "groundAlbedo": "ground_snow_1.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Dungeon_Experience_High",
+      "displayName": "Cámara de Experiencia - Alto Nivel",
+      "minCharacterLevel": 20,
+      "mapObjectsFile": "map-objects-Dungeon_Experience_High.json",
+      "groundAlbedo": "ground_snow_1.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Dungeon_Drop_Low",
+      "displayName": "Cámara del Botín - Bajo Nivel",
       "minCharacterLevel": 1,
-      "mapObjectsFile": "map-objects-Dungeon_Drop.json",
+      "mapObjectsFile": "map-objects-Dungeon_Drop_Low.json",
       "groundAlbedo": "ground_grass_0.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Dungeon_Drop_Medium",
+      "displayName": "Cámara del Botín - Nivel Medio",
+      "minCharacterLevel": 10,
+      "mapObjectsFile": "map-objects-Dungeon_Drop_Medium.json",
+      "groundAlbedo": "ground_snow_1.jpg",
+      "groundSizeMeters": 48,
+      "entrySpawn": {
+        "worldPos": { "x": 0, "y": 0, "z": 14 },
+        "worldFacingYaw": 0
+      }
+    },
+    {
+      "zoneId": "Dungeon_Drop_High",
+      "displayName": "Cámara del Botín - Alto Nivel",
+      "minCharacterLevel": 20,
+      "mapObjectsFile": "map-objects-Dungeon_Drop_High.json",
+      "groundAlbedo": "ground_snow_1.jpg",
       "groundSizeMeters": 48,
       "entrySpawn": {
         "worldPos": { "x": 0, "y": 0, "z": 14 },

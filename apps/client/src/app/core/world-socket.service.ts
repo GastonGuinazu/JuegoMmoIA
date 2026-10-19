@@ -75,6 +75,8 @@ import {
   type WsDungeonRoomActionClientPayload,
   type WsDungeonSessionAckPayload,
   type WsDungeonExpelledPayload,
+  type WsDungeonPartyTargetsRequestClientPayload,
+  type WsDungeonPartyTargetsAckPayload,
 } from '../../../../../libs/shared-types/src/world-socket';
 
 @Injectable({ providedIn: 'root' })
@@ -492,6 +494,37 @@ export class WorldSocketService implements OnDestroy {
         }
         cb({ ok: false, code: 'INVALID_ACK', message: 'Malformed server response' });
       });
+  }
+
+  emitDungeonPartyTargetsRequestWithAck(
+    payload: WsDungeonPartyTargetsRequestClientPayload,
+    cb: (result: WsDungeonPartyTargetsAckPayload) => void,
+  ): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(12_000)
+      .emit(
+        WS_WORLD_EVENTS.DUNGEON_PARTY_TARGETS_REQUEST,
+        payload,
+        (err: Error | null, res: unknown) => {
+          if (err) {
+            cb({
+              ok: false,
+              code: 'SOCKET_TIMEOUT',
+              message: err.message || 'Dungeon party targets request timed out',
+            });
+            return;
+          }
+          if (res && typeof res === 'object' && 'ok' in res) {
+            cb(res as WsDungeonPartyTargetsAckPayload);
+            return;
+          }
+          cb({ ok: false, code: 'INVALID_ACK', message: 'Malformed server response' });
+        },
+      );
   }
 
   emitBuyItemWithAck(

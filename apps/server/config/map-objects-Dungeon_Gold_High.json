@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "_comment": "Cámara del Oro - Alto Nivel (30-40). Estética mixta deliberada (Cartographer): piso helado de Zone_1 con ruinas de Zone_0 medio sepultadas en el hielo — un santuario antiguo que el Valle Congelado terminó por tragarse. Arco como remate dramático detrás del spawn de mobs (0,-12 r8).",
+  "objects": [
+    {
+      "id": "gold-high-torch-a",
+      "zoneId": "Dungeon_Gold_High",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": -6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1.1, "y": 1.1, "z": 1.1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "gold-high-torch-b",
+      "zoneId": "Dungeon_Gold_High",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": 6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1.1, "y": 1.1, "z": 1.1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "gold-high-pillar-west",
+      "zoneId": "Dungeon_Gold_High",
+      "kind": "box",
+      "propTemplateKey": "column_round",
+      "position": { "x": -16, "y": 1.4, "z": 3 },
+      "scale": { "x": 1.3, "y": 3.2, "z": 1.3 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "gold-high-monolith-east",
+      "zoneId": "Dungeon_Gold_High",
+      "kind": "box",
+      "propTemplateKey": "column_square",
+      "position": { "x": 16, "y": 2.3, "z": 3 },
+      "scale": { "x": 1.5, "y": 4.6, "z": 1.5 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "gold-high-ruin-overgrown",
+      "zoneId": "Dungeon_Gold_High",
+      "kind": "box",
+      "propTemplateKey": "wall_overgrown",
+      "yaw": 0.35,
+      "position": { "x": -13, "y": 1.2, "z": -19 },
+      "scale": { "x": 3.2, "y": 2.4, "z": 1 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "gold-high-rock-snow",
+      "zoneId": "Dungeon_Gold_High",
+      "kind": "box",
+      "propTemplateKey": "rock_snow",
+      "position": { "x": 13, "y": 0.3, "z": -19 },
+      "scale": { "x": 1.5, "y": 1.5, "z": 1.5 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "gold-high-arch",
+      "zoneId": "Dungeon_Gold_High",
+      "kind": "box",
+      "propTemplateKey": "arch_round",
+      "position": { "x": 0, "y": 2.4, "z": -22 },
+      "scale": { "x": 1.6, "y": 2.4, "z": 1 },
+      "collisionPaddingMeters": 0.1
+    }
+  ]
+}

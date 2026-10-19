@@ -1,25 +1,77 @@
 {
-  "version": 1,
+  "version": 2,
   "_comment": "NexusManager: 1 ticket de entrada por personaje por día (no acumulable). ticketExpirySeconds es el cronómetro único de la corrida completa, no por sala. Los multiplicadores se aplican sobre expReward/dropTable del mob al matarlo dentro de la zona de la cámara.",
+  "_comment_tiers": "9 cámaras = 3 tipos de recompensa (Oro/Experiencia/Drop) x 3 tiers de nivel (LOW 10-20, MEDIUM 20-30, HIGH 30-40). El salto de sala (next_room) sortea entre las 9, no solo entre los 3 tipos, para que encontrar tipo+tier correctos siga teniendo sentido. La composición de mobs de cada cámara es fija (ver config/mobs.json), nunca aleatoria.",
   "ticketExpirySeconds": 600,
   "chambers": {
-    "GOLD": {
-      "zoneId": "Dungeon_Gold",
-      "displayName": "Cámara del Oro",
+    "GOLD_LOW": {
+      "zoneId": "Dungeon_Gold_Low",
+      "displayName": "Cámara del Oro - Bajo Nivel (10-20)",
+      "tier": "LOW",
       "adenaMultiplier": 2.0,
       "expMultiplier": 0.5,
       "dropChanceMultiplier": 1.0
     },
-    "EXPERIENCE": {
-      "zoneId": "Dungeon_Experience",
-      "displayName": "Cámara de Experiencia",
+    "GOLD_MEDIUM": {
+      "zoneId": "Dungeon_Gold_Medium",
+      "displayName": "Cámara del Oro - Nivel Medio (20-30)",
+      "tier": "MEDIUM",
+      "adenaMultiplier": 2.0,
+      "expMultiplier": 0.5,
+      "dropChanceMultiplier": 1.0
+    },
+    "GOLD_HIGH": {
+      "zoneId": "Dungeon_Gold_High",
+      "displayName": "Cámara del Oro - Alto Nivel (30-40)",
+      "tier": "HIGH",
+      "adenaMultiplier": 2.0,
+      "expMultiplier": 0.5,
+      "dropChanceMultiplier": 1.0
+    },
+    "EXPERIENCE_LOW": {
+      "zoneId": "Dungeon_Experience_Low",
+      "displayName": "Cámara de Experiencia - Bajo Nivel (10-20)",
+      "tier": "LOW",
       "adenaMultiplier": 0.5,
       "expMultiplier": 2.0,
       "dropChanceMultiplier": 0.5
     },
-    "DROP": {
-      "zoneId": "Dungeon_Drop",
-      "displayName": "Cámara del Botín",
+    "EXPERIENCE_MEDIUM": {
+      "zoneId": "Dungeon_Experience_Medium",
+      "displayName": "Cámara de Experiencia - Nivel Medio (20-30)",
+      "tier": "MEDIUM",
+      "adenaMultiplier": 0.5,
+      "expMultiplier": 2.0,
+      "dropChanceMultiplier": 0.5
+    },
+    "EXPERIENCE_HIGH": {
+      "zoneId": "Dungeon_Experience_High",
+      "displayName": "Cámara de Experiencia - Alto Nivel (30-40)",
+      "tier": "HIGH",
+      "adenaMultiplier": 0.5,
+      "expMultiplier": 2.0,
+      "dropChanceMultiplier": 0.5
+    },
+    "DROP_LOW": {
+      "zoneId": "Dungeon_Drop_Low",
+      "displayName": "Cámara del Botín - Bajo Nivel (10-20)",
+      "tier": "LOW",
+      "adenaMultiplier": 0.75,
+      "expMultiplier": 0.75,
+      "dropChanceMultiplier": 2.0
+    },
+    "DROP_MEDIUM": {
+      "zoneId": "Dungeon_Drop_Medium",
+      "displayName": "Cámara del Botín - Nivel Medio (20-30)",
+      "tier": "MEDIUM",
+      "adenaMultiplier": 0.75,
+      "expMultiplier": 0.75,
+      "dropChanceMultiplier": 2.0
+    },
+    "DROP_HIGH": {
+      "zoneId": "Dungeon_Drop_High",
+      "displayName": "Cámara del Botín - Alto Nivel (30-40)",
+      "tier": "HIGH",
       "adenaMultiplier": 0.75,
       "expMultiplier": 0.75,
       "dropChanceMultiplier": 2.0

@@ -69,10 +69,22 @@ enum GearSlot {
 }
 
 /// Cámara diaria (MIR4-style); el catálogo fino vive en datos de juego.
+/// GOLD/EXPERIENCE/DROP: legacy (pre-tiers), no se escriben más; quedan solo por datos
+/// históricos ya persistidos (Postgres no permite borrar valores de enum sin recrear el tipo).
+/// Vigentes: 3 tipos de recompensa x 3 tiers de nivel (LOW 10-20, MEDIUM 20-30, HIGH 30-40).
 enum DungeonChamberType {
   GOLD
   EXPERIENCE
   DROP
+  GOLD_LOW
+  GOLD_MEDIUM
+  GOLD_HIGH
+  EXPERIENCE_LOW
+  EXPERIENCE_MEDIUM
+  EXPERIENCE_HIGH
+  DROP_LOW
+  DROP_MEDIUM
+  DROP_HIGH
 }
 
 enum IdempotencyOperationStatus {

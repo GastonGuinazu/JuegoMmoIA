@@ -116,3 +116,21 @@
     background: #845e00;
   }
 }
+
+.dungeon-menu-group-label {
+  margin: 0.15rem 0 -0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8bc34a;
+}
+
+.btn-dungeon-party {
+  border-color: #558b2f;
+  background: #33691e;
+
+  &:hover:not(:disabled) {
+    background: #3e7d24;
+  }
+}

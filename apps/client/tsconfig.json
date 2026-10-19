@@ -16,7 +16,17 @@
     "moduleResolution": "bundler",
     "importHelpers": true,
     "target": "ES2022",
-    "module": "ES2022"
+    "module": "ES2022",
+    /**
+     * Sin esto, resolver `@aetheris/shared-types` depende de un side-effect de caché
+     * incremental de `ng build`/`ng serve` (no hay `node_modules/@aetheris` en el cliente,
+     * ver Agent.md: "Cliente: lo consume como fuentes"): un archivo que lo importa por
+     * primera vez puede fallar con TS2307 aunque otros archivos ya lo resuelvan bien en la
+     * misma build. El `paths` lo hace determinístico apuntando directo a la fuente.
+     */
+    "paths": {
+      "@aetheris/shared-types": ["../../libs/shared-types/src/index.ts"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

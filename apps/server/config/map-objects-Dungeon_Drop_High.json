@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "_comment": "Cámara del Botín - Alto Nivel (30-40). Misma estética mixta (hielo + ruinas); el santuario más grandioso de las tres (recompensa más rara), con cofre y doble monolito flanqueando el acceso al Dragonkin Plateado.",
+  "objects": [
+    {
+      "id": "drop-high-torch-a",
+      "zoneId": "Dungeon_Drop_High",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": -6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1.1, "y": 1.1, "z": 1.1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "drop-high-torch-b",
+      "zoneId": "Dungeon_Drop_High",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": 6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1.1, "y": 1.1, "z": 1.1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "drop-high-chest",
+      "zoneId": "Dungeon_Drop_High",
+      "kind": "box",
+      "propTemplateKey": "chest",
+      "position": { "x": 9, "y": 0.4, "z": 9 },
+      "scale": { "x": 1.3, "y": 1.3, "z": 1.3 },
+      "collisionPaddingMeters": 0.08
+    },
+    {
+      "id": "drop-high-monolith-west",
+      "zoneId": "Dungeon_Drop_High",
+      "kind": "box",
+      "propTemplateKey": "column_square",
+      "position": { "x": -16, "y": 2.3, "z": 3 },
+      "scale": { "x": 1.5, "y": 4.6, "z": 1.5 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "drop-high-monolith-east",
+      "zoneId": "Dungeon_Drop_High",
+      "kind": "box",
+      "propTemplateKey": "column_square",
+      "position": { "x": 16, "y": 2.3, "z": 3 },
+      "scale": { "x": 1.5, "y": 4.6, "z": 1.5 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "drop-high-ruin-overgrown",
+      "zoneId": "Dungeon_Drop_High",
+      "kind": "box",
+      "propTemplateKey": "wall_overgrown",
+      "yaw": 0.3,
+      "position": { "x": -13, "y": 1.2, "z": -19 },
+      "scale": { "x": 3.2, "y": 2.4, "z": 1 },
+      "collisionPaddingMeters": 0.1
+    },
+    {
+      "id": "drop-high-rock-snow",
+      "zoneId": "Dungeon_Drop_High",
+      "kind": "box",
+      "propTemplateKey": "rock_snow",
+      "position": { "x": 13, "y": 0.3, "z": -19 },
+      "scale": { "x": 1.6, "y": 1.6, "z": 1.6 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "drop-high-arch",
+      "zoneId": "Dungeon_Drop_High",
+      "kind": "box",
+      "propTemplateKey": "arch_round",
+      "position": { "x": 0, "y": 2.6, "z": -22 },
+      "scale": { "x": 1.8, "y": 2.6, "z": 1.1 },
+      "collisionPaddingMeters": 0.1
+    }
+  ]
+}

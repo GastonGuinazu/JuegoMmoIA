@@ -152,6 +152,8 @@ export const WS_WORLD_EVENTS = {
   DUNGEON_ROOM_ACTION: 'dungeon-room-action',
   /** Servidor → socket del personaje: expulsión forzada de la mazmorra (timeout o muerte PvP). */
   DUNGEON_EXPELLED: 'dungeon-expelled',
+  /** Cliente → servidor: lista de compañeros de grupo en la mazmorra en otra cámara (ack). */
+  DUNGEON_PARTY_TARGETS_REQUEST: 'dungeon-party-targets-request',
 } as const;
 
 export type WsMobAiState = 'IDLE' | 'PATROL' | 'CHASE';
@@ -787,16 +789,32 @@ export type WsChatSendAckPayload =
   | { ok: true; message?: string }
   | { ok: false; code: string; message: string };
 
-export type WsDungeonChamberType = 'GOLD' | 'EXPERIENCE' | 'DROP';
+/** 3 tipos de recompensa x 3 tiers de nivel (LOW 10-20, MEDIUM 20-30, HIGH 30-40). */
+export type WsDungeonChamberType =
+  | 'GOLD_LOW'
+  | 'GOLD_MEDIUM'
+  | 'GOLD_HIGH'
+  | 'EXPERIENCE_LOW'
+  | 'EXPERIENCE_MEDIUM'
+  | 'EXPERIENCE_HIGH'
+  | 'DROP_LOW'
+  | 'DROP_MEDIUM'
+  | 'DROP_HIGH';
 
 export type WsDungeonEnterRequestClientPayload = {
   npcInstanceId: string;
 };
 
-/** Cliente → servidor, NPC de sala: `next_room` cambia de cámara sin tocar el ticket/cronómetro. */
+/**
+ * Cliente → servidor, NPC de sala: `next_room` cambia a una cámara aleatoria entre las 9 sin
+ * tocar el ticket/cronómetro; `join_party_member` salta directo a la cámara de un compañero de
+ * grupo (requiere `targetCharacterId`, ver `DUNGEON_PARTY_TARGETS_REQUEST`).
+ */
 export type WsDungeonRoomActionClientPayload = {
   npcInstanceId: string;
-  action: 'next_room' | 'exit';
+  action: 'next_room' | 'exit' | 'join_party_member';
+  /** Requerido solo si `action === 'join_party_member'`. */
+  targetCharacterId?: string;
 };
 
 export type WsDungeonSessionAckPayload =
@@ -815,3 +833,19 @@ export type WsDungeonExpelledPayload = {
   reason: 'TIME_UP' | 'PVP_KILLED';
   zoneId: string;
 };
+
+/** Cliente → servidor: pide, al abrir el diálogo del guía de sala, qué compañeros de grupo
+ * están en la mazmorra en una cámara distinta de la propia (para ofrecer "ir con fulano"). */
+export type WsDungeonPartyTargetsRequestClientPayload = {
+  npcInstanceId: string;
+};
+
+export type WsDungeonPartyTarget = {
+  characterId: string;
+  name: string;
+  chamberDisplayName: string;
+};
+
+export type WsDungeonPartyTargetsAckPayload =
+  | { ok: true; targets: WsDungeonPartyTarget[] }
+  | { ok: false; code: string; message: string };

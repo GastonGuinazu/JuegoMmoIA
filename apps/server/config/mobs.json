@@ -95,28 +95,93 @@
       "maxEntities": 1
     },
     {
-      "id": "dungeon_gold_skeletons",
-      "zoneId": "Dungeon_Gold",
+      "id": "dungeon_gold_low_scorpions",
+      "_comment": "Tier LOW (10-20), estética Zone_0. scorpion nivel 13: a nivel 20 (tope del tier) 20-13=7 < 10, no cae en penalización de mob gris.",
+      "zoneId": "Dungeon_Gold_Low",
+      "center": { "x": 0, "y": 0, "z": -12 },
+      "radius": 8,
+      "templateKey": "scorpion",
+      "maxEntities": 4
+    },
+    {
+      "id": "dungeon_experience_low_spiders2",
+      "_comment": "Tier LOW (10-20), estética Zone_0. spider2 nivel 12.",
+      "zoneId": "Dungeon_Experience_Low",
+      "center": { "x": 0, "y": 0, "z": -12 },
+      "radius": 8,
+      "templateKey": "spider2",
+      "maxEntities": 4
+    },
+    {
+      "id": "dungeon_drop_low_spiders_a",
+      "_comment": "Tier LOW (10-20), estética Zone_0. Dos especies de la misma familia arachnid (±2 niveles, spider/spider2) en vez de una sola: a nivel 20 spider (10) ya cae gris pero spider2 (12) no, imita un nido mixto real.",
+      "zoneId": "Dungeon_Drop_Low",
+      "center": { "x": -3, "y": 0, "z": -12 },
+      "radius": 6,
+      "templateKey": "spider",
+      "maxEntities": 2
+    },
+    {
+      "id": "dungeon_drop_low_spiders_b",
+      "zoneId": "Dungeon_Drop_Low",
+      "center": { "x": 3, "y": 0, "z": -12 },
+      "radius": 6,
+      "templateKey": "spider2",
+      "maxEntities": 2
+    },
+    {
+      "id": "dungeon_gold_medium_skeletons",
+      "_comment": "Tier MEDIUM (20-30), estética Zone_1. skeleton nivel 22: a nivel 30, 30-22=8 < 10, seguro.",
+      "zoneId": "Dungeon_Gold_Medium",
       "center": { "x": 0, "y": 0, "z": -12 },
       "radius": 8,
       "templateKey": "skeleton",
       "maxEntities": 4
     },
     {
-      "id": "dungeon_experience_goblins",
-      "zoneId": "Dungeon_Experience",
+      "id": "dungeon_experience_medium_zombies",
+      "_comment": "Tier MEDIUM (20-30), estética Zone_1. zombie nivel 25.",
+      "zoneId": "Dungeon_Experience_Medium",
       "center": { "x": 0, "y": 0, "z": -12 },
       "radius": 8,
-      "templateKey": "goblin2",
+      "templateKey": "zombie",
       "maxEntities": 4
     },
     {
-      "id": "dungeon_drop_spiders",
-      "zoneId": "Dungeon_Drop",
+      "id": "dungeon_drop_medium_zombies2",
+      "_comment": "Tier MEDIUM (20-30), estética Zone_1. zombie2 nivel 26.",
+      "zoneId": "Dungeon_Drop_Medium",
       "center": { "x": 0, "y": 0, "z": -12 },
       "radius": 8,
-      "templateKey": "spider2",
+      "templateKey": "zombie2",
       "maxEntities": 4
+    },
+    {
+      "id": "dungeon_gold_high_ogres",
+      "_comment": "Tier HIGH (30-40), estética mixta hielo+ruinas. ogre nivel 31: a nivel 40, 40-31=9 < 10, seguro. Reusa MobTemplate existente (no usado antes en mazmorras), sin crear plantillas nuevas.",
+      "zoneId": "Dungeon_Gold_High",
+      "center": { "x": 0, "y": 0, "z": -12 },
+      "radius": 8,
+      "templateKey": "ogre",
+      "maxEntities": 3
+    },
+    {
+      "id": "dungeon_experience_high_bulls",
+      "_comment": "Tier HIGH (30-40). bull_fighter nivel 36.",
+      "zoneId": "Dungeon_Experience_High",
+      "center": { "x": 0, "y": 0, "z": -12 },
+      "radius": 8,
+      "templateKey": "bull_fighter",
+      "maxEntities": 3
+    },
+    {
+      "id": "dungeon_drop_high_dragonkin",
+      "_comment": "Tier HIGH (30-40). silver_dragonkin nivel 40 (el mismo template del boss de Zone_1, acá como pack de 2 en vez de boss único) para la cámara de mejor loot del tier más difícil.",
+      "zoneId": "Dungeon_Drop_High",
+      "center": { "x": 0, "y": 0, "z": -12 },
+      "radius": 8,
+      "templateKey": "silver_dragonkin",
+      "maxEntities": 2
     }
   ],
   "mobs": [

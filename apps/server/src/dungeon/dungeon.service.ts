@@ -11,6 +11,7 @@ import { getWorldZoneDefinition, type WorldZoneEntrySpawn } from '../world/confi
 import {
   getAllChamberTypes,
   getChamberDefinition,
+  getChamberDefinitionByZoneId,
   loadDailyDungeonsConfig,
 } from './daily-dungeons.loaders';
 import { DungeonSessionTickService } from './dungeon-session-tick.service';
@@ -50,6 +51,12 @@ export type DungeonRoomActionOutcome =
       previousZoneId: string | null;
     }
   | { ok: false; code: string; message: string };
+
+export type DungeonPartyTarget = {
+  characterId: string;
+  name: string;
+  chamberDisplayName: string;
+};
 
 function todayUtcDateOnly(): Date {
   const now = new Date();
@@ -160,7 +167,8 @@ export class DungeonService {
   async requestRoomAction(
     characterId: string,
     npcInstanceId: string,
-    action: 'next_room' | 'exit',
+    action: 'next_room' | 'exit' | 'join_party_member',
+    targetCharacterId?: string,
   ): Promise<DungeonRoomActionOutcome> {
     try {
       const npc = await this.prisma.npcInstance.findUnique({ where: { id: npcInstanceId } });
@@ -207,7 +215,27 @@ export class DungeonService {
         };
       }
 
-      const nextChamberType = pickRandomChamberExcluding(session.chamberType);
+      let nextChamberType: DungeonChamberType;
+      if (action === 'join_party_member') {
+        if (!targetCharacterId) {
+          throw new BadRequestException({
+            code: 'INVALID_PAYLOAD',
+            message: 'targetCharacterId es requerido para unirte a un compañero',
+          });
+        }
+        const targetSession = await this.prisma.dungeonSession.findUnique({
+          where: { characterId: targetCharacterId },
+        });
+        if (!targetSession) {
+          throw new BadRequestException({
+            code: 'TARGET_NOT_IN_DUNGEON',
+            message: 'Ese compañero ya no está en la mazmorra',
+          });
+        }
+        nextChamberType = targetSession.chamberType;
+      } else {
+        nextChamberType = pickRandomChamberExcluding(session.chamberType);
+      }
       const chamberDef = getChamberDefinition(nextChamberType);
       const zoneDef = getWorldZoneDefinition(chamberDef.zoneId);
       if (!zoneDef) {
@@ -244,6 +272,45 @@ export class DungeonService {
     } catch (e) {
       return this.mapErr(e);
     }
+  }
+
+  /**
+   * Compañeros de grupo (ya resueltos por `PartyService` en `WorldGateway` — este servicio no
+   * depende de Party para evitar el ciclo Dungeon→Party→Combat→Dungeon) con una `DungeonSession`
+   * activa en una cámara distinta de la del que pregunta. Usado por el guía de sala para ofrecer
+   * "ir a la sala de fulano" en vez de solo el salto aleatorio.
+   */
+  async listPartyDungeonTargets(
+    askerCharacterId: string,
+    partyMemberIds: string[],
+  ): Promise<DungeonPartyTarget[]> {
+    if (partyMemberIds.length === 0) {
+      return [];
+    }
+    const asker = await this.prisma.character.findUnique({
+      where: { id: askerCharacterId },
+      select: { currentZoneId: true },
+    });
+    const sessions = await this.prisma.dungeonSession.findMany({
+      where: { characterId: { in: partyMemberIds } },
+      include: { character: { select: { name: true, currentZoneId: true } } },
+    });
+    const targets: DungeonPartyTarget[] = [];
+    for (const s of sessions) {
+      if (!s.character.currentZoneId || s.character.currentZoneId === asker?.currentZoneId) {
+        continue;
+      }
+      const def = getChamberDefinitionByZoneId(s.character.currentZoneId);
+      if (!def) {
+        continue;
+      }
+      targets.push({
+        characterId: s.characterId,
+        name: s.character.name,
+        chamberDisplayName: def.displayName,
+      });
+    }
+    return targets;
   }
 
   private assertCharacterNearNpc(

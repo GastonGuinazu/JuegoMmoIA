@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "_comment": "Cámara del Botín - Nivel Medio (20-30). Estética Zone_1 (hielo/ruinas).",
+  "objects": [
+    {
+      "id": "drop-med-torch-a",
+      "zoneId": "Dungeon_Drop_Medium",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": -6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "drop-med-torch-b",
+      "zoneId": "Dungeon_Drop_Medium",
+      "kind": "box",
+      "propTemplateKey": "torch",
+      "position": { "x": 6, "y": 0.9, "z": 13 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.05
+    },
+    {
+      "id": "drop-med-chest",
+      "zoneId": "Dungeon_Drop_Medium",
+      "kind": "box",
+      "propTemplateKey": "chest",
+      "position": { "x": 0, "y": 0.4, "z": -21 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collisionPaddingMeters": 0.08
+    },
+    {
+      "id": "drop-med-monolith-west",
+      "zoneId": "Dungeon_Drop_Medium",
+      "kind": "box",
+      "propTemplateKey": "column_square",
+      "position": { "x": -15, "y": 2.1, "z": 2 },
+      "scale": { "x": 1.4, "y": 4.2, "z": 1.4 },
+      "collisionPaddingMeters": 0.08
+    },
+    {
+      "id": "drop-med-monolith-east",
+      "zoneId": "Dungeon_Drop_Medium",
+      "kind": "box",
+      "propTemplateKey": "column_square",
+      "position": { "x": 15, "y": 2.1, "z": 2 },
+      "scale": { "x": 1.4, "y": 4.2, "z": 1.4 },
+      "collisionPaddingMeters": 0.08
+    }
+  ]
+}

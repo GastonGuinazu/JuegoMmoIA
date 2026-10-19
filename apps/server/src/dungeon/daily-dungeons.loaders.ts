@@ -5,6 +5,8 @@ import type { DungeonChamberType } from '@prisma/client';
 export interface DailyDungeonChamberDefinition {
   zoneId: string;
   displayName: string;
+  /** Metadata de diseño (no cambia lógica): bucket de nivel recomendado de esta cámara. */
+  tier: 'LOW' | 'MEDIUM' | 'HIGH';
   adenaMultiplier: number;
   expMultiplier: number;
   dropChanceMultiplier: number;
@@ -13,7 +15,11 @@ export interface DailyDungeonChamberDefinition {
 export interface DailyDungeonsConfigFile {
   version: number;
   ticketExpirySeconds: number;
-  chambers: Record<DungeonChamberType, DailyDungeonChamberDefinition>;
+  /**
+   * `Partial`: el enum `DungeonChamberType` de Prisma conserva valores legacy (GOLD/EXPERIENCE/
+   * DROP, pre-tiers) que ya no se definen en datos — ver el comentario del enum en schema.prisma.
+   */
+  chambers: Partial<Record<DungeonChamberType, DailyDungeonChamberDefinition>>;
 }
 
 function configDir(): string {
