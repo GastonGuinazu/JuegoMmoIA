@@ -118,6 +118,12 @@ export const WS_WORLD_EVENTS = {
   PORTAL_TRAVEL: 'portal-travel',
   /** Solo al socket: portal rechazado (nivel, rango, config). */
   PORTAL_TRAVEL_DENIED: 'portal-travel-denied',
+  /**
+   * Cliente → servidor: dash hacia atrás desde `worldFacingYaw` (Warden calcula el destino,
+   * no el cliente). Respuesta vía ack. Reposición exitosa viaja como `PLAYER_POSITION_CORRECTED`
+   * (reason `'DASH'`, el cliente no muestra el aviso rojo para ese motivo) + `PLAYER_MOVED` a la sala.
+   */
+  REQUEST_DASH: 'request-dash',
   /** Sala zone:* : un jugador salió de la zona hacia otra instancia. */
   PLAYER_LEFT_ZONE: 'player-left-zone',
   /**
@@ -323,6 +329,10 @@ export type WsRequestRespawnAckPayload =
       /** `true` si el respawn cambió de zona (el Weaver ya recibió `ZONE_SNAPSHOT`). */
       zoneChanged: boolean;
     }
+  | { ok: false; code: string; message: string };
+
+export type WsRequestDashAckPayload =
+  | { ok: true; worldPos: { x: number; y: number; z: number }; worldFacingYaw: number }
   | { ok: false; code: string; message: string };
 
 export type WsExecuteGmCommandClientPayload = {

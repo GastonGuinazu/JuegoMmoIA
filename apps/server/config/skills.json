@@ -21,6 +21,30 @@
       "damageMultiplier": 2.2,
       "cooldownMs": 5000,
       "rangeMeters": 2
+    },
+    {
+      "id": "fireball",
+      "name": "Fireball",
+      "_comment": "Primera skill propia del Dark Wizard. rangeMeters acá es distancia real (targetingMode ranged), no slack de melee.",
+      "targetType": "single",
+      "targetingMode": "ranged",
+      "manaCost": 15,
+      "damageMultiplier": 1.5,
+      "cooldownMs": 1500,
+      "rangeMeters": 12
+    },
+    {
+      "id": "frostbind",
+      "name": "Frostbind",
+      "_comment": "Segunda skill del Dark Wizard: cooldown apenas más del doble de Fireball. Daño bajo a propósito (el valor es el stun, PvE por ahora — ver isMobStunned).",
+      "targetType": "single",
+      "targetingMode": "ranged",
+      "manaCost": 25,
+      "damageMultiplier": 0.8,
+      "cooldownMs": 3200,
+      "rangeMeters": 12,
+      "effect": "stun",
+      "effectDurationMs": 2000
     }
   ]
 }

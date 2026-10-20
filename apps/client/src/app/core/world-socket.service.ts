@@ -57,6 +57,7 @@ import {
   type WsPlayerDeathPayload,
   type WsPlayerRespawnPayload,
   type WsRequestRespawnAckPayload,
+  type WsRequestDashAckPayload,
   type WsExecuteGmCommandAckPayload,
   type WsExecuteGmCommandClientPayload,
   type WsPartyInviteClientPayload,
@@ -303,6 +304,26 @@ export class WorldSocketService implements OnDestroy {
           return;
         }
         cb(res as WsRequestRespawnAckPayload);
+      });
+  }
+
+  /**
+   * Dash hacia atrás: el Warden calcula destino y dirección (worldFacingYaw actual), el
+   * ack solo confirma. La reposición real llega por `playerPositionCorrected$` (reason 'DASH').
+   */
+  emitRequestDash(cb: (result: WsRequestDashAckPayload) => void): void {
+    if (!this.socket?.connected) {
+      cb({ ok: false, code: 'NO_SOCKET', message: 'World socket is not connected' });
+      return;
+    }
+    this.socket
+      .timeout(6_000)
+      .emit(WS_WORLD_EVENTS.REQUEST_DASH, {}, (err: Error | null, res: unknown) => {
+        if (err) {
+          cb({ ok: false, code: 'SOCKET_TIMEOUT', message: 'El servidor no respondió al dash' });
+          return;
+        }
+        cb(res as WsRequestDashAckPayload);
       });
   }
 

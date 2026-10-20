@@ -133,6 +133,16 @@ export class WorldSpatialService {
   }
 
   /**
+   * Skills `targetingMode: 'ranged'` (ej. fireball): distancia real contra `rangeMeters`,
+   * sin el slack de contacto cuerpo a cuerpo que suma `isWithinMeleeAttackRange`.
+   */
+  isWithinSkillCastRange(attacker: WorldPosition, target: WorldPosition, rangeMeters: number): boolean {
+    const spatial = loadWorldSpatialConfig();
+    const predSlack = spatial.attackReachPredictionSlackMeters ?? 2;
+    return this.distance3d(attacker, target) <= rangeMeters + predSlack;
+  }
+
+  /**
    * Melee mob → jugador: sólo `attackRange` del template + buffer de latencia.
    * `isWithinMeleeAttackRange` suma el alcance del jugador (~+5 m) y no aplica aquí.
    */

@@ -1,31 +1,90 @@
 <div class="game-shell">
-  <header class="hud" aria-label="Conexión al mundo">
-    @if (!worldSocket.socketConnected()) {
-      <app-login-panel (characterChosen)="onLoginCharacterChosen($event)" />
-      <button
-        type="button"
-        class="btn"
-        (click)="advancedConnectOpen.set(!advancedConnectOpen())"
+  @if (sessionMenuOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      (click)="closeSessionMenu()"
+    >
+      <div
+        class="flex max-h-[80vh] w-full max-w-xs flex-col rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-2xl backdrop-blur-xl"
+        (click)="$event.stopPropagation()"
       >
-        {{ advancedConnectOpen() ? 'Ocultar modo avanzado' : 'Modo avanzado (ID manual)' }}
-      </button>
-      @if (advancedConnectOpen()) {
-        <label class="field">
-          <span>Servidor</span>
-          <input type="text" [(ngModel)]="serverUrlModel" name="serverUrl" autocomplete="off" />
-        </label>
-        <label class="field">
-          <span>Character ID (UUID)</span>
-          <input type="text" [(ngModel)]="characterIdModel" name="characterId" autocomplete="off" />
-        </label>
-        <button type="button" class="btn primary" (click)="connectWorld()">Conectar</button>
-      }
-    }
-    <button type="button" class="btn" (click)="disconnectWorld()">Desconectar</button>
-    <span class="status" [class.on]="worldSocket.socketConnected()">
-      {{ worldSocket.socketConnected() ? 'Conectado' : 'Desconectado' }}
-    </span>
-  </header>
+        @switch (sessionMenuView()) {
+          @case ('controls') {
+            <h2 class="mb-4 text-lg font-bold tracking-[0.2em] text-amber-300">CONTROLES</h2>
+            <ul class="mb-4 flex-1 overflow-y-auto text-left text-sm">
+              @for (hint of controlHints; track hint.key) {
+                <li class="flex items-start justify-between gap-3 border-b border-white/5 py-1.5 last:border-0">
+                  <span class="shrink-0 font-semibold text-amber-200">{{ hint.key }}</span>
+                  <span class="text-slate-300">{{ hint.action }}</span>
+                </li>
+              }
+            </ul>
+            <button
+              type="button"
+              (click)="sessionMenuView.set('main')"
+              class="rounded-lg border border-white/10 bg-white/5 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+            >
+              Volver
+            </button>
+          }
+          @case ('credits') {
+            <h2 class="mb-4 text-lg font-bold tracking-[0.2em] text-amber-300">CRÉDITOS</h2>
+            <ul class="mb-4 flex-1 overflow-y-auto text-left text-sm">
+              @for (credit of assetCredits; track credit.title) {
+                <li class="border-b border-white/5 py-1.5 last:border-0">
+                  <p class="text-slate-200">{{ credit.title }}</p>
+                  <p class="text-xs text-slate-400">{{ credit.author }} · {{ credit.license }}</p>
+                </li>
+              }
+            </ul>
+            <button
+              type="button"
+              (click)="sessionMenuView.set('main')"
+              class="rounded-lg border border-white/10 bg-white/5 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+            >
+              Volver
+            </button>
+          }
+          @default {
+            <h2 class="mb-1 text-lg font-bold tracking-[0.2em] text-amber-300">MENÚ</h2>
+            <p class="mb-5 text-xs text-slate-400" [class.text-emerald-400]="worldSocket.socketConnected()">
+              {{ worldSocket.socketConnected() ? 'Conectado' : 'Desconectado' }}
+            </p>
+            <div class="flex flex-col gap-2">
+              <button
+                type="button"
+                (click)="closeSessionMenu()"
+                class="rounded-lg border border-white/10 bg-white/5 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+              >
+                Reanudar
+              </button>
+              <button
+                type="button"
+                (click)="sessionMenuView.set('controls')"
+                class="rounded-lg border border-white/10 bg-white/5 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+              >
+                Controles
+              </button>
+              <button
+                type="button"
+                (click)="sessionMenuView.set('credits')"
+                class="rounded-lg border border-white/10 bg-white/5 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+              >
+                Créditos
+              </button>
+              <button
+                type="button"
+                (click)="logout()"
+                class="mt-2 rounded-lg bg-amber-500 py-2 text-sm font-semibold text-black transition hover:bg-amber-400"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
   @if (lastDenied(); as msg) {
     <p class="denied" role="status">{{ msg }}</p>
   }
@@ -149,7 +208,7 @@
         }
         <div class="overlay-hud-bottom">
           <div class="overlay-action-bar" aria-label="Barra de acciones de combate">
-            @for (slot of actionBarSlots; track slot.hotkey) {
+            @for (slot of actionBarSlots(); track slot.hotkey) {
               <button
                 type="button"
                 class="action-slot"

@@ -67,6 +67,7 @@ import {
   type WsZoneSnapshotPayload,
   type WsPortalTravelClientPayload,
   type WsPortalTravelDeniedPayload,
+  type WsRequestDashAckPayload,
   type WsPlayerLeftZonePayload,
   type WsPlayerDeathPayload,
   type WsPlayerRespawnPayload,
@@ -123,7 +124,7 @@ import { GmCommandService } from '../gm/gm-command.service';
 import { PartyService } from '../party/party.service';
 import { StarterKitService } from '../items/starter-kit.service';
 import { DungeonService } from '../dungeon/dungeon.service';
-import { findMapPortalById } from '../combat/combat-config.loaders';
+import { findMapPortalById, loadWorldSpatialConfig } from '../combat/combat-config.loaders';
 import { computeSwingCooldownMs } from '../combat/combat-timing.loaders';
 import { getWorldZoneDefinition, clampAxisToPlayable } from './config/world-zones.loaders';
 import { resolveRespawnTarget } from './config/world-spawn.loaders';
@@ -2331,6 +2332,78 @@ export class WorldGateway
     };
     void client.to(newRoom).emit(WS_WORLD_EVENTS.PLAYER_MOVED, arrive);
     await this.emitCharacterVisualState(characterId, newZoneId);
+  }
+
+  /**
+   * Dash hacia atrás desde `worldFacingYaw`: reposición autoritativa tipo portal/respawn
+   * (destino calculado 100% server-side, nunca por el cliente), así que no pasa por
+   * `validateMovementIntent` — solo valida obstáculos. `lastMoveSampleAtMs` se resetea para
+   * que el próximo `player-move` normal no se compare contra la posición pre-dash.
+   */
+  @SubscribeMessage(WS_WORLD_EVENTS.REQUEST_DASH)
+  async handleRequestDash(
+    @ConnectedSocket() client: Socket,
+  ): Promise<WsRequestDashAckPayload> {
+    const characterId = client.data.characterId as string | undefined;
+    if (!characterId) {
+      return { ok: false, code: 'NOT_AUTHENTICATED', message: 'Socket sin personaje asociado' };
+    }
+
+    const ch = await this.prisma.character.findUnique({ where: { id: characterId } });
+    if (!ch) {
+      return { ok: false, code: 'CHARACTER_NOT_FOUND', message: 'Personaje no encontrado' };
+    }
+    if (isDeadHp(ch.currentHp)) {
+      return { ok: false, code: 'CHARACTER_DEAD', message: 'No podés usar el dash estando muerto' };
+    }
+    const zoneId = normalizeZoneId(client.data.zoneId as string | undefined);
+    if (!zonesMatch(ch.currentZoneId, zoneId)) {
+      return { ok: false, code: 'ZONE_MISMATCH', message: 'Zona desincronizada, reconectá' };
+    }
+
+    const reserved = this.playerCombatRuntime.tryReserveDash(characterId);
+    if (!reserved.ok) {
+      return reserved;
+    }
+
+    const spatial = loadWorldSpatialConfig();
+    const distance = spatial.dashDistanceMeters ?? 6;
+    const yaw = ch.worldFacingYaw;
+    const from = { x: ch.worldPosX, y: ch.worldPosY, z: ch.worldPosZ };
+    // Backward = -forward; forward = (sin(yaw), cos(yaw)) — misma convención que
+    // `isBackstabFromRearCone` (WorldSpatialService).
+    const to = {
+      x: from.x - Math.sin(yaw) * distance,
+      y: from.y,
+      z: from.z - Math.cos(yaw) * distance,
+    };
+    const obstacleCheck = this.spatial.resolveMoveTargetAgainstObstacles({ from, to, zoneId });
+    const x = clampAxisToPlayable(zoneId, obstacleCheck.corrected.x);
+    const y = obstacleCheck.corrected.y;
+    const z = clampAxisToPlayable(zoneId, obstacleCheck.corrected.z);
+
+    await this.prisma.character.update({
+      where: { id: characterId },
+      data: { worldPosX: x, worldPosY: y, worldPosZ: z },
+    });
+    client.data.lastMoveSampleAtMs = Date.now();
+    this.playerCombatRuntime.recordPoseFromMove(characterId, { x, y, z }, yaw, zoneId);
+
+    client.emit(WS_WORLD_EVENTS.PLAYER_POSITION_CORRECTED, {
+      worldPos: { x, y, z },
+      worldFacingYaw: yaw,
+      reason: 'DASH',
+    } satisfies WsPlayerPositionCorrectedPayload);
+
+    this.bridge.broadcastToZone(zoneId, WS_WORLD_EVENTS.PLAYER_MOVED, {
+      characterId,
+      worldPos: { x, y, z },
+      worldFacingYaw: yaw,
+      displayName: ch.name,
+      karmaFlag: this.penaltyManager.getKarmaFlagFromTier(ch.karmaTier),
+    } satisfies WsPlayerMovedPayload);
+
+    return { ok: true, worldPos: { x, y, z }, worldFacingYaw: yaw };
   }
 
   /**

@@ -1087,6 +1087,9 @@ export class MobAiTickService implements OnModuleInit, OnModuleDestroy {
     if (this.playerCombatRuntime.isMobPendingDeath(mob.id)) {
       return;
     }
+    if (this.playerCombatRuntime.isMobStunned(mob.id)) {
+      return;
+    }
     const z = this.zoneKey(mob.zoneId);
     const chars = charsByZone.get(z);
     if (!(chars?.length) && !mob.aggroTargetCharacterId) {

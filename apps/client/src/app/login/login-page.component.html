@@ -1,0 +1,167 @@
+<div
+  class="relative min-h-screen w-full overflow-hidden bg-[#070910] text-slate-100"
+>
+  <!-- Fondo: gradiente + viñeta. Las hero previews (abajo) hacen de "imagen de fondo" animada. -->
+  <div
+    class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_20%,_rgba(99,102,241,0.20),_transparent_60%)]"
+  ></div>
+  <div
+    class="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#070910]"
+  ></div>
+
+  <!-- Personajes de fondo: izquierda/derecha delante de la tarjeta, centro detrás (z-10 la tapa un poco). -->
+  <div class="pointer-events-none absolute inset-y-0 left-0 hidden w-[30%] opacity-80 md:block">
+    <div
+      class="absolute left-1/2 top-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/40 px-4 py-1 text-xs tracking-[0.2em] text-amber-200 backdrop-blur"
+    >
+      {{ heroSlots.left.label }}
+    </div>
+    <app-hero-preview
+      [modelUrl]="heroSlots.left.url"
+      [initialYaw]="heroSlots.left.yaw ?? 0"
+      class="block h-full w-full"
+    />
+  </div>
+  <div class="pointer-events-none absolute inset-y-0 left-1/2 hidden w-[38%] -translate-x-1/2 opacity-70 md:block">
+    <div
+      class="absolute left-1/2 top-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/40 px-4 py-1 text-xs tracking-[0.2em] text-amber-200 backdrop-blur"
+    >
+      {{ heroSlots.center.label }}
+    </div>
+    <app-hero-preview
+      [modelUrl]="heroSlots.center.url"
+      [initialYaw]="heroSlots.center.yaw ?? 0"
+      class="block h-full w-full"
+    />
+  </div>
+  <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[30%] opacity-80 md:block">
+    <div
+      class="absolute left-1/2 top-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/40 px-4 py-1 text-xs tracking-[0.2em] text-amber-200 backdrop-blur"
+    >
+      {{ heroSlots.right.label }}
+    </div>
+    <app-hero-preview
+      [modelUrl]="heroSlots.right.url"
+      [initialYaw]="heroSlots.right.yaw ?? 0"
+      class="block h-full w-full"
+    />
+  </div>
+
+  <!-- Música de ambiente: autoplay con sonido no lo permite el navegador, por eso el toggle. -->
+  <audio #music loop preload="none" src="audio/login-theme.mp3"></audio>
+  <button
+    type="button"
+    (click)="toggleMusic()"
+    class="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300 backdrop-blur transition hover:bg-white/10"
+  >
+    {{ soundOn() ? '🔊 Música' : '🔈 Música' }}
+  </button>
+
+  <div class="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-10">
+    <h1
+      class="mb-8 select-none text-center text-5xl font-bold tracking-[0.25em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 drop-shadow-[0_0_25px_rgba(251,191,36,0.35)]"
+    >
+      AETHERIS
+    </h1>
+
+    <div
+      class="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl"
+    >
+      @if (pendingCharacters(); as chars) {
+        <p class="mb-3 text-sm text-slate-300">Elegí tu personaje</p>
+        <ul class="flex flex-col gap-2">
+          @for (c of chars; track c.id) {
+            <li>
+              <button
+                type="button"
+                (click)="pickCharacter(c.id)"
+                class="flex w-full items-center justify-between rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-left text-sm transition hover:border-amber-400/50 hover:bg-black/50"
+              >
+                <span>{{ c.name }}</span>
+                <span class="text-xs text-slate-400">Nv. {{ c.level }} · {{ c.characterClass }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="mb-4 flex rounded-lg bg-black/30 p-1 text-sm">
+          <button
+            type="button"
+            (click)="setMode('login')"
+            [ngClass]="{ 'bg-white/10': mode() === 'login' }"
+            class="flex-1 rounded-md py-1.5 text-slate-200 transition"
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            (click)="setMode('register')"
+            [ngClass]="{ 'bg-white/10': mode() === 'register' }"
+            class="flex-1 rounded-md py-1.5 text-slate-200 transition"
+          >
+            Crear cuenta
+          </button>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-3">
+          <label class="flex flex-col gap-1 text-xs uppercase tracking-wide text-slate-400">
+            Usuario
+            <input
+              formControlName="username"
+              type="text"
+              autocomplete="username"
+              class="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm normal-case tracking-normal text-slate-100 outline-none focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40"
+            />
+          </label>
+
+          <label class="flex flex-col gap-1 text-xs uppercase tracking-wide text-slate-400">
+            Contraseña
+            <input
+              formControlName="password"
+              type="password"
+              autocomplete="current-password"
+              class="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm normal-case tracking-normal text-slate-100 outline-none focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40"
+            />
+          </label>
+
+          @if (mode() === 'register') {
+            <label class="flex flex-col gap-1 text-xs uppercase tracking-wide text-slate-400">
+              Nombre de personaje
+              <input
+                formControlName="characterName"
+                type="text"
+                autocomplete="off"
+                class="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm normal-case tracking-normal text-slate-100 outline-none focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40"
+              />
+            </label>
+            <label class="flex flex-col gap-1 text-xs uppercase tracking-wide text-slate-400">
+              Clase
+              <select
+                formControlName="characterClass"
+                class="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm normal-case tracking-normal text-slate-100 outline-none focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40"
+              >
+                @for (opt of classOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </label>
+          }
+
+          @if (error(); as msg) {
+            <p class="text-sm text-red-400">{{ msg }}</p>
+          }
+
+          <button
+            type="submit"
+            [disabled]="busy()"
+            class="mt-2 rounded-lg bg-amber-500 py-2 text-sm font-semibold text-black transition hover:bg-amber-400 disabled:opacity-50"
+          >
+            {{ busy() ? 'Conectando…' : mode() === 'login' ? 'Entrar al mundo' : 'Crear personaje' }}
+          </button>
+        </form>
+      }
+    </div>
+
+    <p class="mt-6 text-xs text-slate-500">Assets CC0 / CC-BY · proyecto de cátedra</p>
+  </div>
+</div>

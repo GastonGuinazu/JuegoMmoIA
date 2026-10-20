@@ -21,7 +21,7 @@ import { MobCombatRegenService } from '../mob/mob-combat-regen.service';
 import { CombatService, type RuntimeMobKillCommitPlan } from './combat.service';
 import { PendingWorldDropService } from '../world/pending-world-drop.service';
 import { computeSwingCooldownMs, loadCombatTimingConfig } from './combat-timing.loaders';
-import { loadSkillsConfig } from './combat-config.loaders';
+import { loadSkillsConfig, loadWorldSpatialConfig } from './combat-config.loaders';
 import {
   resolveMobMeleeCooldownMs,
   resolveMobMeleeHitDelayMs,
@@ -69,6 +69,8 @@ type MobRuntimeRow = {
   dirty: boolean;
   /** Muerte optimista: el cliente ya vio kill; Prisma termina en background. */
   isPendingDeath?: boolean;
+  /** Timestamp (Date.now()) hasta el cual el mob no mueve ni ataca (skill con `effect: 'stun'`). */
+  stunnedUntilMs?: number;
 };
 
 @Injectable()
@@ -80,6 +82,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
   private readonly lastSwingAtMs = new Map<string, number>();
   private readonly lastManaRegenAtMs = new Map<string, number>();
   private readonly lastSkillCastAtMs = new Map<string, Map<string, number>>();
+  private readonly lastDashAtMs = new Map<string, number>();
   private readonly lastProgressionSyncAtMs = new Map<string, number>();
   private readonly gradePenaltyByCharacter = new Map<string, boolean>();
   private readonly killFinalizeQueueByCharacter = new Map<string, Promise<void>>();
@@ -129,6 +132,12 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
 
   isMobPendingDeath(mobInstanceId: string): boolean {
     return !!this.mobRuntime.get(mobInstanceId)?.isPendingDeath;
+  }
+
+  /** PvE: mob bajo efecto de una skill con `effect: 'stun'` (ver `tryCastSkillForCharacter`). */
+  isMobStunned(mobInstanceId: string): boolean {
+    const until = this.mobRuntime.get(mobInstanceId)?.stunnedUntilMs ?? 0;
+    return until > Date.now();
   }
 
   /**
@@ -657,6 +666,32 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     });
   }
 
+  /**
+   * Cooldown + maná del dash (RAM, mismo patrón que `lastSkillCastAtMs`). El cálculo del
+   * destino y la colisión con obstáculos quedan en el gateway (`handleRequestDash`), que
+   * también necesita `ch.worldFacingYaw` fresco de DB.
+   */
+  tryReserveDash(characterId: string): { ok: true } | { ok: false; code: string; message: string } {
+    const spatial = loadWorldSpatialConfig();
+    const cooldownMs = spatial.dashCooldownMs ?? 6000;
+    const manaCost = spatial.dashManaCost ?? 0;
+    const now = Date.now();
+    const last = this.lastDashAtMs.get(characterId) ?? 0;
+    if (now - last < cooldownMs) {
+      return { ok: false, code: 'DASH_ON_COOLDOWN', message: 'El dash sigue en cooldown' };
+    }
+    const stats = this.charStats.get(characterId);
+    if (manaCost > 0 && (!stats || stats.currentMp < manaCost)) {
+      return { ok: false, code: 'NO_MANA', message: 'No tenés mana suficiente' };
+    }
+    if (stats && manaCost > 0) {
+      stats.currentMp = Math.max(0, stats.currentMp - manaCost);
+      this.emitCasterVitals(characterId, stats);
+    }
+    this.lastDashAtMs.set(characterId, now);
+    return { ok: true };
+  }
+
   async tryCastSkillForCharacter(
     characterId: string,
     skillId: string,
@@ -696,11 +731,18 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     if (!zonesMatch(mobRow.zoneId, zoneId)) {
       return { ok: false, code: 'ZONE_MISMATCH', message: 'Objetivo fuera de la zona actual' };
     }
-    const inRange = this.spatial.isWithinMeleeAttackRange(
-      { x: pose.x, y: pose.y, z: pose.z },
-      { x: mobRow.posX, y: mobRow.posY, z: mobRow.posZ },
-      skill.rangeMeters,
-    );
+    const inRange =
+      skill.targetingMode === 'ranged'
+        ? this.spatial.isWithinSkillCastRange(
+            { x: pose.x, y: pose.y, z: pose.z },
+            { x: mobRow.posX, y: mobRow.posY, z: mobRow.posZ },
+            skill.rangeMeters,
+          )
+        : this.spatial.isWithinMeleeAttackRange(
+            { x: pose.x, y: pose.y, z: pose.z },
+            { x: mobRow.posX, y: mobRow.posY, z: mobRow.posZ },
+            skill.rangeMeters,
+          );
     if (!inRange) {
       return {
         ok: false,
@@ -763,6 +805,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
       });
       row.currentHp = Math.max(0, row.currentHp - damage);
       row.dirty = true;
+      if (skill.effect === 'stun' && row.currentHp > 0) {
+        row.stunnedUntilMs = Date.now() + (skill.effectDurationMs ?? 2000);
+      }
       this.damageTracker.recordDamage({
         mobInstanceId: candidateMobId,
         characterId,
@@ -1054,6 +1099,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     }
 
     if (this.isMobPendingDeath(mobInstanceId)) {
+      return;
+    }
+    if (this.isMobStunned(mobInstanceId)) {
       return;
     }
 

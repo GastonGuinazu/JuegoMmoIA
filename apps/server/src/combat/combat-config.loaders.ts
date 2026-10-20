@@ -41,6 +41,10 @@ export interface WorldSpatialConfigFile {
   movementMinDtSeconds?: number;
   movementMaxDtSeconds?: number;
   movementMaxVerticalStep?: number;
+  /** Distancia del dash (metros), siempre hacia atrás desde `worldFacingYaw` del personaje. */
+  dashDistanceMeters?: number;
+  dashCooldownMs?: number;
+  dashManaCost?: number;
   /** Metros extra solo en validación de ataque (predicción cliente / latencia). */
   attackReachPredictionSlackMeters?: number;
   /** Distancia jugador–drop para `PICK_ITEM` (Warden). */
@@ -76,6 +80,11 @@ export interface SkillConfigRow {
   damageMultiplier: number;
   cooldownMs: number;
   rangeMeters: number;
+  /** `ranged` = `rangeMeters` es distancia real (`isWithinSkillCastRange`). Default/ausente = melee (`isWithinMeleeAttackRange`, que le suma slack de contacto). */
+  targetingMode?: 'melee' | 'ranged';
+  /** `stun`: el mob impactado no mueve ni ataca por `effectDurationMs` (solo PvE por ahora — ver `isMobStunned`). */
+  effect?: 'stun';
+  effectDurationMs?: number;
 }
 
 export interface SkillsConfigFile {

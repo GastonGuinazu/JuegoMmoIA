@@ -6,6 +6,7 @@ import {
   ElementRef,
   OnDestroy,
   ViewChild,
+  computed,
   effect,
   inject,
   signal,
@@ -31,7 +32,10 @@ import { NpcShopPanelComponent } from '../ui/progress/npc-shop-panel.component';
 import { SynthesisComponent } from '../ui/progress/synthesis.component';
 import { PartyPanelComponent } from '../ui/progress/party-panel.component';
 import { ChatPanelComponent } from '../ui/progress/chat-panel.component';
-import { LoginPanelComponent } from '../ui/login/login-panel.component';
+import { Router } from '@angular/router';
+import { CHARACTER_ID_STORAGE_KEY } from '../core/session-storage-keys';
+import { CONTROL_HINTS } from '../core/control-hints';
+import { ASSET_CREDITS } from '../core/asset-credits';
 import {
   TargetFrameComponent,
   type TargetFrameViewModel,
@@ -75,7 +79,7 @@ import type {
   ChatChannel,
 } from '../../../../../libs/shared-types/src/world-socket';
 
-const STORAGE_CHARACTER = 'aetheris.characterId';
+const STORAGE_CHARACTER = CHARACTER_ID_STORAGE_KEY;
 const STORAGE_SERVER = 'aetheris.worldSocketUrl';
 
 const KARMA_NAME_COLORS = {
@@ -214,15 +218,21 @@ const POTION_COOLDOWN_MS = 1000;
 const SKILL_LOCAL_RULES = {
   power_strike: { name: 'Power Strike', manaCost: 15, cooldownMs: 2000, rangeMeters: 2 },
   rageful_blow: { name: 'Rageful Blow', manaCost: 30, cooldownMs: 5000, rangeMeters: 2 },
+  /** Primera skill propia del Dark Wizard: distancia real (ver `targetingMode` en skills.json). */
+  fireball: { name: 'Fireball', manaCost: 15, cooldownMs: 1500, rangeMeters: 12 },
+  /** Segunda skill del Dark Wizard: stun PvE (ver `effect`/`effectDurationMs` en skills.json). */
+  frostbind: { name: 'Frostbind', manaCost: 25, cooldownMs: 3200, rangeMeters: 12 },
 } as const;
 type SkillHotkeyId = keyof typeof SKILL_LOCAL_RULES;
 
 type ActionBarSlot = {
-  hotkey: '1' | '2' | '3' | '4' | '5';
+  hotkey: '1' | '2' | '3' | '4' | '5' | 'Space';
   label: string;
   iconGlyph: string;
   skillId: SkillHotkeyId | null;
   isBasic: boolean;
+  /** No es una skill de `skills.json`: mensaje propio (`request-dash`), sin target. */
+  isDash?: boolean;
   /** Si está presente, el slot usa este consumible del inventario en vez de una skill. */
   potionCatalogKey?: string;
   /** Nombre corto del consumible, para el mensaje de "no te quedan ...". */
@@ -245,6 +255,16 @@ type ActiveBurstFx = {
   particles: BurstParticle[];
   startedAt: number;
   durationMs: number;
+};
+
+type ActiveBoltFx = {
+  mesh: THREE.Mesh;
+  material: THREE.MeshBasicMaterial;
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  startedAt: number;
+  durationMs: number;
+  impactColors: readonly [number, number];
 };
 
 type PendingCombatAction =
@@ -358,6 +378,24 @@ const ACTION_BAR_SLOTS: readonly ActionBarSlot[] = [
     potionLabel: 'Pociones de Maná',
   },
 ] as const;
+/** Dark Wizard: slot 2 pasa a Fireball (distancia). Rageful Blow queda por ahora en el 3
+ * hasta que haya una skill propia (stun) para reemplazarlo. */
+const WIZARD_ACTION_BAR_SLOTS: readonly ActionBarSlot[] = [
+  ...ACTION_BAR_SLOTS.map((slot) => {
+    if (slot.hotkey === '2') {
+      return { ...slot, label: 'Fireball', iconGlyph: '🔥', skillId: 'fireball' as const };
+    }
+    if (slot.hotkey === '3') {
+      return { ...slot, label: 'Frostbind', iconGlyph: '❄', skillId: 'frostbind' as const };
+    }
+    return slot;
+  }),
+  { hotkey: 'Space', label: 'Dash', iconGlyph: '💨', skillId: null, isBasic: false, isDash: true },
+];
+/** Debe matchear `dashCooldownMs`/`dashDistanceMeters` en `world-spatial.json` (ack
+ * autoritativo corrige si difiere, ej. por un obstáculo que el cliente resolvió distinto). */
+const DASH_COOLDOWN_MS = 6000;
+const DASH_DISTANCE_M = 6;
 const DEFAULT_CAMERA_RADIUS = ISO_OFFSET.length();
 const DEFAULT_CAMERA_AZIMUTH = Math.atan2(ISO_OFFSET.x, ISO_OFFSET.z);
 const DEFAULT_CAMERA_POLAR = Math.acos(ISO_OFFSET.y / DEFAULT_CAMERA_RADIUS);
@@ -368,6 +406,9 @@ const POWER_STRIKE_SLASH_MS = 130;
 const RAGEFUL_BLOW_BURST_MS = 420;
 const RAGEFUL_BLOW_AOE_RADIUS = 3.5;
 const RAGEFUL_BLOW_PARTICLES = 24;
+/** Tiempo de viaje del proyectil, no de física real: el daño ya se resolvió en el server. */
+const FIREBALL_BOLT_MS = 220;
+const FIREBALL_IMPACT_RADIUS = 0.7;
 const AUTO_ATTACK_RESUME_EMIT_MS = 250;
 const WEAPON_SWING_MS = 180;
 /**
@@ -473,7 +514,6 @@ function mulberry32(seed: number): () => number {
     SynthesisComponent,
     PartyPanelComponent,
     ChatPanelComponent,
-    LoginPanelComponent,
     DungeonTimerHudComponent,
     DungeonRoomMenuPanelComponent,
   ],
@@ -491,17 +531,21 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private readonly mapLoader = inject(WorldMapLoaderService);
   private readonly visuals = inject(EntityVisualFactoryService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
 
   serverUrlModel = localStorage.getItem(STORAGE_SERVER) ?? environment.worldSocketUrl;
   characterIdModel = localStorage.getItem(STORAGE_CHARACTER) ?? '';
-  /** Campo de ID manual (debug/GM): oculto por default, el login es el flujo normal. */
-  readonly advancedConnectOpen = signal(false);
   /** Línea tipo chat para comandos GM locales (personaje con `isAdmin` en DB). */
   gmCommandLine = '';
   /** Solo visible si `playerState.isSessionAdmin()` y el jugador pulsa `Y`. */
   readonly gmBarVisible = signal(false);
 
   lastDenied = signal<string | null>(null);
+  /** Esc la abre/cierra: cerrar sesión y estado de conexión, antes siempre visibles arriba. */
+  readonly sessionMenuOpen = signal(false);
+  readonly sessionMenuView = signal<'main' | 'controls' | 'credits'>('main');
+  readonly controlHints = CONTROL_HINTS;
+  readonly assetCredits = ASSET_CREDITS;
   readonly inventoryPanelOpen = signal(false);
   readonly characterSheetOpen = signal(false);
   readonly synthesisPanelOpen = signal(false);
@@ -569,6 +613,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private readonly skillFxRoot = new THREE.Group();
   private readonly activeSlashFxs: ActiveSlashFx[] = [];
   private readonly activeBurstFxs: ActiveBurstFx[] = [];
+  private readonly activeBoltFxs: ActiveBoltFx[] = [];
   private mobRoot!: THREE.Group;
   private npcRoot!: THREE.Group;
   private dropsRoot!: THREE.Group;
@@ -651,9 +696,19 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   localCurrentMp = 0;
   localMaxMp = 0;
   private readonly localSkillCooldownUntil = new Map<string, number>();
+  private dashCooldownUntilMs = 0;
+  /** Mientras está en `true`, `maybeEmitMoveSample` no manda `player-move`: evita que ese
+   * paquete llegue al server antes de que termine de escribir la posición del dash (si no,
+   * se valida contra la posición VIEJA y lo rechaza como SPEED_OR_TELEPORT). El movimiento
+   * visual local no se frena, solo el envío de red. */
+  private dashAckPending = false;
   /** Último uso de CUALQUIER consumible; el cooldown real del servidor es compartido. */
   private lastPotionUseAtMs = 0;
-  readonly actionBarSlots = ACTION_BAR_SLOTS;
+  readonly actionBarSlots = computed<readonly ActionBarSlot[]>(() =>
+    this.playerState.characterSheet()?.characterClass === 'DARK_WIZARD'
+      ? WIZARD_ACTION_BAR_SLOTS
+      : ACTION_BAR_SLOTS,
+  );
   readonly cooldownNowMs = signal(0);
   readonly chaseFeedback = signal<string | null>(null);
   private pendingCombatAction: PendingCombatAction | null = null;
@@ -791,15 +846,24 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         this.entitySync.applyPositionCorrected(c);
         this.authoritativePos.set(c.worldPos.x, c.worldPos.y, c.worldPos.z);
         this.authoritativeYaw = isFiniteYaw(c.worldFacingYaw) ? c.worldFacingYaw : this.authoritativeYaw;
-        this.moveTarget = null;
+        // El ack del dash es async (round-trip): si en el medio el jugador ya clickeó para
+        // caminar a otro lado, ese `moveTarget` es MÁS nuevo que este evento — no cancelarlo.
+        // Para cualquier otra corrección (anti-cheat real) sí se descarta, como antes.
+        if (c.reason !== 'DASH') {
+          this.moveTarget = null;
+        }
+        // Siempre resetear contra lo autoritativo (no `visualPos`, que en el branch con lerp
+        // todavía no llegó): si no, el próximo tick de sync de movimiento mide la distancia
+        // desde la posición VIEJA y dispara un SPEED_OR_TELEPORT espurio encima de esta misma
+        // corrección (se vio con el dash: dos avisos en vez de uno).
+        this.lastEmittedPos.set(c.worldPos.x, c.worldPos.y, c.worldPos.z);
+        this.lastEmittedYaw = this.authoritativeYaw;
+        const now = performance.now();
+        this.lastMoveEmitMs = now;
         if (distXZ < SERVER_SYNC_THRESHOLD_XZ) {
           this.correctionLerp = null;
-          this.lastEmittedPos.copy(this.visualPos);
-          this.lastEmittedYaw = this.visualYaw;
-          this.lastMoveEmitMs = performance.now();
           return;
         }
-        const now = performance.now();
         this.correctionLerp = {
           startTime: now,
           durationMs: CORRECTION_LERP_MS,
@@ -808,7 +872,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
           target: new THREE.Vector3(c.worldPos.x, c.worldPos.y, c.worldPos.z),
           targetYaw: c.worldFacingYaw,
         };
-        this.lastDenied.set(`Posición corregida: ${c.reason}`);
+        // 'DASH' es la skill funcionando (reposición autoritativa, mismo mecanismo que una
+        // corrección real) — no un error de red: no tiene sentido mostrarlo en rojo.
+        if (c.reason !== 'DASH') {
+          this.lastDenied.set(`Posición corregida: ${c.reason}`);
+        }
       });
 
     this.worldSocket.playerVitals$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
@@ -1245,6 +1313,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     this.cooldownTickerId = window.setInterval(() => {
       this.cooldownNowMs.set(performance.now());
     }, 100);
+
+    /** El guard de la ruta `''` ya exige un characterId en storage: conectar directo. */
+    if (this.characterIdModel.trim()) {
+      this.connectWorld();
+    }
   }
 
   ngOnDestroy(): void {
@@ -1345,6 +1418,27 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       }
     });
     this.gmCommandLine = '';
+  }
+
+  toggleSessionMenu(): void {
+    if (this.sessionMenuOpen()) {
+      this.closeSessionMenu();
+      return;
+    }
+    this.sessionMenuView.set('main');
+    this.sessionMenuOpen.set(true);
+  }
+
+  closeSessionMenu(): void {
+    this.sessionMenuOpen.set(false);
+    this.sessionMenuView.set('main');
+  }
+
+  /** Cierra sesión: desconecta, borra el personaje elegido y vuelve a `/login`. */
+  logout(): void {
+    this.disconnectWorld();
+    localStorage.removeItem(STORAGE_CHARACTER);
+    void this.router.navigateByUrl('/login');
   }
 
   disconnectWorld(): void {
@@ -1756,18 +1850,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     }
     if (ev.key === 'Escape') {
       ev.preventDefault();
-      this.cancelCombatChase();
-      this.clearSelectedTarget({ alsoStopAutoAttack: true });
+      if (this.activeTargetId !== null || this.autoAttackIntentTargetId !== null) {
+        this.cancelCombatChase();
+        this.clearSelectedTarget({ alsoStopAutoAttack: true });
+        return;
+      }
+      this.toggleSessionMenu();
       return;
     }
-    if (ev.key === '2') {
+    if (ev.key === '2' || ev.key === '3') {
       ev.preventDefault();
-      this.requestSkillCast('power_strike');
-      return;
-    }
-    if (ev.key === '3') {
-      ev.preventDefault();
-      this.requestSkillCast('rageful_blow');
+      const slot = this.actionBarSlots().find((s) => s.hotkey === ev.key);
+      if (slot?.skillId) {
+        this.requestSkillCast(slot.skillId);
+      }
       return;
     }
     if (ev.key === '4') {
@@ -1778,6 +1874,13 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (ev.key === '5') {
       ev.preventDefault();
       this.usePotion(MANA_POTION_CATALOG_KEY, 'Pociones de Maná');
+      return;
+    }
+    if (ev.key === ' ') {
+      ev.preventDefault();
+      if (this.playerState.characterSheet()?.characterClass === 'DARK_WIZARD') {
+        this.requestDash();
+      }
       return;
     }
   }
@@ -1945,6 +2048,68 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
+   * Sin target: el Warden calcula destino desde `worldFacingYaw` actual, mismo cálculo acá
+   * (predicción optimista, igual que el resto del movimiento) para que el dash se sienta
+   * instantáneo en vez de esperar el round-trip. Si no se predijera acá y el jugador
+   * clickeaba para caminar antes de que llegue el ack, ese ack tardío pisaba el move target
+   * nuevo y el personaje "volvía" al punto del dash — por eso la posición se fija ya mismo,
+   * no al recibir la respuesta.
+   */
+  requestDash(): void {
+    if (!this.worldSocket.socketConnected()) {
+      return;
+    }
+    const now = performance.now();
+    if (now < this.dashCooldownUntilMs) {
+      this.pushCombatFeedback('En Cooldown');
+      return;
+    }
+    this.dashCooldownUntilMs = now + DASH_COOLDOWN_MS;
+
+    const from = this.visualPos.clone();
+    const yaw = this.visualYaw;
+    const candidate = new THREE.Vector3(
+      from.x - Math.sin(yaw) * DASH_DISTANCE_M,
+      from.y,
+      from.z - Math.cos(yaw) * DASH_DISTANCE_M,
+    );
+    const resolved = this.resolveClientMoveAgainstObstacles(from, candidate);
+    this.moveTarget = null;
+    this.correctionLerp = {
+      startTime: now,
+      durationMs: CORRECTION_LERP_MS,
+      startVisual: from,
+      startYaw: yaw,
+      target: resolved,
+      targetYaw: yaw,
+    };
+
+    this.dashAckPending = true;
+    this.worldSocket.emitRequestDash((result) => {
+      this.dashAckPending = false;
+      if (!result.ok) {
+        this.dashCooldownUntilMs = 0;
+        // El server no lo validó: deshacer la predicción (solo si no se interrumpió ya con
+        // otro movimiento — `tickMovement` limpia `correctionLerp` apenas el jugador camina).
+        if (this.correctionLerp) {
+          this.correctionLerp = null;
+        }
+        this.visualPos.copy(from);
+        this.authoritativePos.copy(from);
+        this.pushCombatFeedback(
+          result.code === 'DASH_ON_COOLDOWN'
+            ? 'En Cooldown'
+            : result.code === 'NO_MANA'
+              ? 'Sin Mana'
+              : result.message,
+        );
+        return;
+      }
+      this.playerState.pushSystemLogLine('[Skill] Dash.');
+    });
+  }
+
+  /**
    * Ejecuta la skill contra jugador ya en rango (llegada del chase, o directo si ya
    * estaba en rango). Re-chequea todo con estado fresco porque puede haber pasado un
    * rato caminando hasta acá (cooldown/maná/grupo pueden haber cambiado en el camino).
@@ -1986,6 +2151,10 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     }
     if (slot.isBasic) {
       this.requestBasicAttack();
+      return;
+    }
+    if (slot.isDash) {
+      this.requestDash();
       return;
     }
     if (!slot.skillId) {
@@ -2222,7 +2391,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (remaining <= 0) {
       return 0;
     }
-    const totalMs = slot.skillId ? SKILL_LOCAL_RULES[slot.skillId].cooldownMs : POTION_COOLDOWN_MS;
+    const totalMs = slot.isDash
+      ? DASH_COOLDOWN_MS
+      : slot.skillId
+        ? SKILL_LOCAL_RULES[slot.skillId].cooldownMs
+        : POTION_COOLDOWN_MS;
     return Math.max(0, Math.min(1, remaining / totalMs));
   }
 
@@ -2231,6 +2404,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (slot.potionCatalogKey) {
       // Un solo reloj compartido: usar cualquier consumible frena a los dos slots por igual.
       return Math.max(0, Math.ceil(this.lastPotionUseAtMs + POTION_COOLDOWN_MS - now));
+    }
+    if (slot.isDash) {
+      return Math.max(0, Math.ceil(this.dashCooldownUntilMs - now));
     }
     if (!slot.skillId) {
       return 0;
@@ -3136,6 +3312,24 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (!isFiniteVec3(this.moveTarget) || !isFiniteVec3(this.visualPos)) {
       return;
     }
+    if (this.dashAckPending) {
+      // El click ya guardó el destino (arriba, en el handler de click derecho); caminar
+      // recién arranca cuando el dash confirme. Si no, el personaje empieza a caminar ANTES
+      // de que el server resetee su reloj de validación (lo resetea al terminar de escribir
+      // la posición del dash), y ese hueco cuenta como distancia "gratis" no presupuestada
+      // → el primer paquete de movimiento se ve más rápido de lo permitido y lo rechaza.
+      return;
+    }
+    if (this.correctionLerp) {
+      // Un click nuevo mientras todavía corría el lerp cosmético de una corrección grande
+      // (dash u otra) hacía que este método y `tickCorrectionLerp` se pisaran cada frame
+      // (corre después en el loop y ganaba, tirando al jugador de vuelta al punto del lerp
+      // en vez de dejarlo caminar). La intención explícita de moverse gana: comprometer ya
+      // mismo la posición final de la corrección y soltar el lerp.
+      this.visualPos.copy(this.correctionLerp.target);
+      this.visualYaw = this.correctionLerp.targetYaw;
+      this.correctionLerp = null;
+    }
     const speed = this.entitySync.playerMoveSpeed();
     const tx = this.moveTarget.x - this.visualPos.x;
     const tz = this.moveTarget.z - this.visualPos.z;
@@ -3493,6 +3687,9 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (!isFiniteVec3(this.visualPos) || !isFiniteYaw(this.visualYaw)) {
       return;
     }
+    if (this.dashAckPending) {
+      return;
+    }
     const now = performance.now();
     const elapsed = now - this.lastMoveEmitMs;
     const firstSample = !Number.isFinite(this.lastEmittedPos.x);
@@ -3848,6 +4045,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     }
     if (skillId === 'rageful_blow') {
       this.spawnRagefulBlowBurst(targetPos, RAGEFUL_BLOW_AOE_RADIUS);
+      return;
+    }
+    if (skillId === 'fireball') {
+      const attackerPos = this.resolveAttackerWorldPosition(attackerId);
+      if (attackerPos) {
+        this.spawnSkillBolt(attackerPos, targetPos, 0xff6a1f, [0xe3a04f, 0xc8c8c8]);
+      }
+      return;
+    }
+    if (skillId === 'frostbind') {
+      const attackerPos = this.resolveAttackerWorldPosition(attackerId);
+      if (attackerPos) {
+        this.spawnSkillBolt(attackerPos, targetPos, 0x7fd8ff, [0xbfeeff, 0xffffff]);
+      }
     }
   }
 
@@ -3905,7 +4116,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  private spawnRagefulBlowBurst(center: THREE.Vector3, radius: number): void {
+  private spawnRagefulBlowBurst(
+    center: THREE.Vector3,
+    radius: number,
+    colors: readonly [number, number] = [0xe3a04f, 0xc8c8c8],
+  ): void {
     const particles: BurstParticle[] = [];
     for (let i = 0; i < RAGEFUL_BLOW_PARTICLES; i += 1) {
       const angle = Math.random() * Math.PI * 2;
@@ -3915,7 +4130,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       const particleSize = THREE.MathUtils.randFloat(0.05, 0.12);
       const geom = new THREE.SphereGeometry(particleSize, 6, 6);
       const mat = new THREE.MeshBasicMaterial({
-        color: i % 2 === 0 ? 0xe3a04f : 0xc8c8c8,
+        color: i % 2 === 0 ? colors[0] : colors[1],
         transparent: true,
         opacity: 0.95,
       });
@@ -3935,6 +4150,41 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       particles,
       startedAt: performance.now(),
       durationMs: RAGEFUL_BLOW_BURST_MS,
+    });
+  }
+
+  /** Proyectil genérico a distancia (fireball, frostbind): el daño ya lo resolvió el server
+   * (igual que slash/burst); esto solo anima un mesh viajando de `from` a `to` y dispara el
+   * burst de impacto —con la paleta que le corresponda a cada skill— al llegar. */
+  private spawnSkillBolt(
+    from: THREE.Vector3,
+    to: THREE.Vector3,
+    color: number,
+    impactColors: readonly [number, number],
+  ): void {
+    const start = from.clone();
+    start.y += 0.9;
+    const end = to.clone();
+    end.y += 0.4;
+    const geom = new THREE.SphereGeometry(0.14, 8, 8);
+    const mat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 1,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.copy(start);
+    this.skillFxRoot.add(mesh);
+    this.activeBoltFxs.push({
+      mesh,
+      material: mat,
+      from: start,
+      to: end,
+      startedAt: performance.now(),
+      durationMs: FIREBALL_BOLT_MS,
+      impactColors,
     });
   }
 
@@ -3972,6 +4222,20 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         const mat = p.mesh.material as THREE.MeshBasicMaterial;
         mat.opacity = opacity;
       }
+    }
+
+    for (let i = this.activeBoltFxs.length - 1; i >= 0; i -= 1) {
+      const fx = this.activeBoltFxs[i]!;
+      const t = (now - fx.startedAt) / fx.durationMs;
+      if (t >= 1) {
+        this.skillFxRoot.remove(fx.mesh);
+        fx.mesh.geometry.dispose();
+        fx.material.dispose();
+        this.activeBoltFxs.splice(i, 1);
+        this.spawnRagefulBlowBurst(fx.to, FIREBALL_IMPACT_RADIUS, fx.impactColors);
+        continue;
+      }
+      fx.mesh.position.lerpVectors(fx.from, fx.to, Math.min(1, t));
     }
   }
 
@@ -4184,6 +4448,12 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       }
     }
     this.activeBurstFxs.length = 0;
+    for (const fx of this.activeBoltFxs) {
+      this.skillFxRoot.remove(fx.mesh);
+      fx.mesh.geometry.dispose();
+      fx.material.dispose();
+    }
+    this.activeBoltFxs.length = 0;
     this.combatFloaters?.clear();
   }
 

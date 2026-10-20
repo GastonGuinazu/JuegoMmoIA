@@ -33,5 +33,9 @@
   "mobChaseRingFactor": 0.78,
   "movementMinDtSeconds": 0.016,
   "movementMaxDtSeconds": 0.45,
-  "movementMaxVerticalStep": 1.4
+  "movementMaxVerticalStep": 1.4,
+  "_dash": "Reposición autoritativa tipo portal (no pasa por validateMovementIntent): server calcula destino desde worldFacingYaw, no el cliente.",
+  "dashDistanceMeters": 6,
+  "dashCooldownMs": 6000,
+  "dashManaCost": 10
 }

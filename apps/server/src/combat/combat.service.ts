@@ -806,11 +806,17 @@ export class CombatService {
 
         const inRange =
           skipRangeCheck ||
-          this.worldSpatial.isWithinMeleeAttackRange(
-            { x: attacker.worldPosX, y: attacker.worldPosY, z: attacker.worldPosZ },
-            { x: target.worldPosX, y: target.worldPosY, z: target.worldPosZ },
-            skill?.rangeMeters ?? 1.8,
-          );
+          (skill?.targetingMode === 'ranged'
+            ? this.worldSpatial.isWithinSkillCastRange(
+                { x: attacker.worldPosX, y: attacker.worldPosY, z: attacker.worldPosZ },
+                { x: target.worldPosX, y: target.worldPosY, z: target.worldPosZ },
+                skill.rangeMeters,
+              )
+            : this.worldSpatial.isWithinMeleeAttackRange(
+                { x: attacker.worldPosX, y: attacker.worldPosY, z: attacker.worldPosZ },
+                { x: target.worldPosX, y: target.worldPosY, z: target.worldPosZ },
+                skill?.rangeMeters ?? 1.8,
+              ));
         if (!inRange) {
           throw new BadRequestException({
             code: 'ATTACK_OUT_OF_RANGE',
