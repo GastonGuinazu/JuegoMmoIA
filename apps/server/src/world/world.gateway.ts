@@ -2368,8 +2368,17 @@ export class WorldGateway
 
     const spatial = loadWorldSpatialConfig();
     const distance = spatial.dashDistanceMeters ?? 6;
-    const yaw = ch.worldFacingYaw;
-    const from = { x: ch.worldPosX, y: ch.worldPosY, z: ch.worldPosZ };
+    // `ch` es la fila que acabamos de leer de DB: si el jugador venía moviéndose (chase,
+    // kite), puede haber un `player-move` procesándose en paralelo cuyo UPDATE todavía no
+    // commiteó cuando se ejecutó este SELECT — el dash calcularía el origen desde una
+    // posición vieja y, al llegar la corrección, el cliente "vuelve" al punto de partida
+    // real aunque la animación ya se haya jugado. `getCharacterWorldPose` es la pose en RAM
+    // que `recordPoseFromMove` actualiza en cada movimiento aceptado: no tiene esa carrera.
+    const ramPose = this.playerCombatRuntime.getCharacterWorldPose(characterId);
+    const yaw = ramPose?.yaw ?? ch.worldFacingYaw;
+    const from = ramPose
+      ? { x: ramPose.x, y: ramPose.y, z: ramPose.z }
+      : { x: ch.worldPosX, y: ch.worldPosY, z: ch.worldPosZ };
     // Backward = -forward; forward = (sin(yaw), cos(yaw)) — misma convención que
     // `isBackstabFromRearCone` (WorldSpatialService).
     const to = {

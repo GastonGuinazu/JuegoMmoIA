@@ -127,7 +127,7 @@ export class LoginPageComponent {
   }
 
   private enterGame(characterId: string): void {
-    localStorage.setItem(CHARACTER_ID_STORAGE_KEY, characterId);
+    sessionStorage.setItem(CHARACTER_ID_STORAGE_KEY, characterId);
     void this.router.navigateByUrl('/');
   }
 }

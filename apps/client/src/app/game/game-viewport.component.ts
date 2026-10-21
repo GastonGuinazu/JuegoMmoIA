@@ -534,7 +534,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
 
   serverUrlModel = localStorage.getItem(STORAGE_SERVER) ?? environment.worldSocketUrl;
-  characterIdModel = localStorage.getItem(STORAGE_CHARACTER) ?? '';
+  characterIdModel = sessionStorage.getItem(STORAGE_CHARACTER) ?? '';
   /** Línea tipo chat para comandos GM locales (personaje con `isAdmin` en DB). */
   gmCommandLine = '';
   /** Solo visible si `playerState.isSessionAdmin()` y el jugador pulsa `Y`. */
@@ -1362,7 +1362,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       return;
     }
     localStorage.setItem(STORAGE_SERVER, url);
-    localStorage.setItem(STORAGE_CHARACTER, cid);
+    sessionStorage.setItem(STORAGE_CHARACTER, cid);
     this.lastDenied.set(null);
     this.playerState.setSessionCharacter(cid);
     this.playerState.refreshFromServer(cid);
@@ -1437,7 +1437,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   /** Cierra sesión: desconecta, borra el personaje elegido y vuelve a `/login`. */
   logout(): void {
     this.disconnectWorld();
-    localStorage.removeItem(STORAGE_CHARACTER);
+    sessionStorage.removeItem(STORAGE_CHARACTER);
     void this.router.navigateByUrl('/login');
   }
 
@@ -2564,12 +2564,34 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       return;
     }
     if (this.autoAttackServerTargetId === targetId) {
+      this.predictMobAutoAttackSwing(nowMs);
       return;
     }
     if (nowMs - this.lastAutoAttackIntentEmitMs < AUTO_ATTACK_RESUME_EMIT_MS) {
       return;
     }
     this.emitAutoAttackIntent(targetId);
+  }
+
+  /**
+   * Repite la animación optimista de swing en cada ciclo de golpe esperado mientras el
+   * auto-ataque a mob sigue activo (ver `startPlayerAutoAttack`, que ya hace esto mismo
+   * para PvP). Antes solo se animaba optimista el primer golpe (`executeCombatAction`); los
+   * siguientes dependían pura y exclusivamente del `attackMobResult$` del servidor —viaje de
+   * ida y vuelta + hasta 150ms del tick de `PlayerCombatTickService`—, lo que se sentía como
+   * "delay" en el auto-ataque contra mobs comparado con las skills (que siempre animan
+   * optimista en cada tecla). `pvpSwingCooldownMs` es la misma fórmula que el servidor usa
+   * para el swing PvE (`computeSwingCooldownMs`, ver combat-timing.loaders.ts), así que sirve
+   * igual acá sin duplicarla. El hit real sigue siendo 100% autoritativo del servidor; esto
+   * solo adelanta el feedback visual.
+   */
+  private predictMobAutoAttackSwing(nowMs: number): void {
+    const cooldownMs =
+      this.playerState.characterSheet()?.derived.pvpSwingCooldownMs ?? PLAYER_ATTACK_MIN_GAP_FALLBACK_MS;
+    if (nowMs - this.lastSelfOptimisticComboAtMs < cooldownMs) {
+      return;
+    }
+    this.playSelfCombatAnimOptimistic('attack');
   }
 
   private syncMoveTargetToEntity(targetId: string, targetKind: 'mob' | 'player'): void {

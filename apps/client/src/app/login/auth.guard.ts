@@ -3,7 +3,7 @@ import { Router, type CanActivateFn } from '@angular/router';
 import { CHARACTER_ID_STORAGE_KEY } from '../core/session-storage-keys';
 
 function hasStoredCharacter(): boolean {
-  return !!localStorage.getItem(CHARACTER_ID_STORAGE_KEY)?.trim();
+  return !!sessionStorage.getItem(CHARACTER_ID_STORAGE_KEY)?.trim();
 }
 
 /** Ruta del juego (`/`): sin personaje elegido todavía, manda a `/login`. */

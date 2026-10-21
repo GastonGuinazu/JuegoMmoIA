@@ -208,7 +208,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
   /** Pose de movimiento en RAM (más fresca que `Character.worldPos*` si hay samples recientes). */
   getCharacterWorldPose(
     characterId: string,
-  ): { x: number; y: number; z: number; zoneId: string } | undefined {
+  ): { x: number; y: number; z: number; yaw: number; zoneId: string } | undefined {
     return this.charPose.get(characterId);
   }
 
