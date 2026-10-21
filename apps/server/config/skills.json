@@ -36,12 +36,12 @@
     {
       "id": "frostbind",
       "name": "Frostbind",
-      "_comment": "Segunda skill del Dark Wizard: cooldown apenas más del doble de Fireball. Daño bajo a propósito (el valor es el stun, PvE por ahora — ver isMobStunned).",
+      "_comment": "Segunda skill del Dark Wizard. Daño bajo a propósito (el valor es el stun, PvE por ahora — ver isMobStunned). manaCost/cooldownMs duplicados a propósito respecto al valor original (25/3200) para limitar el ritmo de stuneo.",
       "targetType": "single",
       "targetingMode": "ranged",
-      "manaCost": 25,
+      "manaCost": 50,
       "damageMultiplier": 0.8,
-      "cooldownMs": 3200,
+      "cooldownMs": 6400,
       "rangeMeters": 12,
       "effect": "stun",
       "effectDurationMs": 2000

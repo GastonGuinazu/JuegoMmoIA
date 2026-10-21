@@ -22,12 +22,14 @@ interface HeroSlot {
   yaw?: number;
 }
 
-/** Prueba estética: witch_doctor no es una clase jugable todavía, solo está acá
- * porque pega mejor con el estilo del lizard que arachnida (ver charla previa). */
+/** El modelo witch_doctor.glb es un placeholder visual para el tercer slot (pega mejor
+ * con el estilo del lizard que arachnida, ver charla previa) — "Witch Doctor" no es una
+ * clase real del juego, así que el label usa el nombre de la clase que sí existe
+ * (Fairy Elf, ver `CLASS_OPTIONS`) hasta que haya un modelo propio para esa clase. */
 const HERO_SLOTS: { left: HeroSlot; center: HeroSlot; right: HeroSlot } = {
   left: { url: 'models/characters/lizard_man_warrior/scene.gltf', label: 'Dark Knight' },
   center: { url: 'models/characters/sorceress.glb', label: 'Dark Wizard', yaw: Math.PI },
-  right: { url: 'models/characters/witch_doctor.glb', label: 'Witch Doctor' },
+  right: { url: 'models/characters/witch_doctor.glb', label: 'Fairy Elf' },
 };
 
 @Component({

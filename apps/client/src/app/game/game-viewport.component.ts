@@ -220,8 +220,9 @@ const SKILL_LOCAL_RULES = {
   rageful_blow: { name: 'Rageful Blow', manaCost: 30, cooldownMs: 5000, rangeMeters: 2 },
   /** Primera skill propia del Dark Wizard: distancia real (ver `targetingMode` en skills.json). */
   fireball: { name: 'Fireball', manaCost: 15, cooldownMs: 1500, rangeMeters: 12 },
-  /** Segunda skill del Dark Wizard: stun PvE (ver `effect`/`effectDurationMs` en skills.json). */
-  frostbind: { name: 'Frostbind', manaCost: 25, cooldownMs: 3200, rangeMeters: 12 },
+  /** Segunda skill del Dark Wizard: stun PvE (ver `effect`/`effectDurationMs` en skills.json).
+   * manaCost/cooldownMs deben coincidir siempre con `skills.json` — el server es la autoridad. */
+  frostbind: { name: 'Frostbind', manaCost: 50, cooldownMs: 6400, rangeMeters: 12 },
 } as const;
 type SkillHotkeyId = keyof typeof SKILL_LOCAL_RULES;
 
