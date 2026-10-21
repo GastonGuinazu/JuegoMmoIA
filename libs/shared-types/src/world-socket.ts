@@ -198,6 +198,8 @@ export type WsOtherPlayerSnapshot = {
   weaponPlusLevel?: number;
   /** True si hay un ítem en el slot WEAPON; el Weaver elige mesh horneado vs paperdoll. */
   weaponEquipped?: boolean;
+  /** El Weaver elige el modelo `.gltf`/`.glb` del personaje según esto (ver `entity-visual-factory.service.ts`). */
+  characterClass?: string;
 };
 
 export type WsKarmaFlag = 'WHITE' | 'PURPLE' | 'RED';
@@ -214,6 +216,8 @@ export type WsZoneSnapshotPayload = {
     maxHp: number;
     currentMp: number;
     maxMp: number;
+    /** El Weaver elige el modelo `.gltf`/`.glb` del personaje según esto. */
+    characterClass: string;
   };
   others: WsOtherPlayerSnapshot[];
   mobs: WsZoneMobSnapshot[];
@@ -371,6 +375,8 @@ export type WsPlayerMovedPayload = {
   karmaFlag?: WsKarmaFlag;
   weaponPlusLevel?: number;
   weaponEquipped?: boolean;
+  /** El Weaver elige el modelo `.gltf`/`.glb` del personaje según esto. */
+  characterClass?: string;
 };
 
 export type WsPlayerVisualStatePayload = {

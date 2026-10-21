@@ -8,7 +8,9 @@ import type { WorldDropEntityState } from './world-entity-sync.service';
 import { GLTFMaterialsSpecularGlossinessCompatExtension } from './gltf-spec-gloss-compat';
 import {
   CharacterAnimRig,
+  NamedClipCharacterAnimRig,
   type CharacterCombatAnim,
+  type PlayerAnimRig,
 } from './character-anim-rig';
 import { MobAnimRig, pruneMobAnimationTracks } from './mob-anim-rig';
 import { resolveMobVisualDef, type MobVisualDef } from './mob-visual-catalog';
@@ -216,6 +218,31 @@ const PLAYER_MODEL_YAW_OFFSET = 0;
 const PLAYER_MODEL_PREFERRED_CLIP = /motion/i;
 
 /**
+ * Modelo `.glb` del Dark Wizard (sorceress, CC0 — mismo asset que `hero-preview.component.ts`
+ * usa en el fondo del login). A diferencia del lizard trae los 4 estados como clips separados
+ * y nombrados ("Armature|Idle", "Armature|Run", "Armature|Attack 1/2") — ver
+ * `NamedClipCharacterAnimRig` en `character-anim-rig.ts`. Sin arma horneada ni mallas LOD
+ * duplicadas, así que no necesita el resto de la lógica de `attachGltfCharacterModel`
+ * (weapon welding, tint meshes, snap a pelvis).
+ */
+const SORCERESS_MODEL_URL = '/models/characters/sorceress.glb';
+/** Igual que `PLAYER_MODEL_YAW_OFFSET` pero para la sorceress: su "frente" en reposo mira -Z
+ * (confirmado en `hero-preview.component.ts`, que necesita `initialYaw = Math.PI` para que
+ * mire a cámara), al revés que el lizard. */
+const SORCERESS_MODEL_YAW_OFFSET = Math.PI;
+const SORCERESS_CLIP_MAP = {
+  idle: /Idle/i,
+  walk: /Run/i,
+  attack: /Attack 1/i,
+  skill: /Attack 2/i,
+} as const;
+
+/** Qué modelo/rig usar para el cuerpo jugable de cada clase (ver `attachGltfCharacterModel`). */
+function isSorceressClass(characterClass: string | undefined): boolean {
+  return characterClass === 'DARK_WIZARD';
+}
+
+/**
  * Espadón paperdoll (CC-BY-4.0 — `espadon_warrior/license.txt`). Se parenta al hueso de la
  * mano derecha cuando NO hay ítem WEAPON; no se reproducen sus clips (luces/cámara de
  * Sketchfab). Con ítem se muestra la espada horneada del lizard.
@@ -359,18 +386,18 @@ export class EntityVisualFactoryService {
     );
   }
 
-  createPlayerVisual(): EntityVisual {
+  createPlayerVisual(characterClass?: string): EntityVisual {
     const group = this.createHumanoidDummy(PLAYER_COLOR);
     group.userData['kind'] = 'player';
-    this.attachGltfCharacterModel(group);
+    this.attachGltfCharacterModel(group, characterClass);
     return group;
   }
 
-  createOtherPlayerVisual(characterId: string): EntityVisual {
+  createOtherPlayerVisual(characterId: string, characterClass?: string): EntityVisual {
     const group = this.createHumanoidDummy(OTHER_PLAYER_COLOR);
     group.userData['kind'] = 'otherPlayer';
     group.userData['otherCharacterId'] = characterId;
-    this.attachGltfCharacterModel(group);
+    this.attachGltfCharacterModel(group, characterClass);
     return group;
   }
 
@@ -1692,7 +1719,7 @@ export class EntityVisualFactoryService {
       return;
     }
     visual.userData['animWantMoving'] = moving;
-    const rig = visual.userData['animRig'] as CharacterAnimRig | undefined;
+    const rig = visual.userData['animRig'] as PlayerAnimRig | undefined;
     rig?.setMoving(moving);
   }
 
@@ -1709,7 +1736,7 @@ export class EntityVisualFactoryService {
       return;
     }
     visual.userData['animPendingCombat'] = kind;
-    const rig = visual.userData['animRig'] as CharacterAnimRig | undefined;
+    const rig = visual.userData['animRig'] as PlayerAnimRig | undefined;
     if (!rig) {
       return;
     }
@@ -1728,7 +1755,11 @@ export class EntityVisualFactoryService {
    * WEAPON; sin ítem se oculta y se parenta el espadón al hueso de la mano. No entra en el bbox
    * de escala del cuerpo para no achicar al personaje.
    */
-  private attachGltfCharacterModel(host: THREE.Group): void {
+  private attachGltfCharacterModel(host: THREE.Group, characterClass?: string): void {
+    if (isSorceressClass(characterClass)) {
+      this.attachSorceressModel(host);
+      return;
+    }
     this.loadPlayerGltfTemplate()
       .then((template) => {
         const clone = cloneSkinned(template.scene) as THREE.Group;
@@ -1842,6 +1873,81 @@ export class EntityVisualFactoryService {
       .catch((error) => {
         console.error(
           '[EntityVisualFactory] No se pudo cargar el modelo .gltf del jugador; se mantiene el dummy.',
+          error,
+        );
+      });
+  }
+
+  /**
+   * Variante de `attachGltfCharacterModel` para el Dark Wizard (sorceress.glb): mismo encaje
+   * de altura/posición que el lizard, pero sin weapon welding/tint meshes (el asset no los
+   * tiene) y con `NamedClipCharacterAnimRig` en vez de `CharacterAnimRig` (clips separados,
+   * no un clip único a recortar).
+   */
+  private attachSorceressModel(host: THREE.Group): void {
+    this.loadMobGltfTemplate(SORCERESS_MODEL_URL)
+      .then((template) => {
+        const clone = cloneSkinned(template.scene) as THREE.Group;
+        clone.updateMatrixWorld(true);
+
+        clone.traverse((node) => {
+          const mesh = node as THREE.Mesh;
+          if (!mesh.isMesh) {
+            return;
+          }
+          mesh.userData['sharedGltfAsset'] = true;
+          mesh.castShadow = true;
+        });
+
+        const box = new THREE.Box3().setFromObject(clone);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const scale = PLAYER_MODEL_TARGET_HEIGHT / (size.y || 1);
+        clone.scale.setScalar(scale);
+
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        clone.position.set(-center.x * scale, -Y_LIFT - box.min.y * scale, -center.z * scale);
+        clone.rotation.y = SORCERESS_MODEL_YAW_OFFSET;
+
+        const dummyChildren = [
+          host.userData['bodyMesh'],
+          host.userData['headMesh'],
+          host.userData['noseMesh'],
+        ].filter((child): child is THREE.Object3D => child instanceof THREE.Object3D);
+        for (const child of dummyChildren) {
+          host.remove(child);
+          this.disposeVisual(child);
+        }
+        host.add(clone);
+        host.userData['bodyMesh'] = undefined;
+        host.userData['headMesh'] = undefined;
+        host.userData['noseMesh'] = undefined;
+        host.userData['gltfModel'] = clone;
+
+        const cubeAnchor = host.userData['weaponAnchor'] as THREE.Object3D | undefined;
+        if (cubeAnchor) {
+          cubeAnchor.visible = false;
+        }
+
+        if (template.animations.length > 0) {
+          const rig = new NamedClipCharacterAnimRig(clone, template.animations, SORCERESS_CLIP_MAP);
+          host.userData['animRig'] = rig;
+          this.activeAnimRigs.add(rig);
+          rig.update(0);
+          if (host.userData['animWantMoving']) {
+            rig.setMoving(true);
+          }
+          const pending = host.userData['animPendingCombat'] as CharacterCombatAnim | undefined;
+          if (pending) {
+            rig.playCombat(pending);
+            host.userData['animPendingCombat'] = undefined;
+          }
+        }
+      })
+      .catch((error) => {
+        console.error(
+          '[EntityVisualFactory] No se pudo cargar el modelo .glb de la sorceress; se mantiene el dummy.',
           error,
         );
       });

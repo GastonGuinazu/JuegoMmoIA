@@ -19,6 +19,7 @@ export type PlayerEntityState = {
   characterId: string;
   pos: { x: number; y: number; z: number };
   yaw: number;
+  characterClass: string;
 };
 
 export type OtherPlayerEntityState = {
@@ -29,6 +30,7 @@ export type OtherPlayerEntityState = {
   karmaFlag: 'WHITE' | 'PURPLE' | 'RED';
   weaponPlusLevel: number;
   weaponEquipped: boolean;
+  characterClass: string;
 };
 
 export type MobEntityState = {
@@ -173,6 +175,7 @@ export class WorldEntitySyncService {
       characterId: snapshot.self.characterId,
       pos: selfPos,
       yaw: safeYaw(snapshot.self.worldFacingYaw, prevPlayer?.yaw ?? 0),
+      characterClass: snapshot.self.characterClass ?? prevPlayer?.characterClass ?? 'DARK_KNIGHT',
     });
     const others = new Map<string, OtherPlayerEntityState>();
     for (const o of snapshot.others ?? []) {
@@ -239,6 +242,7 @@ export class WorldEntitySyncService {
         characterId: p.characterId,
         pos: { x: p.worldPos.x, y: p.worldPos.y, z: p.worldPos.z },
         yaw: safeYaw(p.worldFacingYaw, cur?.yaw ?? 0),
+        characterClass: p.characterClass ?? cur?.characterClass ?? 'DARK_KNIGHT',
       });
       return;
     }
@@ -259,6 +263,7 @@ export class WorldEntitySyncService {
             : (cur?.weaponPlusLevel ?? 0),
         weaponEquipped:
           typeof p.weaponEquipped === 'boolean' ? p.weaponEquipped : (cur?.weaponEquipped ?? false),
+        characterClass: p.characterClass ?? cur?.characterClass ?? 'DARK_KNIGHT',
       });
       return next;
     });
@@ -436,6 +441,7 @@ export class WorldEntitySyncService {
           ? o.weaponPlusLevel
           : 0,
       weaponEquipped: o.weaponEquipped === true,
+      characterClass: o.characterClass ?? 'DARK_KNIGHT',
     };
   }
 

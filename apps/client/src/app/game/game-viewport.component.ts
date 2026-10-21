@@ -3769,7 +3769,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       return;
     }
     if (!this.playerMesh) {
-      this.playerMesh = this.visuals.createPlayerVisual();
+      this.playerMesh = this.visuals.createPlayerVisual(this.entitySync.player()?.characterClass);
       this.scene.add(this.playerMesh);
     }
   }
@@ -4277,7 +4277,7 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     for (const [id, o] of map) {
       let mesh = this.otherPlayerMeshes.get(id);
       if (!mesh) {
-        mesh = this.visuals.createOtherPlayerVisual(id);
+        mesh = this.visuals.createOtherPlayerVisual(id, o.characterClass);
         this.otherPlayerMeshes.set(id, mesh);
         this.otherPlayersRoot.add(mesh);
         // Posición/rotación solo se tocan acá, al aparecer: de ahí en más las resuelve

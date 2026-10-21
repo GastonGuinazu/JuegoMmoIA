@@ -240,6 +240,7 @@ export class WorldGateway
       select: {
         id: true,
         name: true,
+        characterClass: true,
         worldPosX: true,
         worldPosY: true,
         worldPosZ: true,
@@ -300,6 +301,7 @@ export class WorldGateway
         maxHp: vitals.maxHp,
         currentMp: runtimeVitals?.currentMp ?? 0,
         maxMp: runtimeVitals?.maxMp ?? 0,
+        characterClass: row.characterClass,
       },
       others: othersInZone.map((o) => ({
         characterId: o.id,
@@ -315,6 +317,7 @@ export class WorldGateway
         weaponPlusLevel: toPlusLevelFromStoredSynthesisLevel(
           o.items[0]?.synthesisLevel ?? 1,
         ),
+        characterClass: o.characterClass,
       })),
       mobs: mobsInZone.map((m) => ({
         mobInstanceId: m.id,
@@ -502,6 +505,7 @@ export class WorldGateway
       karmaFlag: visualState?.karmaFlag,
       weaponPlusLevel: visualState?.weaponPlusLevel,
       weaponEquipped: visualState?.weaponEquipped,
+      characterClass: built.row.characterClass,
     };
     void client.to(room).emit(WS_WORLD_EVENTS.PLAYER_MOVED, spawnNotice);
     await this.emitCharacterVisualState(characterId, zoneId);
@@ -688,6 +692,7 @@ export class WorldGateway
       worldFacingYaw: yaw,
       displayName: ch.name,
       karmaFlag: this.penaltyManager.getKarmaFlagFromTier(ch.karmaTier),
+      characterClass: ch.characterClass,
     };
 
     this.bridge.broadcastToZone(zoneId, WS_WORLD_EVENTS.PLAYER_MOVED, broadcast);
@@ -2329,6 +2334,7 @@ export class WorldGateway
       karmaFlag: arriveVisual?.karmaFlag,
       weaponPlusLevel: arriveVisual?.weaponPlusLevel,
       weaponEquipped: arriveVisual?.weaponEquipped,
+      characterClass: built.row.characterClass,
     };
     void client.to(newRoom).emit(WS_WORLD_EVENTS.PLAYER_MOVED, arrive);
     await this.emitCharacterVisualState(characterId, newZoneId);
@@ -2410,6 +2416,7 @@ export class WorldGateway
       worldFacingYaw: yaw,
       displayName: ch.name,
       karmaFlag: this.penaltyManager.getKarmaFlagFromTier(ch.karmaTier),
+      characterClass: ch.characterClass,
     } satisfies WsPlayerMovedPayload);
 
     return { ok: true, worldPos: { x, y, z }, worldFacingYaw: yaw };
@@ -2463,6 +2470,7 @@ export class WorldGateway
       karmaFlag: arriveVisual?.karmaFlag,
       weaponPlusLevel: arriveVisual?.weaponPlusLevel,
       weaponEquipped: arriveVisual?.weaponEquipped,
+      characterClass: built.row.characterClass,
     };
     void client.to(newRoom).emit(WS_WORLD_EVENTS.PLAYER_MOVED, arrive);
     await this.emitCharacterVisualState(characterId, newZoneId);
@@ -2714,6 +2722,7 @@ export class WorldGateway
       karmaFlag: visual?.karmaFlag,
       weaponPlusLevel: visual?.weaponPlusLevel,
       weaponEquipped: visual?.weaponEquipped,
+      characterClass: built?.row.characterClass,
     } satisfies WsPlayerMovedPayload);
     await this.emitCharacterVisualState(characterId, respawn.zoneId);
 
