@@ -269,9 +269,11 @@
 .overlay-action-bar {
   margin: 0.2rem auto 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* `--slot-count` lo fija el template desde `actionBarSlots().length`: el mago tiene 6
+     (suma Dash), el resto 5 — así nunca se desborda a una segunda fila sin importar la clase. */
+  grid-template-columns: repeat(var(--slot-count, 5), minmax(0, 1fr));
   gap: 0.45rem;
-  width: min(30rem, calc(100% - 2rem));
+  width: min(36rem, calc(100% - 2rem));
   pointer-events: auto;
 }
 
@@ -308,8 +310,7 @@
 }
 
 .action-slot__key,
-.action-slot__name,
-.action-slot__cooldown-text {
+.action-slot__name {
   position: relative;
   z-index: 2;
 }
@@ -336,16 +337,10 @@
 .action-slot__cooldown {
   position: absolute;
   inset: 0;
-  background: rgba(6, 10, 18, 0.72);
+  background: rgba(0, 0, 0, 0.9);
+  border-top: 2px solid rgba(255, 220, 150, 0.85);
   transform-origin: bottom;
   z-index: 1;
-}
-
-.action-slot__cooldown-text {
-  align-self: flex-end;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: #ffdc9f;
 }
 
 .overlay-target-frame {

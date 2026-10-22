@@ -527,6 +527,7 @@ export class WorldGateway
       // No tiene sentido dejar esperando una invitación a alguien que ya se fue.
       this.party.clearPendingInviteTo(id);
       this.lastChatSentAtMs.delete(id);
+      this.pendingMoveDbWrite.delete(id);
     }
   }
 
@@ -604,6 +605,15 @@ export class WorldGateway
 
     const now = Date.now();
 
+    // La escritura a DB del move anterior ya no se espera antes de aceptar el siguiente
+    // (ver más abajo, `pendingMoveDbWrite`): la fila de `ch` puede estar un paso atrás de
+    // la realidad. La pose en RAM (actualizada sincrónicamente por `recordPoseFromMove` en
+    // cada move) es la referencia fresca — mismo criterio que ya usa el dash.
+    const ramPose = this.playerCombatRuntime.getCharacterWorldPose(characterId);
+    const currentPos = ramPose
+      ? { x: ramPose.x, y: ramPose.y, z: ramPose.z }
+      : { x: ch.worldPosX, y: ch.worldPosY, z: ch.worldPosZ };
+
     if (!isWorldMovementGodMode()) {
       const lastAt =
         typeof client.data.lastMoveSampleAtMs === 'number'
@@ -617,11 +627,7 @@ export class WorldGateway
       const maxDt = this.spatial.getMovementMaxDtSeconds();
       dt = Math.max(minDt, Math.min(dt, maxDt));
 
-      const from = {
-        x: ch.worldPosX,
-        y: ch.worldPosY,
-        z: ch.worldPosZ,
-      };
+      const from = currentPos;
       const to = { x: rawX, y: rawY, z: rawZ };
       const maxSpeed = this.spatial.getEffectiveWorldMoveSpeed(ch.derivedAtkSpeed);
 
@@ -644,23 +650,15 @@ export class WorldGateway
           );
         }
         client.emit(WS_WORLD_EVENTS.PLAYER_POSITION_CORRECTED, {
-          worldPos: {
-            x: ch.worldPosX,
-            y: ch.worldPosY,
-            z: ch.worldPosZ,
-          },
-          worldFacingYaw: ch.worldFacingYaw,
+          worldPos: currentPos,
+          worldFacingYaw: ramPose?.yaw ?? ch.worldFacingYaw,
           reason: check.reason ?? 'MOVEMENT_REJECTED',
         } satisfies WsPlayerPositionCorrectedPayload);
         return;
       }
     }
 
-    const from = {
-      x: ch.worldPosX,
-      y: ch.worldPosY,
-      z: ch.worldPosZ,
-    };
+    const from = currentPos;
     const obstacleCheck = this.spatial.resolveMoveTargetAgainstObstacles({
       from,
       to: { x: rawX, y: rawY, z: rawZ },
@@ -672,7 +670,7 @@ export class WorldGateway
     if (obstacleCheck.blocked) {
       client.emit(WS_WORLD_EVENTS.PLAYER_POSITION_CORRECTED, {
         worldPos: { x, y, z },
-        worldFacingYaw: ch.worldFacingYaw,
+        worldFacingYaw: ramPose?.yaw ?? ch.worldFacingYaw,
         reason: 'WORLD_COLLISION',
       } satisfies WsPlayerPositionCorrectedPayload);
       if (Math.hypot(x - from.x, z - from.z) < 1e-4) {
@@ -684,17 +682,7 @@ export class WorldGateway
       typeof body.worldFacingYaw === 'number' &&
       Number.isFinite(body.worldFacingYaw)
         ? body.worldFacingYaw
-        : ch.worldFacingYaw;
-
-    await this.prisma.character.update({
-      where: { id: characterId },
-      data: {
-        worldPosX: x,
-        worldPosY: y,
-        worldPosZ: z,
-        worldFacingYaw: yaw,
-      },
-    });
+        : ramPose?.yaw ?? ch.worldFacingYaw;
 
     client.data.lastMoveSampleAtMs = now;
 
@@ -709,9 +697,37 @@ export class WorldGateway
       characterClass: ch.characterClass,
     };
 
+    // Broadcast ANTES de esperar la persistencia: con la latencia real de Supabase
+    // (~100-300ms, a veces más), otro jugador conectado a la vez veía tu posición con esa
+    // demora completa encima mientras tu propia pantalla ya se movía al instante
+    // (predicción local) — de ahí el desfasije entre pantallas con dos cuentas reales.
     this.bridge.broadcastToZone(zoneId, WS_WORLD_EVENTS.PLAYER_MOVED, broadcast);
     /* Garantizar eco al socket del jugador: según adapter, to(room) puede no incluir al emisor y el cliente quedaría con authoritative desfasado → rubber-band al atacar / mover. */
     this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_MOVED, broadcast);
+
+    // La escritura a DB queda en segundo plano (no bloquea el broadcast de arriba), pero
+    // encolada por personaje: dos `UPDATE`s del MISMO personaje corriendo sueltos en
+    // paralelo podrían completarse fuera de orden en Supabase y dejar la fila en una
+    // posición vieja — eso sí regresionó `SPEED_OR_TELEPORT` cuando se probó sin esta cola
+    // (ver claude.local.md). Encolar evita esa carrera sin volver a bloquear el broadcast.
+    const previousWrite = this.pendingMoveDbWrite.get(characterId) ?? Promise.resolve();
+    const thisWrite = previousWrite.catch(() => undefined).then(() =>
+      this.prisma.character.update({
+        where: { id: characterId },
+        data: {
+          worldPosX: x,
+          worldPosY: y,
+          worldPosZ: z,
+          worldFacingYaw: yaw,
+        },
+      }),
+    );
+    this.pendingMoveDbWrite.set(characterId, thisWrite);
+    thisWrite.catch((e) => {
+      this.logger.error(
+        `[Movement] No se pudo persistir la posición de ${characterId}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    });
 
     /* Debounce: cada move sample disparaba aggro sobre muchos MobInstance; competía con attackMob. */
     const lastAggro =
@@ -2818,6 +2834,14 @@ export class WorldGateway
   private readonly pvpAttacksInFlight = new Set<string>();
   /** Último chat enviado por personaje (anti-flood simple, ver `handleChatSend`). */
   private readonly lastChatSentAtMs = new Map<string, number>();
+  /**
+   * Cadena de persistencia de `player-move` por personaje (ver `handlePlayerMove`): el
+   * broadcast ya no espera el `UPDATE` a Supabase, pero los `UPDATE`s del MISMO personaje
+   * se siguen encolando en orden de llegada para que dos moves seguidos no puedan
+   * completarse fuera de orden en la DB (eso sí regresionó `SPEED_OR_TELEPORT` cuando se
+   * probó sin esta cadena, ver nota en claude.local.md).
+   */
+  private readonly pendingMoveDbWrite = new Map<string, Promise<unknown>>();
 
   private emitDenied(client: Socket, payload: WsAttackMobDeniedPayload): void {
     client.emit(WS_WORLD_EVENTS.ATTACK_MOB_DENIED, payload);
