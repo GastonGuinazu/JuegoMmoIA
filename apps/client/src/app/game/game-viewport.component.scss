@@ -307,6 +307,11 @@
     border-color: rgba(255, 198, 130, 0.56);
     background: linear-gradient(180deg, rgba(52, 33, 14, 0.96) 0%, rgba(22, 13, 8, 0.95) 100%);
   }
+
+  &--shield {
+    border-color: rgba(127, 212, 255, 0.56);
+    background: linear-gradient(180deg, rgba(14, 48, 66, 0.96) 0%, rgba(8, 22, 30, 0.95) 100%);
+  }
 }
 
 .action-slot__key,

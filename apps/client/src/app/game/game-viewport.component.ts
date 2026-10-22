@@ -227,6 +227,9 @@ const SKILL_LOCAL_RULES = {
   /** Segunda skill del Dark Wizard: stun PvE (ver `effect`/`effectDurationMs` en skills.json).
    * manaCost/cooldownMs deben coincidir siempre con `skills.json` — el server es la autoridad. */
   frostbind: { name: 'Frostbind', manaCost: 50, cooldownMs: 6400, rangeMeters: 12 },
+  /** Tercera skill del Dark Knight: buff `targetType: 'self'`, sin target/rango (ver
+   * `effect: 'immune'` en skills.json). manaCost/cooldownMs deben coincidir siempre con el server. */
+  iron_will: { name: 'Iron Will', manaCost: 40, cooldownMs: 18000, rangeMeters: 0 },
 } as const;
 type SkillHotkeyId = keyof typeof SKILL_LOCAL_RULES;
 
@@ -238,6 +241,8 @@ type ActionBarSlot = {
   isBasic: boolean;
   /** No es una skill de `skills.json`: mensaje propio (`request-dash`), sin target. */
   isDash?: boolean;
+  /** Skill `targetType: 'self'` (ver `skills.json`): sin target/rango, cast directo. */
+  isSelfCast?: boolean;
   /** Si está presente, el slot usa este consumible del inventario en vez de una skill. */
   potionCatalogKey?: string;
   /** Nombre corto del consumible, para el mensaje de "no te quedan ...". */
@@ -270,6 +275,13 @@ type ActiveBoltFx = {
   startedAt: number;
   durationMs: number;
   impactColors: readonly [number, number];
+};
+
+type ActiveShieldFx = {
+  mesh: THREE.Mesh;
+  material: THREE.MeshBasicMaterial;
+  startedAt: number;
+  durationMs: number;
 };
 
 type PendingCombatAction =
@@ -397,6 +409,19 @@ const WIZARD_ACTION_BAR_SLOTS: readonly ActionBarSlot[] = [
   }),
   { hotkey: 'Space', label: 'Dash', iconGlyph: '💨', skillId: null, isBasic: false, isDash: true },
 ];
+/** Dark Knight: suma Iron Will (inmunidad total 2s, sin target) en Space — el Knight no
+ * tiene Dash, así que esa tecla queda libre (a diferencia del mago, que la usa para dash). */
+const KNIGHT_ACTION_BAR_SLOTS: readonly ActionBarSlot[] = [
+  ...ACTION_BAR_SLOTS,
+  {
+    hotkey: 'Space',
+    label: 'Iron Will',
+    iconGlyph: '🛡',
+    skillId: 'iron_will',
+    isBasic: false,
+    isSelfCast: true,
+  },
+];
 /** Debe matchear `dashCooldownMs`/`dashDistanceMeters` en `world-spatial.json` (ack
  * autoritativo corrige si difiere, ej. por un obstáculo que el cliente resolvió distinto). */
 const DASH_COOLDOWN_MS = 6000;
@@ -414,6 +439,8 @@ const RAGEFUL_BLOW_PARTICLES = 24;
 /** Tiempo de viaje del proyectil, no de física real: el daño ya se resolvió en el server. */
 const FIREBALL_BOLT_MS = 220;
 const FIREBALL_IMPACT_RADIUS = 0.7;
+const IMMUNITY_SHIELD_RADIUS = 1.15;
+const IMMUNITY_SHIELD_COLOR = 0x7fd4ff;
 const AUTO_ATTACK_RESUME_EMIT_MS = 250;
 const WEAPON_SWING_MS = 180;
 /**
@@ -618,6 +645,11 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private readonly activeSlashFxs: ActiveSlashFx[] = [];
   private readonly activeBurstFxs: ActiveBurstFx[] = [];
   private readonly activeBoltFxs: ActiveBoltFx[] = [];
+  /** Escudo de `iron_will` (inmunidad): hijo del Object3D del personaje para seguirlo
+   * automáticamente mientras se mueve — a diferencia de slash/burst/bolt (en `skillFxRoot`,
+   * posición fija en el mundo), este efecto dura lo bastante (2s) como para que el personaje
+   * se mueva de verdad durante la ventana. Un solo escudo activo por personaje. */
+  private readonly activeShieldFxs = new Map<string, ActiveShieldFx>();
   private mobRoot!: THREE.Group;
   private npcRoot!: THREE.Group;
   private dropsRoot!: THREE.Group;
@@ -708,11 +740,16 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   private dashAckPending = false;
   /** Último uso de CUALQUIER consumible; el cooldown real del servidor es compartido. */
   private lastPotionUseAtMs = 0;
-  readonly actionBarSlots = computed<readonly ActionBarSlot[]>(() =>
-    this.playerState.characterSheet()?.characterClass === 'DARK_WIZARD'
-      ? WIZARD_ACTION_BAR_SLOTS
-      : ACTION_BAR_SLOTS,
-  );
+  readonly actionBarSlots = computed<readonly ActionBarSlot[]>(() => {
+    const characterClass = this.playerState.characterSheet()?.characterClass;
+    if (characterClass === 'DARK_WIZARD') {
+      return WIZARD_ACTION_BAR_SLOTS;
+    }
+    if (characterClass === 'DARK_KNIGHT') {
+      return KNIGHT_ACTION_BAR_SLOTS;
+    }
+    return ACTION_BAR_SLOTS;
+  });
   /** Panel de Controles (Esc): las teclas 1-5/Space salen de `actionBarSlots`, la misma
    * fuente que arma el hotbar — así la lista queda siempre al día con la clase conectada
    * en vez de un texto fijo (antes mostraba Power Strike/Rageful Blow sin importar la clase). */
@@ -1057,6 +1094,12 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
           this.playerMesh.getWorldPosition(v);
           this.spawnDamageFloater(v, p.damage, false, false);
         }
+      }
+    });
+
+    this.worldSocket.playerBuffApplied$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
+      if (p.buffType === 'immune') {
+        this.spawnImmunityShield(p.characterId, p.durationMs);
       }
     });
 
@@ -1893,8 +1936,14 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     }
     if (ev.key === ' ') {
       ev.preventDefault();
-      if (this.playerState.characterSheet()?.characterClass === 'DARK_WIZARD') {
+      const characterClass = this.playerState.characterSheet()?.characterClass;
+      if (characterClass === 'DARK_WIZARD') {
         this.requestDash();
+      } else if (characterClass === 'DARK_KNIGHT') {
+        const slot = this.actionBarSlots().find((s) => s.hotkey === 'Space');
+        if (slot?.skillId && slot.isSelfCast) {
+          this.requestSelfBuffSkillCast(slot.skillId);
+        }
       }
       return;
     }
@@ -2175,7 +2224,34 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     if (!slot.skillId) {
       return;
     }
+    if (slot.isSelfCast) {
+      this.requestSelfBuffSkillCast(slot.skillId);
+      return;
+    }
     this.requestSkillCast(slot.skillId);
+  }
+
+  /** Skill `targetType: 'self'` (ver `skills.json`): sin target ni chequeo de rango. */
+  private requestSelfBuffSkillCast(skillId: SkillHotkeyId): void {
+    const selfId = this.entitySync.selfCharacterId();
+    if (!selfId || !this.worldSocket.socketConnected()) {
+      return;
+    }
+    const def = SKILL_LOCAL_RULES[skillId];
+    const now = performance.now();
+    const cdUntil = this.localSkillCooldownUntil.get(skillId) ?? 0;
+    if (now < cdUntil) {
+      this.pushCombatFeedback('En Cooldown');
+      return;
+    }
+    if (this.localCurrentMp < def.manaCost) {
+      this.pushCombatFeedback('Sin Mana');
+      return;
+    }
+    this.localSkillCooldownUntil.set(skillId, now + def.cooldownMs);
+    this.lastDenied.set(null);
+    this.playSelfCombatAnimOptimistic('skill');
+    this.worldSocket.castSkill({ skillId, targetId: selfId, targetKind: 'self' });
   }
 
   /** Busca el consumible pedido en la mochila y pide usarlo (el servidor valida stock/cura). */
@@ -4225,6 +4301,38 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** Burbuja de `iron_will` (inmunidad): hijo del propio personaje, ver `activeShieldFxs`. */
+  private spawnImmunityShield(characterId: string, durationMs: number): void {
+    const visual = this.resolveCharacterVisual(characterId);
+    if (!visual) {
+      return;
+    }
+    const existing = this.activeShieldFxs.get(characterId);
+    if (existing) {
+      existing.mesh.parent?.remove(existing.mesh);
+      existing.mesh.geometry.dispose();
+      existing.material.dispose();
+    }
+    const geom = new THREE.SphereGeometry(IMMUNITY_SHIELD_RADIUS, 20, 14);
+    const mat = new THREE.MeshBasicMaterial({
+      color: IMMUNITY_SHIELD_COLOR,
+      transparent: true,
+      opacity: 0.3,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(0, 1, 0);
+    visual.add(mesh);
+    this.activeShieldFxs.set(characterId, {
+      mesh,
+      material: mat,
+      startedAt: performance.now(),
+      durationMs,
+    });
+  }
+
   private tickSkillVfx(now: number, dt: number): void {
     for (let i = this.activeSlashFxs.length - 1; i >= 0; i -= 1) {
       const fx = this.activeSlashFxs[i]!;
@@ -4273,6 +4381,19 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
         continue;
       }
       fx.mesh.position.lerpVectors(fx.from, fx.to, Math.min(1, t));
+    }
+
+    for (const [characterId, fx] of this.activeShieldFxs) {
+      const t = (now - fx.startedAt) / fx.durationMs;
+      if (t >= 1) {
+        fx.mesh.parent?.remove(fx.mesh);
+        fx.mesh.geometry.dispose();
+        fx.material.dispose();
+        this.activeShieldFxs.delete(characterId);
+        continue;
+      }
+      fx.material.opacity = 0.28 + Math.sin(now * 0.012) * 0.08;
+      fx.mesh.rotation.y += dt * 0.6;
     }
   }
 
@@ -4491,6 +4612,12 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       fx.material.dispose();
     }
     this.activeBoltFxs.length = 0;
+    for (const fx of this.activeShieldFxs.values()) {
+      fx.mesh.parent?.remove(fx.mesh);
+      fx.mesh.geometry.dispose();
+      fx.material.dispose();
+    }
+    this.activeShieldFxs.clear();
     this.combatFloaters?.clear();
   }
 

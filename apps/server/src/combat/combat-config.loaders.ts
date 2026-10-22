@@ -73,7 +73,9 @@ export interface WorldSpatialConfigFile {
 export interface SkillConfigRow {
   id: string;
   name: string;
-  targetType: 'single' | 'aoe';
+  /** `self` = buff sin objetivo (ver `tryCastSelfBuffSkillForCharacter`); no usa
+   * `damageMultiplier`/`rangeMeters`/`targetingMode`. */
+  targetType: 'single' | 'aoe' | 'self';
   isAoe?: boolean;
   aoeRadius?: number;
   manaCost: number;
@@ -82,8 +84,9 @@ export interface SkillConfigRow {
   rangeMeters: number;
   /** `ranged` = `rangeMeters` es distancia real (`isWithinSkillCastRange`). Default/ausente = melee (`isWithinMeleeAttackRange`, que le suma slack de contacto). */
   targetingMode?: 'melee' | 'ranged';
-  /** `stun`: el mob impactado no mueve ni ataca por `effectDurationMs` (solo PvE por ahora — ver `isMobStunned`). */
-  effect?: 'stun';
+  /** `stun`: el mob/jugador impactado no mueve ni ataca por `effectDurationMs`.
+   * `immune`: buff de `targetType: 'self'` — el caster ignora todo daño por `effectDurationMs`. */
+  effect?: 'stun' | 'immune';
   effectDurationMs?: number;
 }
 

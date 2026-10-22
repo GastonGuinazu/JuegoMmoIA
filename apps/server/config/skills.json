@@ -23,6 +23,18 @@
       "rangeMeters": 2
     },
     {
+      "id": "iron_will",
+      "name": "Iron Will",
+      "_comment": "Tercera skill del Dark Knight: buff sin target, inmunidad total a daño (PvE y PvP) por effectDurationMs. Cooldown largo a propósito respecto a la duración (3s de inmunidad completa es fuerte). Probado en vivo por el usuario (10s temporal) y confirmado que funciona bien; valor final 3s.",
+      "targetType": "self",
+      "manaCost": 40,
+      "damageMultiplier": 0,
+      "cooldownMs": 18000,
+      "rangeMeters": 0,
+      "effect": "immune",
+      "effectDurationMs": 3000
+    },
+    {
       "id": "fireball",
       "name": "Fireball",
       "_comment": "Primera skill propia del Dark Wizard. rangeMeters acá es distancia real (targetingMode ranged), no slack de melee.",

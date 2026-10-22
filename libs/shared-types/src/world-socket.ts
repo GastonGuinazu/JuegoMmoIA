@@ -36,6 +36,9 @@ export const WS_WORLD_EVENTS = {
   MOB_MOVED: 'mob-moved',
   /** Sala zone:* : swing melee autoritativo del mob (Weaver: clip de ataque). */
   MOB_MELEE_RESULT: 'mob-melee-result',
+  /** Sala zone:* : buff propio aplicado (ej. `iron_will` del Dark Knight) — sin target/daño,
+   * para que toda la zona vea el efecto visual (escudo/burbuja), no solo el que lo castea. */
+  PLAYER_BUFF_APPLIED: 'player-buff-applied',
   /**
    * Cliente → servidor: equipar ítem (misma validación que HTTP).
    * Respuesta vía **ack** de Socket.IO (valor de retorno del handler Nest).
@@ -408,8 +411,16 @@ export type WsAttackPlayerClientPayload = {
 export type WsCastSkillClientPayload = {
   skillId: string;
   targetId: string;
-  /** `targetId` es un mob instance id (default) o un characterId (PvP). */
-  targetKind?: 'mob' | 'player';
+  /** `targetId` es un mob instance id (default), un characterId (PvP), o el propio
+   * characterId del caster (`'self'` — buffs sin objetivo, ej. inmunidad temporal). */
+  targetKind?: 'mob' | 'player' | 'self';
+};
+
+/** Ver `WS_WORLD_EVENTS.PLAYER_BUFF_APPLIED`. */
+export type WsPlayerBuffAppliedPayload = {
+  characterId: string;
+  buffType: 'immune';
+  durationMs: number;
 };
 
 export type WsCombatTargetClientPayload = {

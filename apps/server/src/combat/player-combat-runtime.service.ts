@@ -11,6 +11,7 @@ import {
   type WsGradePenaltyStatusPayload,
   type WsLevelUpPayload,
   type WsMobDeathPayload,
+  type WsPlayerBuffAppliedPayload,
   type WsPlayerVitalsPayload,
   type WsSkillHitResultPayload,
 } from '@aetheris/shared-types';
@@ -88,6 +89,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
    * objeto entero desde la DB cada vez que se targetea un mob nuevo — guardarlo ahí haría que
    * cambiar de target durante el stun lo borrara de pedo. */
   private readonly charStunnedUntilMs = new Map<string, number>();
+  /** Buff sin target con `effect: 'immune'` (ej. `iron_will` del Dark Knight): mismo motivo
+   * que `charStunnedUntilMs` para no vivir dentro de `charStats`. */
+  private readonly charImmuneUntilMs = new Map<string, number>();
   private readonly lastProgressionSyncAtMs = new Map<string, number>();
   private readonly gradePenaltyByCharacter = new Map<string, boolean>();
   private readonly killFinalizeQueueByCharacter = new Map<string, Promise<void>>();
@@ -154,6 +158,16 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
   /** Aplica el stun a un personaje objetivo (PvP). Mismo `effectDurationMs` que el mob. */
   private applyStunToCharacter(characterId: string, durationMs: number): void {
     this.charStunnedUntilMs.set(characterId, Date.now() + durationMs);
+  }
+
+  /** Buff `effect: 'immune'` (ej. `iron_will`): ignora todo daño, PvE y PvP, mientras esté activo. */
+  isCharacterImmune(characterId: string): boolean {
+    const until = this.charImmuneUntilMs.get(characterId) ?? 0;
+    return until > Date.now();
+  }
+
+  private applyImmunityToCharacter(characterId: string, durationMs: number): void {
+    this.charImmuneUntilMs.set(characterId, Date.now() + durationMs);
   }
 
   /**
@@ -476,6 +490,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     this.lastConsumableUseAtMs.delete(characterId);
     this.gradePenaltyByCharacter.delete(characterId);
     this.charStunnedUntilMs.delete(characterId);
+    this.charImmuneUntilMs.delete(characterId);
     this.presence.clearCharacterHpDirty(characterId);
   }
 
@@ -976,6 +991,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     if (this.isCharacterStunned(characterId)) {
       return { ok: false, code: 'CHARACTER_STUNNED', message: 'Estás stuneado: no podés castear' };
     }
+    if (this.isCharacterImmune(targetCharacterId)) {
+      return { ok: false, code: 'TARGET_IMMUNE', message: 'El objetivo es inmune en este momento' };
+    }
     const lastBySkill = this.lastSkillCastAtMs.get(characterId) ?? new Map<string, number>();
     this.lastSkillCastAtMs.set(characterId, lastBySkill);
     const now = Date.now();
@@ -1019,6 +1037,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
           isPartyMemberOfCaster,
         });
         for (const splashId of splashTargets) {
+          if (this.isCharacterImmune(splashId)) {
+            continue;
+          }
           try {
             await this.combat.attackCharacter(characterId, splashId, { skill, skipRangeCheck: true });
             if (skill.effect === 'stun') {
@@ -1031,6 +1052,68 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
           }
         }
       }
+    }
+
+    return { ok: true };
+  }
+
+  /**
+   * Skill `targetType: 'self'` (ej. `iron_will`): sin target, sin daño, sin chequeo de rango
+   * ni de zona — solo cooldown/maná y aplicar el `effect`. Hoy el único `effect` posible acá
+   * es `'immune'`; si en el futuro hay otro buff self sin daño, se suma un `case` más.
+   */
+  async tryCastSelfBuffSkillForCharacter(
+    characterId: string,
+    skillId: string,
+  ): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+    const skills = loadSkillsConfig().skills;
+    const skill = skills.find((row) => row.id === skillId);
+    if (!skill) {
+      return { ok: false, code: 'SKILL_NOT_FOUND', message: 'Skill no encontrada' };
+    }
+    if (skill.targetType !== 'self') {
+      return { ok: false, code: 'INVALID_TARGET', message: 'Esta skill necesita un objetivo' };
+    }
+    let stats = this.charStats.get(characterId);
+    if (!stats) {
+      await this.seedCharacterCombatState(characterId);
+      stats = this.charStats.get(characterId);
+    }
+    if (!stats || stats.currentHp <= 0) {
+      return { ok: false, code: 'NO_COMBAT_STATE', message: 'Personaje sin estado de combate válido' };
+    }
+    if (this.isCharacterStunned(characterId)) {
+      return { ok: false, code: 'CHARACTER_STUNNED', message: 'Estás stuneado: no podés castear' };
+    }
+    const lastBySkill = this.lastSkillCastAtMs.get(characterId) ?? new Map<string, number>();
+    this.lastSkillCastAtMs.set(characterId, lastBySkill);
+    const now = Date.now();
+    const lastCast = lastBySkill.get(skillId) ?? 0;
+    if (now - lastCast < skill.cooldownMs) {
+      return { ok: false, code: 'SKILL_ON_COOLDOWN', message: 'La habilidad sigue en cooldown' };
+    }
+    if (stats.currentMp < skill.manaCost) {
+      return { ok: false, code: 'NO_MANA', message: 'No tienes mana suficiente' };
+    }
+
+    stats.currentMp = Math.max(0, stats.currentMp - skill.manaCost);
+    lastBySkill.set(skillId, now);
+    this.emitCasterVitals(characterId, stats);
+
+    const effectDurationMs = skill.effectDurationMs ?? 2000;
+    if (skill.effect === 'immune') {
+      this.applyImmunityToCharacter(characterId, effectDurationMs);
+    }
+
+    const zoneId = this.charPose.get(characterId)?.zoneId;
+    if (zoneId && skill.effect === 'immune') {
+      const buffPayload: WsPlayerBuffAppliedPayload = {
+        characterId,
+        buffType: skill.effect,
+        durationMs: effectDurationMs,
+      };
+      this.bridge.broadcastToZone(zoneId, WS_WORLD_EVENTS.PLAYER_BUFF_APPLIED, buffPayload);
+      this.bridge.emitToCharacter(characterId, WS_WORLD_EVENTS.PLAYER_BUFF_APPLIED, buffPayload);
     }
 
     return { ok: true };
@@ -1218,6 +1301,17 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
         });
         return;
       }
+    }
+
+    // Buff `iron_will`/`effect: 'immune'`: el swing del mob sigue su cooldown normal, pero
+    // no conecta — mismo criterio que el PvP en `combat.service.ts`/callers de `attackCharacter`.
+    if (this.isCharacterImmune(characterId)) {
+      this.bridge.broadcastToZone(pose.zoneId, WS_WORLD_EVENTS.MOB_MELEE_RESULT, {
+        mobInstanceId,
+        targetCharacterId: characterId,
+        damage: 0,
+      });
+      return;
     }
 
     const damage = resolveMobToPlayerMeleeDamage({

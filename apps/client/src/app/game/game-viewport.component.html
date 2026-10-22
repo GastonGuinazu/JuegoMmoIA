@@ -219,6 +219,7 @@
                 [class.action-slot--basic]="slot.isBasic"
                 [class.action-slot--power]="slot.skillId === 'power_strike'"
                 [class.action-slot--rage]="slot.skillId === 'rageful_blow'"
+                [class.action-slot--shield]="slot.skillId === 'iron_will'"
                 (click)="onActionSlotPressed(slot)"
               >
                 <span class="action-slot__key">{{ slot.hotkey }}</span>

@@ -32,6 +32,7 @@ import {
   type WsPickItemClientPayload,
   type WsPlayerMoveClientPayload,
   type WsPlayerMovedPayload,
+  type WsPlayerBuffAppliedPayload,
   type WsPlayerPositionCorrectedPayload,
   type WsPlayerVisualStatePayload,
   type WsPlayerStatsUpdatePayload,
@@ -91,6 +92,7 @@ export class WorldSocketService implements OnDestroy {
   readonly mobRespawn$ = new Subject<WsMobRespawnPayload>();
   readonly mobMoved$ = new Subject<WsMobMovedPayload>();
   readonly mobMeleeResult$ = new Subject<WsMobMeleeResultPayload>();
+  readonly playerBuffApplied$ = new Subject<WsPlayerBuffAppliedPayload>();
   readonly attackDenied$ = new Subject<WsAttackMobDeniedPayload>();
   readonly playerMoved$ = new Subject<WsPlayerMovedPayload>();
   readonly playerPositionCorrected$ =
@@ -153,6 +155,9 @@ export class WorldSocketService implements OnDestroy {
     });
     this.socket.on(WS_WORLD_EVENTS.MOB_MELEE_RESULT, (p: WsMobMeleeResultPayload) => {
       this.mobMeleeResult$.next(p);
+    });
+    this.socket.on(WS_WORLD_EVENTS.PLAYER_BUFF_APPLIED, (p: WsPlayerBuffAppliedPayload) => {
+      this.playerBuffApplied$.next(p);
     });
     this.socket.on(WS_WORLD_EVENTS.ATTACK_MOB_DENIED, (p: WsAttackMobDeniedPayload) => {
       this.attackDenied$.next(p);

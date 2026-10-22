@@ -1494,6 +1494,16 @@ export class WorldGateway
       });
       return;
     }
+    if (body.targetKind === 'self') {
+      const cast = await this.playerCombatRuntime.tryCastSelfBuffSkillForCharacter(
+        characterId,
+        body.skillId,
+      );
+      if (!cast.ok) {
+        this.emitDenied(client, { code: cast.code, message: cast.message });
+      }
+      return;
+    }
     if (body.targetKind === 'player') {
       if (this.isSamePartyAttack(characterId, body.targetId)) {
         this.emitDenied(client, {
@@ -1596,6 +1606,13 @@ export class WorldGateway
       this.emitDenied(client, {
         code: 'TARGET_IS_PARTY_MEMBER',
         message: 'No podés atacar a un miembro de tu grupo',
+      });
+      return;
+    }
+    if (this.playerCombatRuntime.isCharacterImmune(body.targetCharacterId)) {
+      this.emitDenied(client, {
+        code: 'TARGET_IMMUNE',
+        message: 'El objetivo es inmune en este momento',
       });
       return;
     }
