@@ -12,7 +12,7 @@
           @case ('controls') {
             <h2 class="mb-4 text-lg font-bold tracking-[0.2em] text-amber-300">CONTROLES</h2>
             <ul class="mb-4 flex-1 overflow-y-auto text-left text-sm">
-              @for (hint of controlHints; track hint.key) {
+              @for (hint of controlHints(); track hint.key) {
                 <li class="flex items-start justify-between gap-3 border-b border-white/5 py-1.5 last:border-0">
                   <span class="shrink-0 font-semibold text-amber-200">{{ hint.key }}</span>
                   <span class="text-slate-300">{{ hint.action }}</span>

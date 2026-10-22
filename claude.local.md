@@ -2,11 +2,19 @@
 
 Notas locales de trabajo (no documentación del proyecto). Lista de tareas pendientes a resolver.
 
+## Despliegue
+
+Guía paso a paso completa: https://claude.ai/artifact/3fUSDP7YJMVzLHSpaa3FHv (doc de Claude, vivo — seguir editando ese link, no recrearlo).
+
+Plan: cliente → Vercel, servidor (NestJS+Socket.io, proceso persistente) → VM nueva Ampere A1 en Oracle Cloud (Always Free, separada de la VM `BotFacultad-utn-nuevo` que ya corre el bot de Telegram — esa es `VM.Standard.E2.1.Micro`, 1GB RAM, muy chica para sumarle esto), DB → ya resuelta (Supabase, ya en uso, no toca nada).
+
+- [ ] **Crear la instancia Ampere A1 en Oracle Cloud** — bloqueado por capacidad: `Out of capacity for shape VM.Standard.A1.Flex in availability domain AD-1` (21/10/2026). Es un problema de disponibilidad conocido, no de configuración — reintentar más tarde. El resto de la guía (pasos 2-11) espera a que esto se resuelva.
+
 - [x] **Hotbar recortado**: las habilidades se ven "cortadas" por el recuadro que las encierra, tanto en el Dark Knight como en el Dark Wizard. Revisar CSS del slot del action bar (`game-viewport.component.scss` / template). — Resuelto: `.action-slot` tenía `height` fija + `overflow: hidden` con 3 filas apiladas (hotkey/ícono/nombre); los emojis renderizan más altos que su `font-size` nominal y nombres de 2 palabras ("Power Strike", "Rageful Blow") no entraban, así que se recortaban. Cambiado a `min-height` + `justify-content: center` + `gap`, y más `line-height` en ícono/nombre, para que la fila crezca sin cortar contenido. Verificado visualmente en Dark Wizard real y simulando labels de Dark Knight.
 
 - [ ] **Stun en PvP**: hoy `frostbind` solo stunea mobs (PvE). Falta la versión PvP — frenar movimiento y casts del jugador stuneado en el servidor (mencionado como trabajo más grande al implementar el stun de mobs, ver conversación sobre `isMobStunned`).
 
-- [ ] **Panel de Controles (Esc) no es por clase**: hoy `control-hints.ts` siempre muestra los nombres de habilidades del Dark Wizard (Fireball/Frostbind), sin importar la clase conectada. Verificar que pase lo mismo con Dark Knight y Fairy Elf. Cada clase debería ver sus propias habilidades ahí. Evaluar si conviene hacerlo dinámico por clase (como ya es el hotbar) en vez de la lista estática actual.
+- [x] **Panel de Controles (Esc) no es por clase**: hoy `control-hints.ts` siempre muestra los nombres de habilidades del Dark Wizard (Fireball/Frostbind), sin importar la clase conectada. Verificar que pase lo mismo con Dark Knight y Fairy Elf. Cada clase debería ver sus propias habilidades ahí. Evaluar si conviene hacerlo dinámico por clase (como ya es el hotbar) en vez de la lista estática actual. — Resuelto: en el código la lista en realidad tenía fijo Power Strike/Rageful Blow (Dark Knight), no Fireball/Frostbind como decía la nota, pero el bug de fondo era el mismo (texto fijo, no por clase). Se eliminó la lista estática de teclas 1-5/Space de `control-hints.ts` (quedan solo las teclas que no dependen de clase: click izq/der, Tab/I, P, O, Enter, Esc) y se agregó un computed `controlHints` en `game-viewport.component.ts` que arma esas filas a partir de `actionBarSlots` — la misma fuente que ya arma el hotbar — así el panel nunca puede quedar desincronizado del hotbar real, para ninguna clase presente o futura. Verificado visualmente con el Dark Wizard: muestra Fireball/Frostbind/Dash correctamente.
 
 - [ ] **Costo de maná de las skills del mago**: revisar que Fireball/Frostbind no se puedan spamear sin consecuencia — validar que el consumo de MP realmente limite el ritmo de casteo (cooldown + maná juntos, no solo cooldown). — Avance: a pedido, se duplicó manaCost (25→50) y cooldownMs (3200→6400) de `frostbind` en `skills.json` (y su espejo en `SKILL_LOCAL_RULES`, `game-viewport.component.ts`, que debe coincidir siempre con el server). Fireball queda sin tocar — falta decidir si también necesita ajuste.
 

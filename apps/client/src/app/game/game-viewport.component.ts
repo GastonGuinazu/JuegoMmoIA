@@ -34,7 +34,11 @@ import { PartyPanelComponent } from '../ui/progress/party-panel.component';
 import { ChatPanelComponent } from '../ui/progress/chat-panel.component';
 import { Router } from '@angular/router';
 import { CHARACTER_ID_STORAGE_KEY } from '../core/session-storage-keys';
-import { CONTROL_HINTS } from '../core/control-hints';
+import {
+  CONTROL_HINTS_PRE_ACTIONS,
+  CONTROL_HINTS_POST_ACTIONS,
+  type ControlHint,
+} from '../core/control-hints';
 import { ASSET_CREDITS } from '../core/asset-credits';
 import {
   TargetFrameComponent,
@@ -545,7 +549,6 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
   /** Esc la abre/cierra: cerrar sesión y estado de conexión, antes siempre visibles arriba. */
   readonly sessionMenuOpen = signal(false);
   readonly sessionMenuView = signal<'main' | 'controls' | 'credits'>('main');
-  readonly controlHints = CONTROL_HINTS;
   readonly assetCredits = ASSET_CREDITS;
   readonly inventoryPanelOpen = signal(false);
   readonly characterSheetOpen = signal(false);
@@ -710,6 +713,17 @@ export class GameViewportComponent implements AfterViewInit, OnDestroy {
       ? WIZARD_ACTION_BAR_SLOTS
       : ACTION_BAR_SLOTS,
   );
+  /** Panel de Controles (Esc): las teclas 1-5/Space salen de `actionBarSlots`, la misma
+   * fuente que arma el hotbar — así la lista queda siempre al día con la clase conectada
+   * en vez de un texto fijo (antes mostraba Power Strike/Rageful Blow sin importar la clase). */
+  readonly controlHints = computed<readonly ControlHint[]>(() => [
+    ...CONTROL_HINTS_PRE_ACTIONS,
+    ...this.actionBarSlots().map((slot) => ({
+      key: slot.hotkey,
+      action: slot.isBasic ? 'Ataque básico' : (slot.potionLabel ?? slot.label),
+    })),
+    ...CONTROL_HINTS_POST_ACTIONS,
+  ]);
   readonly cooldownNowMs = signal(0);
   readonly chaseFeedback = signal<string | null>(null);
   private pendingCombatAction: PendingCombatAction | null = null;
