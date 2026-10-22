@@ -367,6 +367,7 @@ export class StatEngineService {
         derivedPAtk: derived.pAtk,
         derivedMAtk: derived.mAtk,
         derivedPDef: derived.pDef,
+        derivedMDef: derived.mDef,
         derivedAtkSpeed: derived.atkSpeed,
         derivedCritRate: derived.critRate,
         currentHp: nextHp,
@@ -386,6 +387,7 @@ function addDerived(a: DerivedCombatStats, b: DerivedCombatStats): void {
   a.pAtk += b.pAtk;
   a.mAtk += b.mAtk;
   a.pDef += b.pDef;
+  a.mDef += b.mDef;
   a.atkSpeed += b.atkSpeed;
   a.critRate += b.critRate;
 }
@@ -413,6 +415,7 @@ function scaleDerived(
     pAtk: stats.pAtk * multiplier,
     mAtk: stats.mAtk * multiplier,
     pDef: stats.pDef * multiplier,
+    mDef: stats.mDef * multiplier,
     atkSpeed: stats.atkSpeed * multiplier,
     critRate: stats.critRate * multiplier,
   };

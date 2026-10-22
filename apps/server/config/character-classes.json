@@ -16,6 +16,7 @@
           "pAtk": 1.08,
           "mAtk": 0.72,
           "pDef": 1.06,
+          "mDef": 0.85,
           "atkSpeed": 0.92,
           "critRate": 0.95
         },
@@ -23,6 +24,7 @@
           "pAtk": 1.0,
           "mAtk": 0.85,
           "pDef": 1.0,
+          "mDef": 0.85,
           "atkSpeed": 0.96,
           "critRate": 1.0
         },
@@ -30,6 +32,7 @@
           "pAtk": 0.96,
           "mAtk": 0.88,
           "pDef": 1.14,
+          "mDef": 0.95,
           "atkSpeed": 1.0,
           "critRate": 0.95
         },
@@ -37,6 +40,7 @@
           "pAtk": 0.75,
           "mAtk": 0.78,
           "pDef": 0.96,
+          "mDef": 0.8,
           "atkSpeed": 1.0,
           "critRate": 1.02
         }
@@ -45,6 +49,7 @@
         "pAtk": 1.04,
         "mAtk": 0.82,
         "pDef": 1.06,
+        "mDef": 0.75,
         "atkSpeed": 1.0,
         "critRate": 1.0
       }
@@ -63,6 +68,7 @@
           "pAtk": 0.82,
           "mAtk": 0.78,
           "pDef": 0.95,
+          "mDef": 0.9,
           "atkSpeed": 0.9,
           "critRate": 0.92
         },
@@ -70,6 +76,7 @@
           "pAtk": 0.88,
           "mAtk": 0.92,
           "pDef": 1.0,
+          "mDef": 0.92,
           "atkSpeed": 1.02,
           "critRate": 1.02
         },
@@ -77,6 +84,7 @@
           "pAtk": 0.9,
           "mAtk": 0.9,
           "pDef": 1.05,
+          "mDef": 1.05,
           "atkSpeed": 1.0,
           "critRate": 0.95
         },
@@ -84,6 +92,7 @@
           "pAtk": 0.65,
           "mAtk": 1.22,
           "pDef": 1.0,
+          "mDef": 1.15,
           "atkSpeed": 1.02,
           "critRate": 1.05
         }
@@ -92,6 +101,7 @@
         "pAtk": 0.88,
         "mAtk": 1.12,
         "pDef": 0.95,
+        "mDef": 1.15,
         "atkSpeed": 1.02,
         "critRate": 1.03
       }
@@ -110,6 +120,7 @@
           "pAtk": 1.02,
           "mAtk": 0.88,
           "pDef": 1.0,
+          "mDef": 0.95,
           "atkSpeed": 0.98,
           "critRate": 1.0
         },
@@ -117,6 +128,7 @@
           "pAtk": 1.06,
           "mAtk": 0.95,
           "pDef": 1.02,
+          "mDef": 1.0,
           "atkSpeed": 1.08,
           "critRate": 1.08
         },
@@ -124,6 +136,7 @@
           "pAtk": 0.95,
           "mAtk": 0.92,
           "pDef": 1.06,
+          "mDef": 1.02,
           "atkSpeed": 1.0,
           "critRate": 0.98
         },
@@ -131,6 +144,7 @@
           "pAtk": 0.85,
           "mAtk": 1.05,
           "pDef": 0.98,
+          "mDef": 1.05,
           "atkSpeed": 1.01,
           "critRate": 1.02
         }
@@ -139,6 +153,7 @@
         "pAtk": 1.02,
         "mAtk": 1.0,
         "pDef": 1.02,
+        "mDef": 1.0,
         "atkSpeed": 1.05,
         "critRate": 1.04
       }

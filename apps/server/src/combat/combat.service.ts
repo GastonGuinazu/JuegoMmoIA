@@ -825,8 +825,15 @@ export class CombatService {
         }
 
         const dmgCfg = loadCombatDamageConfig();
-        const baseMitigated =
-          attacker.derivedPAtk - target.derivedPDef * dmgCfg.physicalMitigationFactor;
+        // Mismo criterio que PvE (`rollPlayerToMobMeleeDamage`): la clase del atacante decide si
+        // el golpe (básico o skill) es físico o mágico — ver `isMage` ahí.
+        const isMage = attacker.characterClass === CharacterClass.DARK_WIZARD;
+        const atkStat = isMage ? attacker.derivedMAtk : attacker.derivedPAtk;
+        const defStat = isMage ? target.derivedMDef : target.derivedPDef;
+        const mitigationFactor = isMage
+          ? dmgCfg.magicalMitigationFactor
+          : dmgCfg.physicalMitigationFactor;
+        const baseMitigated = atkStat - defStat * mitigationFactor;
         const critical = rand() < attacker.derivedCritRate;
         let damage = Math.floor(
           critical ? baseMitigated * dmgCfg.criticalMultiplier : baseMitigated,

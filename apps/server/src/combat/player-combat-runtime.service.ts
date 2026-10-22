@@ -83,6 +83,11 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
   private readonly lastManaRegenAtMs = new Map<string, number>();
   private readonly lastSkillCastAtMs = new Map<string, Map<string, number>>();
   private readonly lastDashAtMs = new Map<string, number>();
+  /** PvP: personaje bajo efecto de una skill con `effect: 'stun'` (frostbind contra jugador).
+   * Mapa aparte en vez de un campo en `charStats` porque `setCombatTarget` reconstruye ese
+   * objeto entero desde la DB cada vez que se targetea un mob nuevo — guardarlo ahí haría que
+   * cambiar de target durante el stun lo borrara de pedo. */
+  private readonly charStunnedUntilMs = new Map<string, number>();
   private readonly lastProgressionSyncAtMs = new Map<string, number>();
   private readonly gradePenaltyByCharacter = new Map<string, boolean>();
   private readonly killFinalizeQueueByCharacter = new Map<string, Promise<void>>();
@@ -138,6 +143,17 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
   isMobStunned(mobInstanceId: string): boolean {
     const until = this.mobRuntime.get(mobInstanceId)?.stunnedUntilMs ?? 0;
     return until > Date.now();
+  }
+
+  /** PvP: personaje bajo efecto de una skill con `effect: 'stun'` (ver `applyStunToCharacter`). */
+  isCharacterStunned(characterId: string): boolean {
+    const until = this.charStunnedUntilMs.get(characterId) ?? 0;
+    return until > Date.now();
+  }
+
+  /** Aplica el stun a un personaje objetivo (PvP). Mismo `effectDurationMs` que el mob. */
+  private applyStunToCharacter(characterId: string, durationMs: number): void {
+    this.charStunnedUntilMs.set(characterId, Date.now() + durationMs);
   }
 
   /**
@@ -459,6 +475,7 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     this.lastProgressionSyncAtMs.delete(characterId);
     this.lastConsumableUseAtMs.delete(characterId);
     this.gradePenaltyByCharacter.delete(characterId);
+    this.charStunnedUntilMs.delete(characterId);
     this.presence.clearCharacterHpDirty(characterId);
   }
 
@@ -676,6 +693,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     const cooldownMs = spatial.dashCooldownMs ?? 6000;
     const manaCost = spatial.dashManaCost ?? 0;
     const now = Date.now();
+    if (this.isCharacterStunned(characterId)) {
+      return { ok: false, code: 'CHARACTER_STUNNED', message: 'Estás stuneado: no podés usar el dash' };
+    }
     const last = this.lastDashAtMs.get(characterId) ?? 0;
     if (now - last < cooldownMs) {
       return { ok: false, code: 'DASH_ON_COOLDOWN', message: 'El dash sigue en cooldown' };
@@ -706,10 +726,19 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
       return { ok: false, code: 'SKILL_NOT_FOUND', message: 'Skill no encontrada' };
     }
 
-    const pose = this.charPose.get(characterId);
-    const stats = this.charStats.get(characterId);
+    // Self-heal: ver el mismo comentario en `tryCastSkillOnPlayerForCharacter`.
+    let pose = this.charPose.get(characterId);
+    let stats = this.charStats.get(characterId);
+    if (!pose || !stats) {
+      await this.seedCharacterCombatState(characterId);
+      pose = this.charPose.get(characterId);
+      stats = this.charStats.get(characterId);
+    }
     if (!pose || !stats || stats.currentHp <= 0) {
       return { ok: false, code: 'NO_COMBAT_STATE', message: 'Personaje sin estado de combate válido' };
+    }
+    if (this.isCharacterStunned(characterId)) {
+      return { ok: false, code: 'CHARACTER_STUNNED', message: 'Estás stuneado: no podés castear' };
     }
 
     const lastBySkill = this.lastSkillCastAtMs.get(characterId) ?? new Map<string, number>();
@@ -932,9 +961,20 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     if (!skill) {
       return { ok: false, code: 'SKILL_NOT_FOUND', message: 'Skill no encontrada' };
     }
-    const stats = this.charStats.get(characterId);
+    // Self-heal: `charStats` puede haber quedado vacío para este characterId sin que nadie lo
+    // vuelva a sembrar (p. ej. el disconnect de un socket viejo corriendo DESPUÉS de que una
+    // reconexión más nueva ya sembró el estado - `onCharacterDisconnect` borra sin chequear eso).
+    // Mismo patrón que ya usa `assertCanUseConsumable` para el mismo síntoma.
+    let stats = this.charStats.get(characterId);
+    if (!stats) {
+      await this.seedCharacterCombatState(characterId);
+      stats = this.charStats.get(characterId);
+    }
     if (!stats || stats.currentHp <= 0) {
       return { ok: false, code: 'NO_COMBAT_STATE', message: 'Personaje sin estado de combate válido' };
+    }
+    if (this.isCharacterStunned(characterId)) {
+      return { ok: false, code: 'CHARACTER_STUNNED', message: 'Estás stuneado: no podés castear' };
     }
     const lastBySkill = this.lastSkillCastAtMs.get(characterId) ?? new Map<string, number>();
     this.lastSkillCastAtMs.set(characterId, lastBySkill);
@@ -959,6 +999,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
       this.emitCasterVitals(characterId, stats);
       throw e;
     }
+    if (skill.effect === 'stun') {
+      this.applyStunToCharacter(targetCharacterId, skill.effectDurationMs ?? 2000);
+    }
 
     // Splash de AoE: el objetivo primario ya pegó de verdad (transacción propia, ya
     // committeada) — un splash que falla (objetivo murió/se fue de zona justo entonces)
@@ -978,6 +1021,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
         for (const splashId of splashTargets) {
           try {
             await this.combat.attackCharacter(characterId, splashId, { skill, skipRangeCheck: true });
+            if (skill.effect === 'stun') {
+              this.applyStunToCharacter(splashId, skill.effectDurationMs ?? 2000);
+            }
           } catch (e) {
             this.logger.warn(
               `[PvP AoE] Golpe splash de ${skillId} (${characterId} → ${splashId}) falló: ${e instanceof Error ? e.message : String(e)}`,
@@ -1245,6 +1291,9 @@ export class PlayerCombatRuntimeService implements OnModuleInit, OnModuleDestroy
     const pose = this.charPose.get(characterId);
     const stats = this.charStats.get(characterId);
     if (!pose || !stats || stats.currentHp <= 0) {
+      return;
+    }
+    if (this.isCharacterStunned(characterId)) {
       return;
     }
 

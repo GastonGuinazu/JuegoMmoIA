@@ -571,6 +571,20 @@ export class WorldGateway
       return;
     }
 
+    // Stun (frostbind contra jugador, PvP): anclado a donde está, igual que un cadáver —
+    // uso la pose en RAM (más fresca que la fila de DB) para no mandarlo a una posición vieja.
+    if (this.playerCombatRuntime.isCharacterStunned(characterId)) {
+      const ramPose = this.playerCombatRuntime.getCharacterWorldPose(characterId);
+      client.emit(WS_WORLD_EVENTS.PLAYER_POSITION_CORRECTED, {
+        worldPos: ramPose
+          ? { x: ramPose.x, y: ramPose.y, z: ramPose.z }
+          : { x: ch.worldPosX, y: ch.worldPosY, z: ch.worldPosZ },
+        worldFacingYaw: ramPose?.yaw ?? ch.worldFacingYaw,
+        reason: 'CHARACTER_STUNNED',
+      } satisfies WsPlayerPositionCorrectedPayload);
+      return;
+    }
+
     const zoneId = normalizeZoneId(client.data.zoneId as string | undefined);
     if (!zonesMatch(ch.currentZoneId, zoneId)) {
       client.emit(
@@ -1555,6 +1569,13 @@ export class WorldGateway
       });
       return;
     }
+    if (this.playerCombatRuntime.isCharacterStunned(attackerCharacterId)) {
+      this.emitDenied(client, {
+        code: 'CHARACTER_STUNNED',
+        message: 'Estás stuneado: no podés atacar',
+      });
+      return;
+    }
     if (this.isSamePartyAttack(attackerCharacterId, body.targetCharacterId)) {
       this.emitDenied(client, {
         code: 'TARGET_IS_PARTY_MEMBER',
@@ -2089,6 +2110,7 @@ export class WorldGateway
         pAtk: character.derivedPAtk,
         mAtk: character.derivedMAtk,
         pDef: character.derivedPDef,
+        mDef: character.derivedMDef,
         atkSpeed: character.derivedAtkSpeed,
         critRate: character.derivedCritRate,
         pvpSwingCooldownMs: computeSwingCooldownMs(character.derivedAtkSpeed),

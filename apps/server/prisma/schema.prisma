@@ -239,6 +239,7 @@ model Character {
   derivedPAtk     Float @default(0)
   derivedMAtk     Float @default(0)
   derivedPDef     Float @default(0)
+  derivedMDef     Float @default(0)
   derivedAtkSpeed Float @default(0)
   derivedCritRate Float @default(0)
 

@@ -2,7 +2,7 @@ import type { CharacterClass } from '@prisma/client';
 
 export type CoreStatKey = 'STR' | 'AGI' | 'VIT' | 'ENE';
 
-export type DerivedStatKey = 'pAtk' | 'mAtk' | 'pDef' | 'atkSpeed' | 'critRate';
+export type DerivedStatKey = 'pAtk' | 'mAtk' | 'pDef' | 'mDef' | 'atkSpeed' | 'critRate';
 
 export interface CoreStats {
   str: number;
@@ -15,6 +15,7 @@ export interface DerivedCombatStats {
   pAtk: number;
   mAtk: number;
   pDef: number;
+  mDef: number;
   atkSpeed: number;
   critRate: number;
 }
@@ -38,6 +39,7 @@ export const DERIVED_KEYS: DerivedStatKey[] = [
   'pAtk',
   'mAtk',
   'pDef',
+  'mDef',
   'atkSpeed',
   'critRate',
 ];
@@ -49,7 +51,7 @@ export function zeroCore(): CoreStats {
 }
 
 export function zeroDerived(): DerivedCombatStats {
-  return { pAtk: 0, mAtk: 0, pDef: 0, atkSpeed: 0, critRate: 0 };
+  return { pAtk: 0, mAtk: 0, pDef: 0, mDef: 0, atkSpeed: 0, critRate: 0 };
 }
 
 export function coreFromCharacterRow(row: {

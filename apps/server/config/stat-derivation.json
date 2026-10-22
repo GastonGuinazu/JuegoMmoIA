@@ -5,6 +5,7 @@
     "pAtk": 12,
     "mAtk": 10,
     "pDef": 6,
+    "mDef": 6,
     "atkSpeed": 1.0,
     "critRate": 0.03
   },
@@ -12,6 +13,7 @@
     "pAtk": { "STR": 2.1, "AGI": 0.45, "VIT": 0.12, "ENE": 0.06 },
     "mAtk": { "STR": 0.08, "AGI": 0.22, "VIT": 0.08, "ENE": 2.75 },
     "pDef": { "STR": 0.28, "AGI": 0.48, "VIT": 1.75, "ENE": 0.08 },
+    "mDef": { "STR": 0.05, "AGI": 0.08, "VIT": 1.4, "ENE": 0.6 },
     "atkSpeed": { "STR": -0.0006, "AGI": 0.0075, "VIT": 0, "ENE": 0 },
     "critRate": { "STR": 0, "AGI": 0.00135, "VIT": 0, "ENE": 0.0004 }
   },
@@ -19,6 +21,7 @@
     "pAtk": 0.45,
     "mAtk": 0.45,
     "pDef": 0.28,
+    "mDef": 0.26,
     "atkSpeed": 0.001,
     "critRate": 0.00015
   },

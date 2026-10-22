@@ -28,6 +28,7 @@ export function buildCharacterSheetDto(
       pAtk: c.derivedPAtk,
       mAtk: c.derivedMAtk,
       pDef: c.derivedPDef,
+      mDef: c.derivedMDef,
       atkSpeed: c.derivedAtkSpeed,
       critRate: c.derivedCritRate,
       pvpSwingCooldownMs: computeSwingCooldownMs(c.derivedAtkSpeed),

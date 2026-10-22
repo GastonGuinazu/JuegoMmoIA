@@ -53,6 +53,7 @@ export type CharacterSheetDto = {
     pAtk: number;
     mAtk: number;
     pDef: number;
+    mDef: number;
     atkSpeed: number;
     critRate: number;
     /** Ver `WsPlayerStatsUpdatePayload.derived.pvpSwingCooldownMs` en world-socket.ts. */

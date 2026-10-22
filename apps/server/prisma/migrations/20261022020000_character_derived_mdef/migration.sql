@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Character" ADD COLUMN "derivedMDef" DOUBLE PRECISION NOT NULL DEFAULT 0;

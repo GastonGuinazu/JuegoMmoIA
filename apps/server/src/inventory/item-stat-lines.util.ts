@@ -13,6 +13,7 @@ const D_LABEL: Record<DerivedStatKey, string> = {
   pAtk: 'P.Atk',
   mAtk: 'M.Atk',
   pDef: 'P.Def',
+  mDef: 'M.Def',
   atkSpeed: 'Atk.Sp',
   critRate: 'Crit',
 };

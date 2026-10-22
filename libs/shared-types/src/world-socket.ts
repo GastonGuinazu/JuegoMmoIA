@@ -259,6 +259,7 @@ export type WsPlayerStatsUpdatePayload = {
     pAtk: number;
     mAtk: number;
     pDef: number;
+    mDef: number;
     atkSpeed: number;
     critRate: number;
     /**

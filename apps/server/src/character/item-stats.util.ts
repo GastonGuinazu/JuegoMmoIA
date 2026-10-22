@@ -24,6 +24,10 @@ const DERIVED_ALIASES: Record<string, keyof DerivedCombatStats | undefined> = {
   p_def: 'pDef',
   physicaldefense: 'pDef',
   physicaldefence: 'pDef',
+  mdef: 'mDef',
+  m_def: 'mDef',
+  magicdefense: 'mDef',
+  magicdefence: 'mDef',
   atkspeed: 'atkSpeed',
   atk_speed: 'atkSpeed',
   attackspeed: 'atkSpeed',
@@ -67,7 +71,14 @@ export function parseTemplateBaseStats(
       continue;
     }
 
-    if (nk === 'patk' || nk === 'matk' || nk === 'pdef' || nk === 'atkspeed' || nk === 'critrate') {
+    if (
+      nk === 'patk' ||
+      nk === 'matk' ||
+      nk === 'pdef' ||
+      nk === 'mdef' ||
+      nk === 'atkspeed' ||
+      nk === 'critrate'
+    ) {
       const dk = DERIVED_ALIASES[nk];
       if (dk) derivedFlat[dk] += val;
       continue;
@@ -81,6 +92,7 @@ export function parseTemplateBaseStats(
       key === 'pAtk' ||
       key === 'mAtk' ||
       key === 'pDef' ||
+      key === 'mDef' ||
       key === 'atkSpeed' ||
       key === 'critRate'
     ) {
@@ -145,6 +157,7 @@ function addDerived(a: DerivedCombatStats, b: DerivedCombatStats): void {
   a.pAtk += b.pAtk;
   a.mAtk += b.mAtk;
   a.pDef += b.pDef;
+  a.mDef += b.mDef;
   a.atkSpeed += b.atkSpeed;
   a.critRate += b.critRate;
 }
