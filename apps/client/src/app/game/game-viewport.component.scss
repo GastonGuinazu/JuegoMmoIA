@@ -74,8 +74,8 @@
   z-index: 12;
   pointer-events: auto;
   display: flex;
-  gap: 0.5rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.3rem;
   padding: 0.35rem 0.5rem;
   margin: 0.25rem 0.5rem 0;
   background: rgba(30, 35, 43, 0.92);
@@ -83,14 +83,34 @@
   border-radius: 6px;
   font-size: 0.75rem;
 
-  input {
-    flex: 1;
-    min-width: 0;
-    padding: 0.35rem 0.5rem;
-    border-radius: 6px;
-    border: 1px solid #3c4454;
-    background: #12151a;
-    color: #e8eaed;
+  &__row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+      border: 1px solid #3c4454;
+      background: #12151a;
+      color: #e8eaed;
+    }
+  }
+
+  &__hint {
+    margin: 0;
+    color: #9aa3b2;
+    font-size: 0.7rem;
+    line-height: 1.4;
+
+    code {
+      color: #c9d1e0;
+      background: #12151a;
+      border-radius: 4px;
+      padding: 0 0.25rem;
+    }
   }
 }
 

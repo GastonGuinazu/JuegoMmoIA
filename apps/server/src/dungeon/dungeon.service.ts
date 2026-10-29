@@ -58,7 +58,7 @@ export type DungeonPartyTarget = {
   chamberDisplayName: string;
 };
 
-function todayUtcDateOnly(): Date {
+export function todayUtcDateOnly(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }

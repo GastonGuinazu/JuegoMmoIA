@@ -136,15 +136,21 @@
         }
         @if (playerState.isSessionAdmin() && gmBarVisible()) {
           <div class="gm-dev-bar" role="group" aria-label="Comandos GM (solo personaje administrador)">
-            <input
-              type="text"
-              [(ngModel)]="gmCommandLine"
-              name="gmCommand"
-              placeholder="GM local: /setplus WEAPON 7 (tecla Y para ocultar)"
-              (keydown.enter)="runGmCommandLine()"
-              autocomplete="off"
-            />
-            <button type="button" class="btn" (click)="runGmCommandLine()">Ejecutar GM</button>
+            <div class="gm-dev-bar__row">
+              <input
+                type="text"
+                [(ngModel)]="gmCommandLine"
+                name="gmCommand"
+                placeholder="GM local: /resetticket (tecla Y para ocultar)"
+                (keydown.enter)="runGmCommandLine()"
+                autocomplete="off"
+              />
+              <button type="button" class="btn" (click)="runGmCommandLine()">Ejecutar GM</button>
+            </div>
+            <p class="gm-dev-bar__hint">
+              Comandos: <code>/setplus WEAPON 7</code>, <code>/giveitem &lt;catalogKey&gt; 1</code>,
+              <code>/setlevel 10</code>, <code>/setkarma -500</code>, <code>/resetticket</code>
+            </p>
           </div>
         }
         <app-system-log-panel />

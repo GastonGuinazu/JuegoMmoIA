@@ -6,6 +6,7 @@ import {
 import { GearSlot, ItemInstanceLocation, Prisma } from '@prisma/client';
 import { CharacterService } from '../character/character.service';
 import { PenaltyManagerService } from '../combat/penalty-manager.service';
+import { todayUtcDateOnly } from '../dungeon/dungeon.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { loadSynthesisTierConfig } from '../synthesis/synthesis-tier-config';
 
@@ -81,6 +82,8 @@ export class GmCommandService {
           return await this.runSetLevel(characterId, args);
         case 'setkarma':
           return await this.runSetKarma(characterId, args);
+        case 'resetticket':
+          return await this.runResetTicket(characterId);
         default:
           return {
             ok: false,
@@ -284,5 +287,17 @@ export class GmCommandService {
       data: { karmaPoints, karmaTier },
     });
     return { ok: true, command: 'setkarma' };
+  }
+
+  /**
+   * Libera el ticket diario de mazmorra (1 por personaje por día, `DungeonQuota`)
+   * sin esperar al día siguiente. Útil para repetir pruebas/grabaciones.
+   */
+  private async runResetTicket(characterId: string): Promise<GmCommandExecuteOk> {
+    const quotaDate = todayUtcDateOnly();
+    await this.prisma.dungeonQuota.deleteMany({
+      where: { characterId, quotaDate },
+    });
+    return { ok: true, command: 'resetticket' };
   }
 }
