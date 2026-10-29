@@ -258,7 +258,7 @@ export class WorldGateway
     });
     const othersInZone = othersInZoneRows.filter((c) => this.presence.isConnected(c.id));
 
-    const moveSpeed = this.spatial.getEffectiveWorldMoveSpeed(row.derivedAtkSpeed);
+    const moveSpeed = this.spatial.getEffectiveWorldMoveSpeed(row.derivedAtkSpeed, row.characterClass);
     const vitals = await this.statEngine.getCombatVitals(characterId);
     const runtimeVitals = this.playerCombatRuntime.getRuntimeVitals(characterId);
 
@@ -629,7 +629,7 @@ export class WorldGateway
 
       const from = currentPos;
       const to = { x: rawX, y: rawY, z: rawZ };
-      const maxSpeed = this.spatial.getEffectiveWorldMoveSpeed(ch.derivedAtkSpeed);
+      const maxSpeed = this.spatial.getEffectiveWorldMoveSpeed(ch.derivedAtkSpeed, ch.characterClass);
 
       const check = this.spatial.validateMovementIntent({
         from,

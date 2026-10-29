@@ -37,6 +37,8 @@ export interface WorldSpatialConfigFile {
   worldMoveSpeedMin?: number;
   worldMoveSpeedMax?: number;
   worldMoveSpeedAtkSpeedFactor?: number;
+  /** Multiplicador extra de velocidad de movimiento por clase (ej. mago más rápido). Default 1 si falta la clave. */
+  classWorldMoveSpeedMultiplier?: Record<string, number>;
   movementValidationSlackRatio?: number;
   movementMinDtSeconds?: number;
   movementMaxDtSeconds?: number;

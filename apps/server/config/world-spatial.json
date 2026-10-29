@@ -19,6 +19,10 @@
   "worldMoveSpeedMin": 2,
   "worldMoveSpeedMax": 11,
   "worldMoveSpeedAtkSpeedFactor": 1,
+  "_classWorldMoveSpeedMultiplier": "Mago mas rapido que el resto para el trailer; default 1 si falta la clave. Bajado 1/4 desde 1.75 (pedido 29/10/2026).",
+  "classWorldMoveSpeedMultiplier": {
+    "DARK_WIZARD": 1.3125
+  },
   "movementValidationSlackRatio": 2.5,
   "_mobAi": "Radio leash XZ desde spawn persistido (MobAiTickService).",
   "mobAiLeashRadiusMeters": 50,

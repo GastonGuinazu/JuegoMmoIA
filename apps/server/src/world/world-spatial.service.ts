@@ -161,14 +161,18 @@ export class WorldSpatialService {
   /**
    * Unidades/s efectivas en el plano XZ a partir del stat derivado (data-driven en world-spatial.json).
    */
-  getEffectiveWorldMoveSpeed(derivedAtkSpeed: number): number {
+  getEffectiveWorldMoveSpeed(derivedAtkSpeed: number, characterClass?: string): number {
     const spatial = loadWorldSpatialConfig();
     const base = spatial.baseWorldMoveSpeed ?? 3;
     const factor = spatial.worldMoveSpeedAtkSpeedFactor ?? 1;
     const minS = spatial.worldMoveSpeedMin ?? 2;
     const maxS = spatial.worldMoveSpeedMax ?? 11;
     const atk = Number.isFinite(derivedAtkSpeed) ? derivedAtkSpeed : 1;
-    const raw = base * atk * factor;
+    const classMultiplier =
+      characterClass !== undefined
+        ? spatial.classWorldMoveSpeedMultiplier?.[characterClass] ?? 1
+        : 1;
+    const raw = base * atk * factor * classMultiplier;
     return Math.max(minS, Math.min(maxS, raw));
   }
 
