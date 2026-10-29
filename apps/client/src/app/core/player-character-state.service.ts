@@ -257,15 +257,17 @@ export class PlayerCharacterStateService {
     this.vitals.set(r.character.vitals);
     this.syncXpFromCharacterSheet(r.character);
     this.adena.set(r.adena);
-    this.synthesisQuote.set({
-      ok: true,
-      adenaCost: r.adenaSpent,
-      baseSuccessPercent: r.baseSuccessPercent,
-      effectiveSuccessPercent: r.effectiveSuccessPercent,
-      pityCount: r.pityCount,
-      pityMaxFails: r.pityMaxFails,
-      pityBonusPerFailPercent: r.pityBonusPerFailPercent,
-    });
+    /**
+     * El Material 2 (sacrificio) siempre se destruye, haya salido o no — así que la
+     * cotización que se acaba de usar ya no sirve para nada: el ítem base cambió de
+     * tramo (nivel subió, o el pity se incrementó/reseteó) y el próximo intento necesita
+     * un sacrificio nuevo de todas formas. Antes acá se dejaba la cotización vieja puesta
+     * (`baseSuccessPercent`/`effectiveSuccessPercent` de la tirada que YA pasó), así que
+     * el panel seguía mostrando ese % — inflado por el pity de ese intento — hasta que el
+     * jugador elegía un material 2 nuevo. Limpiarla fuerza a pedir una cotización fresca
+     * (ver efecto en `SynthesisComponent`) apenas haya un combo nuevo.
+     */
+    this.synthesisQuote.set(null);
     this.synthesisOutcome.set({
       success: r.success,
       forcedByPity: r.forcedByPity,

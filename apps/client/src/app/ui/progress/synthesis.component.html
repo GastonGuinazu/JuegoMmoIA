@@ -1,107 +1,209 @@
 <section class="synthesis-panel" aria-label="Panel de síntesis">
   <header class="synthesis-header">
     <h3>Synthesis Engine</h3>
-    <p>Combiná dos ítems iguales para subir el nivel de síntesis.</p>
+    <p>Clic derecho en un ítem: 1° elige Material 1, 2° elige Material 2 (mismo ítem, mismo nivel).</p>
   </header>
 
-  <div class="slots-grid">
-    <div class="slot-card">
-      <label for="synth-base">Base</label>
-      <select
-        id="synth-base"
-        [ngModel]="baseItemId()"
-        (ngModelChange)="onBaseSelectionChanged($event)"
+  <div class="combo-row">
+    <div class="combo-materials">
+      <button
+        type="button"
+        class="material-slot"
+        [class.material-slot--filled]="selectedMaterialOne()"
+        (contextmenu)="onMaterialSlotContextMenu($event, 'one')"
+        [title]="selectedMaterialOne() ? (displayItemTitle(selectedMaterialOne()!) + ' — clic derecho para quitar') : 'Vacío'"
       >
-        <option value="">Seleccionar</option>
-        @for (item of baseCandidates(); track item.id) {
-          <option [value]="item.id">{{ displayItem(item) }}</option>
+        <span class="material-slot__label">Material 1</span>
+        @if (selectedMaterialOne(); as one) {
+          <div
+            class="slot-visual"
+            [ngClass]="[itemToneClass(one), gradeToneClass(one)]"
+            (mouseenter)="showFloatingTooltip($event, one)"
+            (mousemove)="moveFloatingTooltip($event)"
+            (mouseleave)="hideFloatingTooltip()"
+          >
+            @if (hasPlusLevel(one)) {
+              <span class="plus-level-badge">+{{ plusLevel(one) }}</span>
+            }
+            @if (isIconPath(one.icon)) {
+              <img class="slot-icon-img" [src]="one.icon" [alt]="one.name" />
+            } @else {
+              <span class="slot-icon-text">{{ one.icon || '◆' }}</span>
+            }
+            @if (showNameFallback(one)) {
+              <span class="item-name-fallback">{{ one.name }}</span>
+            }
+          </div>
+        } @else {
+          <span class="empty-slot">+</span>
         }
-      </select>
+      </button>
+
+      <button
+        type="button"
+        class="material-slot"
+        [class.material-slot--filled]="selectedMaterialTwo()"
+        (contextmenu)="onMaterialSlotContextMenu($event, 'two')"
+        [title]="selectedMaterialTwo() ? (displayItemTitle(selectedMaterialTwo()!) + ' — clic derecho para quitar') : 'Vacío'"
+      >
+        <span class="material-slot__label">Material 2</span>
+        @if (selectedMaterialTwo(); as two) {
+          <div
+            class="slot-visual"
+            [ngClass]="[itemToneClass(two), gradeToneClass(two)]"
+            (mouseenter)="showFloatingTooltip($event, two)"
+            (mousemove)="moveFloatingTooltip($event)"
+            (mouseleave)="hideFloatingTooltip()"
+          >
+            @if (hasPlusLevel(two)) {
+              <span class="plus-level-badge">+{{ plusLevel(two) }}</span>
+            }
+            @if (isIconPath(two.icon)) {
+              <img class="slot-icon-img" [src]="two.icon" [alt]="two.name" />
+            } @else {
+              <span class="slot-icon-text">{{ two.icon || '◆' }}</span>
+            }
+            @if (showNameFallback(two)) {
+              <span class="item-name-fallback">{{ two.name }}</span>
+            }
+          </div>
+        } @else {
+          <span class="empty-slot">+</span>
+        }
+      </button>
     </div>
 
-    <div class="slot-card">
-      <label for="synth-material">Material</label>
-      <select
-        id="synth-material"
-        [ngModel]="materialItemId()"
-        (ngModelChange)="onMaterialSelectionChanged($event)"
-      >
-        <option value="">Seleccionar</option>
-        @for (item of materialCandidates(); track item.id) {
-          <option [value]="item.id">{{ displayItem(item) }}</option>
-        }
-      </select>
-      @if (materialHint(); as hint) {
-        <p class="slot-hint">{{ hint }}</p>
-      }
+    <div class="combo-arrow" [class.combo-arrow--ready]="quote()">
+      <span class="combo-arrow__shaft" aria-hidden="true"></span>
+      <span class="combo-arrow__pct">{{ quote() ? successPercent().toFixed(0) + '%' : '—' }}</span>
     </div>
 
-    <div class="slot-card result-slot" [class]="resultFxClass()">
-      <label>Resultado</label>
-      <div class="result-level">{{ resultLevelLabel() }}</div>
-      @if (state.synthesisBusy()) {
-        <div class="processing">Procesando...</div>
-      }
-      @if (outcome(); as result) {
-        @if (!result.success) {
-        <div class="smoke-layer" aria-hidden="true">
-          @for (particle of smokeParticles; track particle) {
-            <span class="smoke-particle"></span>
+    <div class="result-slot" [ngClass]="resultFxClass()">
+      <span class="material-slot__label">Resultado</span>
+      <div class="slot-visual result-visual" [class.result-visual--ready]="selectedMaterialOne()">
+        @if (selectedMaterialOne(); as one) {
+          <span class="result-ring" aria-hidden="true"></span>
+          @if (resultPreviewLevel(); as lvl) {
+            <span class="plus-level-badge plus-level-badge--result">+{{ lvl }}</span>
           }
-        </div>
+          @if (isIconPath(one.icon)) {
+            <img class="slot-icon-img" [src]="one.icon" [alt]="one.name" />
+          } @else {
+            <span class="slot-icon-text">{{ one.icon || '◆' }}</span>
+          }
+        } @else {
+          <span class="result-placeholder">?</span>
         }
-      }
+        @if (state.synthesisBusy()) {
+          <div class="processing">Procesando…</div>
+        }
+        @if (outcome(); as result) {
+          @if (!result.success) {
+            <div class="smoke-layer" aria-hidden="true">
+              @for (particle of smokeParticles; track particle) {
+                <span class="smoke-particle"></span>
+              }
+            </div>
+          }
+        }
+      </div>
     </div>
   </div>
 
-  <div class="quote-card">
+  <div class="success-bar" [class.success-bar--guaranteed]="isGuaranteed()" role="progressbar" [attr.aria-valuenow]="quote() ? successPercent() : 0" aria-valuemin="0" aria-valuemax="100">
+    <div class="success-bar__fill" [style.width.%]="quote() ? successPercent() : 0"></div>
+    <span class="success-bar__text">
+      @if (!quote()) {
+        Elegí los 2 materiales
+      } @else if (isGuaranteed()) {
+        100% — ¡Garantizado! (pity {{ quote()!.pityCount }}/{{ quote()!.pityMaxFails }})
+      } @else {
+        {{ successPercent().toFixed(1) }}% de probabilidad de éxito
+      }
+    </span>
+  </div>
+
+  <div class="quote-lines">
+    <div class="quote-row">
+      <span>Adena requerida</span>
+      <strong>{{ quote() ? formatAdena(quote()!.adenaCost) : '—' }}</strong>
+    </div>
     @if (quote(); as q) {
-      <div class="quote-row">
-        <span>Costo en Adena</span>
-        <strong>{{ formatAdena(q.adenaCost) }}</strong>
-      </div>
-      <div class="quote-row">
-        <span>Probabilidad de éxito</span>
-        <strong>{{ q.effectiveSuccessPercent.toFixed(1) + '%' }}</strong>
-      </div>
       <div class="quote-row pity">
         <span>Pity</span>
-        <strong>
-          {{
-            q.pityCount + ' / ' + q.pityMaxFails + ' (+' + q.pityBonusPerFailPercent.toFixed(1)
-            + '% por fallo)'
-          }}
-        </strong>
-      </div>
-    } @else {
-      <div class="quote-row">
-        <span>Costo en Adena</span>
-        <strong>—</strong>
-      </div>
-      <div class="quote-row">
-        <span>Probabilidad de éxito</span>
-        <strong>—</strong>
-      </div>
-      <div class="quote-row pity">
-        <span>Pity</span>
-        <strong>—</strong>
+        <strong>{{ q.pityCount }} / {{ q.pityMaxFails }} (+{{ q.pityBonusPerFailPercent.toFixed(1) }}% por fallo)</strong>
       </div>
     }
   </div>
 
-  <button
-    type="button"
-    class="synth-btn"
-    [disabled]="!canSynthesize()"
-    (click)="runSynthesis()"
-  >
-    Sintetizar
+  @if (materialHint(); as hint) {
+    <p class="slot-hint">{{ hint }}</p>
+  }
+  @if (rejectedPickHint(); as rej) {
+    <p class="slot-hint slot-hint--reject">{{ rej }}</p>
+  }
+
+  <button type="button" class="synth-btn" [disabled]="!canSynthesize()" (click)="runSynthesis()">
+    Combinar
   </button>
-  <p class="sacrifice-warning">
-    ⚠ El material sacrificado se pierde siempre, incluso si el intento falla.
-  </p>
+  <p class="sacrifice-warning">⚠ El Material 2 se pierde siempre, incluso si el intento falla.</p>
 
   @if (state.synthesisError(); as err) {
     <p class="error-msg">{{ err }}</p>
   }
+
+  <div class="candidate-section">
+    <h4>Tus ítems</h4>
+    <div class="candidate-grid">
+      @for (item of allCandidateItems(); track item.id) {
+        <button
+          type="button"
+          class="candidate-slot"
+          [class.candidate-slot--one]="roleOf(item) === 'one'"
+          [class.candidate-slot--two]="roleOf(item) === 'two'"
+          (contextmenu)="onCandidateContextMenu($event, item)"
+          [title]="displayItemTitle(item) + ' — clic derecho para elegir'"
+        >
+          <div
+            class="slot-visual"
+            [ngClass]="[itemToneClass(item), gradeToneClass(item)]"
+            (mouseenter)="showFloatingTooltip($event, item)"
+            (mousemove)="moveFloatingTooltip($event)"
+            (mouseleave)="hideFloatingTooltip()"
+          >
+            @if (hasPlusLevel(item)) {
+              <span class="plus-level-badge">+{{ plusLevel(item) }}</span>
+            }
+            @if (isIconPath(item.icon)) {
+              <img class="slot-icon-img" [src]="item.icon" [alt]="item.name" />
+            } @else {
+              <span class="slot-icon-text">{{ item.icon || '◆' }}</span>
+            }
+            @if (showNameFallback(item)) {
+              <span class="item-name-fallback">{{ item.name }}</span>
+            }
+          </div>
+        </button>
+      }
+      @if (allCandidateItems().length === 0) {
+        <p class="empty-hint">No tenés ítems sintetizables (no consumibles, sin stackear) en mochila o equipados.</p>
+      }
+    </div>
+  </div>
 </section>
+@if (hoveredTooltipItem(); as tip) {
+  <div class="floating-item-tooltip" #floatingTooltip [ngStyle]="tooltipStyle()" role="tooltip">
+    <div class="tt-name" [style.color]="gradeColor(tip)">
+      <span>{{ tip.name }}</span>
+      @if (hasPlusLevel(tip)) {
+        <span class="tt-plus"> +{{ plusLevel(tip) }}</span>
+      }
+    </div>
+    @for (line of statLines(tip); track line) {
+      <div class="tt-line">{{ line }}</div>
+    }
+    @if (statLines(tip).length === 0) {
+      <div class="tt-line tt-muted">Sin bonos listados</div>
+    }
+  </div>
+}

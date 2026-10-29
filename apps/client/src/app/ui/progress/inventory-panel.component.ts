@@ -17,6 +17,18 @@ import {
   INVENTORY_SLOT_COUNT,
   PAPERDOLL_LAYOUT,
 } from './gear-slots';
+import {
+  displayItemTitle as displayItemTitleUtil,
+  gradeColor as gradeColorUtil,
+  gradeLabel as gradeLabelUtil,
+  gradeToneClass as gradeToneClassUtil,
+  hasPlusLevel as hasPlusLevelUtil,
+  isIconPath as isIconPathUtil,
+  isStubIcon as isStubIconUtil,
+  itemToneClass as itemToneClassUtil,
+  plusLevel as plusLevelUtil,
+  type ItemGradeLabel,
+} from './item-display.util';
 
 @Component({
   selector: 'app-inventory-panel',
@@ -86,22 +98,11 @@ export class InventoryPanelComponent {
   });
 
   isIconPath(icon: string | null | undefined): boolean {
-    const s = (icon ?? '').trim();
-    if (!s) {
-      return false;
-    }
-    return (
-      s.startsWith('/') ||
-      s.startsWith('./') ||
-      s.startsWith('../') ||
-      s.startsWith('http://') ||
-      s.startsWith('https://')
-    );
+    return isIconPathUtil(icon);
   }
 
   isStubIcon(icon: string | null | undefined): boolean {
-    const s = (icon ?? '').toLowerCase();
-    return s.includes('stub');
+    return isStubIconUtil(icon);
   }
 
   showNameFallback(item: InventoryItemRowDto): boolean {
@@ -126,61 +127,27 @@ export class InventoryPanelComponent {
   }
 
   plusLevel(item: InventoryItemRowDto): number {
-    if (typeof item.plusLevel !== 'number' || !Number.isFinite(item.plusLevel)) {
-      return 0;
-    }
-    return Math.max(0, Math.floor(item.plusLevel));
+    return plusLevelUtil(item);
   }
 
   hasPlusLevel(item: InventoryItemRowDto): boolean {
-    return this.plusLevel(item) > 0;
+    return hasPlusLevelUtil(item);
   }
 
   displayItemTitle(item: InventoryItemRowDto): string {
-    const plus = this.plusLevel(item);
-    if (plus <= 0) {
-      return item.name;
-    }
-    return `${item.name} +${plus}`;
+    return displayItemTitleUtil(item);
   }
 
-  gradeLabel(item: InventoryItemRowDto): 'None' | 'D' | 'C' | 'B' | 'A' | 'S' {
-    const grade = item.grade;
-    if (
-      grade === 'D' ||
-      grade === 'C' ||
-      grade === 'B' ||
-      grade === 'A' ||
-      grade === 'S' ||
-      grade === 'None'
-    ) {
-      return grade;
-    }
-    return 'None';
+  gradeLabel(item: InventoryItemRowDto): ItemGradeLabel {
+    return gradeLabelUtil(item);
   }
 
   gradeToneClass(item: InventoryItemRowDto): string {
-    return `item-grade--${this.gradeLabel(item).toLowerCase()}`;
+    return gradeToneClassUtil(item);
   }
 
   gradeColor(item: InventoryItemRowDto): string {
-    const grade = this.gradeLabel(item);
-    if (grade === 'D') {
-      return '#d4af37';
-    }
-    if (grade === 'C') {
-      return '#e5e4e2';
-    }
-    if (grade === 'B') {
-      return '#0077be';
-    }
-    if (grade === 'A') {
-      return '#50c878';
-    }
-    if (grade === 'S') {
-      return '#ff4500';
-    }
-    return '#2f3848';
+    return gradeColorUtil(item);
   }
 
   paperdollSlotBorderColor(slot: string): string | null {
@@ -193,14 +160,7 @@ export class InventoryPanelComponent {
   }
 
   itemToneClass(item: InventoryItemRowDto): string {
-    if (item.consumable) {
-      return 'slot-visual--potion';
-    }
-    const typeHint = `${item.catalogKey ?? ''} ${item.itemTemplateId}`.toLowerCase();
-    if (typeHint.includes('drop') || typeHint.includes('loot')) {
-      return 'slot-visual--drop';
-    }
-    return 'slot-visual--gear';
+    return itemToneClassUtil(item);
   }
 
   onHeaderPointerDown(ev: PointerEvent): void {
